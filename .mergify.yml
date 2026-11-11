@@ -34,8 +34,6 @@ queue_rules:
     max_checks_retries: 1
     merge_method: squash
     update_method: rebase
-    commit_message_template: |-
-      {{ title }} (#{{ number }})
 
 priority_rules:
   - name: urgent
