@@ -71,7 +71,12 @@ export function composeLine(input: ComposeLineInput): string {
   const head = composeHead(code, input.station, verb);
   const tag = fingerprintTag(input.fingerprint);
   const subject = toLineText(input.subject);
-  const available = LINE_MAX - head.length - 1 - tag.length;
+  // Two separators, not one: `head` + ' ' + body + ' ' + tag. Counting a single
+  // space let a one-word subject overflow to 81 characters, and the final
+  // slice then cut the fingerprint tag away — losing the very link between the
+  // displayed line and the signed payload (found by BIP-P-15, seed 20261116,
+  // counter-example: empty station, a 5000-character single-word subject).
+  const available = Math.max(0, LINE_MAX - head.length - tag.length - 2);
   const body = truncateSubject(subject, available);
   const line = body.length > 0 ? `${head} ${body} ${tag}` : `${head} ${tag}`;
   return line.slice(0, LINE_MAX);
