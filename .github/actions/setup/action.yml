@@ -16,7 +16,7 @@ runs:
           "$HOME/.local/opt/bin" \
           "$HOME/.local/share/pnpm"; do
           if [ -x "$dir/node" ] || [ -x "$dir/pnpm" ]; then
-            echo "::add-path::$dir"
+            echo "$dir" >> "$GITHUB_PATH"
           fi
         done
 
