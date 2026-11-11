@@ -172,12 +172,13 @@ def try_merge(repo, token, pr, required):
     return 'error'
 
 
-def report_conflict(pr, repo, token, sha, base_ref, detail):
-    """Pose le check rouge + le label de conflit, retire le label OK."""
-    create_check(repo, token, sha, False,
+def raise_conflict(pr, repo, token, base_ref, detail):
+    """Check rouge + label d'escalade. Le gate ne résout rien : il signale."""
+    create_check(repo, token, pr['head']['sha'], False,
                  'Conflits avec %s — intervention humaine' % base_ref, detail)
     set_label(pr, repo, token, LABEL_CONFLIT, True)
     set_label(pr, repo, token, LABEL_OK, False)
+
 
 def handle_pr(pr, repo, token, required, dry=False):
     num = pr['number']
@@ -194,10 +195,10 @@ def handle_pr(pr, repo, token, required, dry=False):
     conflicts = (mergeable is False and mergeable_state == 'dirty')
 
     if conflicts:
-        report_conflict(pr, repo, token, sha, base_ref,
-                        'Le gate ne resout pas les conflits (pas d IA ici). '
-                        'Rebase manuel puis push, ou utilise le label '
-                        '`hermes/intervention-humaine` pour suspendre.')
+        raise_conflict(pr, repo, token, base_ref,
+                       'Le gate ne résout pas les conflits : il dispatche le '
+                       'résolveur Hermes (hermes-conflict-resolver.yml). Sans '
+                       'résolution, rebase manuel puis push.')
         return 'conflict'
     set_label(pr, repo, token, LABEL_CONFLIT, False)
 
@@ -213,9 +214,9 @@ def handle_pr(pr, repo, token, required, dry=False):
             return settle_after_refresh(repo, token, num, required, dry=dry)
         if r == 'conflict':
             # Le rebase serveur a été refusé : conflit réel après tout.
-            report_conflict(pr, repo, token, sha, base_ref,
-                            'Le rebase automatique a ete refuse. Rebase manuel '
-                            'puis push, ou label `hermes/intervention-humaine`.')
+            raise_conflict(pr, repo, token, base_ref,
+                           'Le rebase automatique a été refusé. Rebase manuel '
+                           'puis push, ou label `hermes/intervention-humaine`.')
         return r
 
     set_label(pr, repo, token, LABEL_OK, True)
@@ -277,6 +278,7 @@ def main():
         prs = []
 
     merged = 0
+    conflicts = []
     for pr in prs:
         if pr.get('draft') or pr.get('state') != 'open':
             continue
@@ -284,10 +286,18 @@ def main():
             r = handle_pr(pr, repo, token, required, dry)
             if r == 'merged':
                 merged += 1
+            elif r == 'conflict':
+                conflicts.append(pr['number'])
         except Exception as e:
             print('[gate] #%s exception : %r' % (pr.get('number'), e), flush=True)
-    print('[gate] terminé : %d PR traitée(s), %d merge(s)' % (len(prs), merged),
-          flush=True)
+    # Sortie machine pour le workflow : les PR en VRAI conflit, pour que l'étape
+    # suivante dispatche le résolveur (hermes-conflict-resolver.yml).
+    out_path = os.environ.get('GITHUB_OUTPUT')
+    if out_path:
+        with open(out_path, 'a', encoding='utf-8') as fh:
+            fh.write('conflict_prs=%s\n' % ','.join(str(n) for n in conflicts))
+    print('[gate] terminé : %d PR traitée(s), %d merge(s), conflits %s'
+          % (len(prs), merged, conflicts or 'aucun'), flush=True)
 
 
 if __name__ == '__main__':
