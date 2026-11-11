@@ -30,6 +30,11 @@ jobs:
     runs-on: [self-hosted, bipeur-worker]
     timeout-minutes: 5
     steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm typecheck
 
@@ -38,6 +43,11 @@ jobs:
     runs-on: [self-hosted, bipeur-worker]
     timeout-minutes: 5
     steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm lint
 
@@ -46,6 +56,11 @@ jobs:
     runs-on: [self-hosted, bipeur-worker]
     timeout-minutes: 5
     steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - name: Unit tests and property tests (BIP-P-01 … BIP-P-12)
         run: pnpm test
@@ -55,6 +70,11 @@ jobs:
     runs-on: [self-hosted, bipeur-worker]
     timeout-minutes: 5
     steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm build
       - name: Smoke — the Central boots and answers

@@ -162,6 +162,13 @@ def try_merge(repo, token, pr, required):
     return 'error'
 
 
+def report_conflict(pr, repo, token, sha, base_ref, detail):
+    """Pose le check rouge + le label de conflit, retire le label OK."""
+    create_check(repo, token, sha, False,
+                 'Conflits avec %s — intervention humaine' % base_ref, detail)
+    set_label(pr, repo, token, LABEL_CONFLIT, True)
+    set_label(pr, repo, token, LABEL_OK, False)
+
 def handle_pr(pr, repo, token, required, dry=False):
     num = pr['number']
     sha = pr['head']['sha']
@@ -177,13 +184,10 @@ def handle_pr(pr, repo, token, required, dry=False):
     conflicts = (mergeable is False and mergeable_state == 'dirty')
 
     if conflicts:
-        create_check(repo, token, sha, False,
-                     'Conflits avec %s — intervention humaine' % base_ref,
-                     'Le gate ne résout pas les conflits (pas d IA ici). '
-                     'Rebase manuel puis push, ou utilise le label '
-                     '`hermes/intervention-humaine` pour suspendre.')
-        set_label(pr, repo, token, LABEL_CONFLIT, True)
-        set_label(pr, repo, token, LABEL_OK, False)
+        report_conflict(pr, repo, token, sha, base_ref,
+                        'Le gate ne resout pas les conflits (pas d IA ici). '
+                        'Rebase manuel puis push, ou utilise le label '
+                        '`hermes/intervention-humaine` pour suspendre.')
         return 'conflict'
     set_label(pr, repo, token, LABEL_CONFLIT, False)
 
@@ -199,12 +203,9 @@ def handle_pr(pr, repo, token, required, dry=False):
             return settle_after_refresh(repo, token, num, required, dry=dry)
         if r == 'conflict':
             # Le rebase serveur a été refusé : conflit réel après tout.
-            create_check(repo, token, sha, False,
-                         'Conflits avec %s — intervention humaine' % base_ref,
-                         'Le rebase automatique a été refusé. Rebase manuel '
-                         'puis push, ou label `hermes/intervention-humaine`.')
-            set_label(pr, repo, token, LABEL_CONFLIT, True)
-            set_label(pr, repo, token, LABEL_OK, False)
+            report_conflict(pr, repo, token, sha, base_ref,
+                            'Le rebase automatique a ete refuse. Rebase manuel '
+                            'puis push, ou label `hermes/intervention-humaine`.')
         return r
 
     set_label(pr, repo, token, LABEL_OK, True)
