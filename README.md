@@ -143,6 +143,7 @@ Scripts ──────── SNPP :4440, bip ────────┘    
 
 ### Page state machine (BIP-F-05)
 
+<!-- state-graph:start -->
 ```dot
 digraph page {
   rankdir=LR;
@@ -158,8 +159,12 @@ digraph page {
   read -> cancelled;
 }
 ```
+<!-- state-graph:end -->
 
-Any other transition is refused, and a final state never changes again.
+Any other transition is refused, and a final state never changes again. The
+diagram is generated from `packages/core/src/states.ts` by the
+`state-machine-guard` hook (`.kiro/hooks/state-machine-guard.json`), never edited
+by hand.
 
 ### Signed decisions (BIP-F-18)
 
@@ -211,28 +216,42 @@ Twelve properties are written down before the code and tested with
 
 ---
 
-## Built with Kiro
+## Kiro usage
 
-The whole project is driven by Kiro specs, steering, hooks, custom agents and
-Crew. `/.kiro` is tracked on purpose — the `contest-guard` workflow fails if any
-`.gitignore` rule ever matches it.
+The whole project is driven by Kiro specs, steering, hooks, custom agents, a
+skill and MCP. `/.kiro` is tracked on purpose — the `contest-guard` workflow fails
+if any `.gitignore` rule ever matches it.
 
-- `.kiro/specs/` — one spec per lot: `central-core`, `pager-pwa`, `kiro-adapters`,
-  `snpp-gateway`, `crew-app`, `central-dashboard` (`requirements.md` in EARS
-  notation, `design.md`, `tasks.md`).
-- `.kiro/steering/` — `product.md`, `tech.md`, `structure.md`, `testing.md`,
-  always included; `pager-format.md`, `no-sound.md` always; `security.md`
-  (`fileMatch: packages/central/**`) and `rfc1861.md` (`fileMatch: packages/snpp/**`).
-- `.kiro/hooks/` — `bipeur-approve` (this repository is supervised by its own
-  product), `line-budget`, `state-machine-guard`, `kiro-dir-guard`,
-  `journal-reminder`.
-- `.kiro/agents/` — `reviewer` (read-only) and `rfc-checker`.
-- `.kiro/skills/pager-line/` — writing a line that fits 80 characters.
+| Surface | Path | What it does here |
+|---|---|---|
+| Specs | `.kiro/specs/central-core/` | Requirements first. BIP-F-01 … 14, properties 01–10 and 12. |
+| Specs | `.kiro/specs/pager-pwa/` | Design first — the device shape decides the gestures. BIP-F-15 … 23. |
+| Specs | `.kiro/specs/kiro-adapters/` | Requirements first. `bip-hook`, `bip-notice`, MCP. BIP-F-24 … 26. |
+| Specs | `.kiro/specs/snpp-gateway/` | Requirements first, RFC 1861 attached. BIP-F-28, property 11. |
+| Specs | `.kiro/specs/crew-app/` | Quick Spec. BIP-F-27. |
+| Specs | `.kiro/specs/central-dashboard/` | Quick Spec. BIP-F-30 … 32. |
+| Steering | `.kiro/steering/{product,tech,structure,testing}.md` | Always included. |
+| Steering | `.kiro/steering/pager-format.md`, `.kiro/steering/no-sound.md` | Always included: the 80-character line, and BIP-N-06. |
+| Steering | `.kiro/steering/security.md` | `fileMatch: packages/central/**` — the parades of A.10, written as prohibitions. |
+| Steering | `.kiro/steering/rfc1861.md` | `fileMatch: packages/snpp/**` — the commands and reply codes we implement. |
+| Hook | `.kiro/hooks/bipeur-approve.json` | `PreToolUse` on `shell` → `npx bip-hook --rules .bipeur/rules.yaml`. This repository is supervised by its own product. |
+| Hook | `.kiro/hooks/line-budget.json` | File save under `packages/{core,central}/src/line/**` → replays BIP-P-01 and BIP-P-02. |
+| Hook | `.kiro/hooks/state-machine-guard.json` | File save on `states.ts` → BIP-P-03, then regenerates the diagram above from `states.ts`. |
+| Hook | `.kiro/hooks/kiro-dir-guard.json` | End of turn → `python3 .github/checks/contest_guard.py` (`.kiro` tracked, licence present, README sections). |
+| Hook | `.kiro/hooks/journal-reminder.json` | After a spec task → appends a dated line to `KIRO_JOURNAL.md`. |
+| Agents | `.kiro/agents/reviewer.md` | Read-only reviewer: core contract, size rules, fail-closed, no payload logged, one test per requirement. |
+| Agents | `.kiro/agents/rfc-checker.md` | Compares `packages/snpp` with RFC 1861 and files the deviations; changes nothing. |
+| Skill | `.kiro/skills/pager-line/SKILL.md` | Write a line that fits in 80 characters without losing the fact. |
+| MCP | `.kiro/settings/mcp.json` | A headless test browser (so the agent checks the pager itself) and the `bipeur` server (`npx bipeur-mcp`, stdio). |
 
 `KIRO_JOURNAL.md` records, lot by lot, which surface was used and what it
-changed. From lot A4 on, the agents building Beeper — and then the agents
-building the other projects — are supervised by Beeper itself; the audit log
-supplies the numbers quoted in the video.
+changed — including what did not work. From lot A4 on, the agents building
+Beeper — and then the agents building the other projects — are supervised by
+Beeper itself; the audit log supplies the numbers quoted in the video.
+
+Architecture, threat model, art direction, the SNPP shooting script and the video
+script live in `docs/ARCHITECTURE.md`, `docs/THREAT-MODEL.md`,
+`docs/ART-DIRECTION.md`, `docs/SNPP.md` and `docs/DEMO-SCRIPT.md`.
 
 ## CI
 

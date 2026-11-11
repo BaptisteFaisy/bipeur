@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Beeper: .kiro stays tracked and the licence stays present",
+      "trigger": "AgentStop",
+      "matcher": "",
+      "timeout": 0,
+      "action": {
+        "type": "command",
+        "command": "python3 .github/checks/contest_guard.py"
+      }
+    }
+  ]
+}

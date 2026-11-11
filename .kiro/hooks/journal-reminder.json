@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Beeper: a spec task leaves a dated line in the journal",
+      "trigger": "SpecTaskEnd",
+      "matcher": "",
+      "timeout": 0,
+      "action": {
+        "type": "command",
+        "command": "node .kiro/hooks/scripts/journal-line.mjs"
+      }
+    }
+  ]
+}

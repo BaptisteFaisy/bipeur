@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest", "--headless", "--isolated"],
+      "env": {
+        "PLAYWRIGHT_BROWSERS_PATH": "0"
+      }
+    },
+    "bipeur": {
+      "command": "npx",
+      "args": ["bipeur-mcp"],
+      "env": {
+        "BIPEUR_URL": "http://127.0.0.1:8787",
+        "BIPEUR_TOKEN": "${env:BIPEUR_TOKEN}"
+      }
+    }
+  }
+}
