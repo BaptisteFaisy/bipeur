@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* global console, process */
 /**
  * state-machine-guard's second half: regenerate the state graph printed in
  * README.md from `packages/core/src/states.ts`, so the diagram can never drift
