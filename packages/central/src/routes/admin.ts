@@ -36,6 +36,9 @@ export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
   app.get('/v1/metrics', (c) => {
     const auth = authenticateStation(ctx, stationLimiter, c);
     if (!auth.ok) return auth.response;
+    // `in_use` is the real operator's own scope: demo visitors each have an
+    // isolated budget (BIP-F-31), so summing them would exceed
+    // `budget_per_hour` and misdescribe the human's budget (BIP-F-09).
     return json({ ...ctx.store.metrics(), budget_per_hour: ctx.gate.perHour, in_use: ctx.gate.inUse(ctx.clock()) });
   });
 
