@@ -1,0 +1,12 @@
+[Unit]
+Description=Beeper watchdog — probe /healthz, restart the Central only when it is really gone
+
+[Service]
+Type=oneshot
+Environment=BIPEUR_WATCHDOG_PORT=8813
+Environment=BIPEUR_WATCHDOG_DATA=/home/baptiste/bipeur-demo/data
+Environment=BIPEUR_WATCHDOG_TIMEOUT=30
+Environment=BIPEUR_WATCHDOG_TRIES=3
+Environment=BIPEUR_WATCHDOG_THRESHOLD=5
+Environment=BIPEUR_WATCHDOG_COOLDOWN=600
+ExecStart=/home/baptiste/bipeur-demo/tools/ops/watchdog.sh
