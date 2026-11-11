@@ -60,7 +60,7 @@ real and were found on the first runs of `packages/core`.
 | **BIP-P-01** (fast-check, seed 20261112) | A verb outside its code family (`CALL` on a `1xx` code) produced a line the pager could not render consistently | `composeLine` resolves the verb against the family and falls back to the family default |
 | **BIP-P-02** (fast-check, seed 20261113) | A subject whose first word is longer than the remaining budget produced a negative tail length | `truncateSubject` degrades to a prefix cut when the first word cannot fit |
 | **Live integration test** (03:30, `bip ask` against a running Central) | `bip` answered *"the Central answered with an unexpected page shape"* and exited 2. The Central sends `page_id`; the CLI only accepted `id` — **and its test double answered `id` too**, so 25 unit tests were green while the product was broken | PR #13: the client accepts both shapes, and `fake-central.ts` now mirrors the real answer. A mock that disagrees with the server is not a test |
-| **E2E P2/P3** (03:40, Playwright against a running Central) | The pager stayed `data-connection="offline"`: it never stored the `device_token` returned by `POST /v1/devices`, sent no `Authorization` header, and built `ws://…/v1/stream` **without** the token the Central requires | in progress: `fix/pager-device-auth` |
+| **E2E P1…P7** (03:40 → 05:50, Playwright against a running Central) | The pager stayed `data-connection="offline"` for ever. Four drifts, each invisible to green unit tests on both sides: (1) `POST /v1/devices` answers `{device_id, device_token}` while the pager parsed `{id, name, paired_at}` — no token stored, no `Authorization` header, and `ws://…/v1/stream` opened **without** the token the Central requires; (2) the pager read `{id, payload_sha256, source_alias}` where the Central sends `{page_id, fingerprint, station}`, so every delivered page was dropped by zod; (3) a decision named the device id the pager had invented locally, so the Central matched it to no device; (4) `sync()` right after pairing read React state that had not flushed, so a page created *before* the pairing never reached the screen | PR #18, merged. **15 scenarios green in 2.0 min**, P1…P7, against a real Central, a real pager build, a real WebSocket and real ECDSA signatures |
 | **CI, by hand** (00:45 → 03:20) | Four pipeline defects, each found by a red run rather than by reading: a local composite action used before `actions/checkout`; `::add-path::` disabled on current runners; an empty `env:` key making `contest-guard.yml` unparseable; the gate reading commit *statuses* while Actions publishes *check-runs*; `HERMES_REQUIRED_CHECKS: ''` in the workflow masking the repository variable | PRs #1, #9, #11 |
 
 ## Hooks
@@ -119,10 +119,12 @@ acceptance criterion and it is still open.
 Kept honest on purpose — this is what makes the rest believable.
 
 1. **The two halves of the product were built against a written contract and
-   still disagreed twice.** The CLI expected `id` where the Central sends
+   still disagreed four times.** The CLI expected `id` where the Central sends
    `page_id`; the pager never sent the `device_token` the Central's WebSocket
-   requires. Both survived green unit tests, because each lot's test double
-   encoded its own author's assumption. Lesson recorded in
+   requires, read a different page vocabulary, signed with a device id of its
+   own, and resynchronised before React had flushed. **None of it was visible to
+   402 passing unit tests** — only to a browser talking to a real server. Each
+   side's double had encoded its own author's assumption. Lesson recorded in
    `.kiro/steering/testing.md`: a double must be generated from, or asserted
    against, the real server's answer — the E2E suite is now what catches this
    class of bug, and it is the reason P1…P7 exist.
