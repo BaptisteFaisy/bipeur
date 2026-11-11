@@ -74,20 +74,35 @@ export async function flush(turns = 6): Promise<void> {
  * observable result instead of guessing. Never used to wait for a sound or a
  * network call — only for a promise the app already started.
  */
-export async function waitFor(
-  predicate: () => boolean,
-  // Generous on purpose: the predicate polls the observable result of a
-  // WebCrypto signature that lands on the crypto worker thread. A loaded
-  // runner (four of them in parallel) needs more turns, and each turn costs
-  // microseconds. Real timers must stay out of this loop: several tests
-  // install fake timers, and waiting on one would deadlock.
-  turns = 2000,
-): Promise<void> {
-  for (let i = 0; i < turns; i += 1) {
+/**
+ * Real monotonic clock. `Date.now()` is faked by `vi.useFakeTimers()`, and a
+ * deadline read from a frozen clock never expires: `performance.now()` is left
+ * alone by the default fake-timer set, so it is the only safe bound here.
+ */
+const realNow: () => number = () =>
+  typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+
+/**
+ * Poll a predicate on the real event loop until it holds, bounded by wall-clock
+ * time rather than by a turn count. Signing goes through the WebCrypto worker
+ * thread, so neither the number of turns nor their duration is predictable: on
+ * a loaded runner (four CI jobs in parallel) a fixed turn budget starved the
+ * crypto callback and the poll gave up while the signature was still in flight.
+ *
+ * Never used to wait for a sound or a network call — only for a promise the app
+ * already started.
+ */
+export async function waitFor(predicate: () => boolean, timeoutMs = 10_000): Promise<void> {
+  const deadline = realNow() + timeoutMs;
+  for (let turn = 0; turn < 500_000; turn += 1) {
     if (predicate()) return;
+    if (realNow() >= deadline) break;
     await flush(1);
   }
-  throw new Error('waitFor: condition never became true');
+  if (predicate()) return;
+  throw new Error(`waitFor: condition never became true within ${timeoutMs} ms`);
 }
 
 export async function press(element: Element): Promise<void> {
