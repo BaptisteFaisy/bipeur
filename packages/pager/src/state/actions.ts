@@ -148,7 +148,12 @@ async function pair(ctx: ActionContext, code: string): Promise<void> {
   }
   try {
     const keys = await generateDeviceKeys(ctx.deps.crypto);
-    const pushSubscription = await ctx.deps.push.subscribe();
+    // BIP-F-21: the lock-screen preference travels with the subscription, so
+    // the Central composes a reduced payload instead of the pager hiding a line
+    // it already received.
+    const pushSubscription = await ctx.deps.push.subscribe(
+      ctx.stateRef.current.settings.hideDetailWhenLocked,
+    );
     const pairing = await ctx.deps.client.pair({
       code: clean,
       pairingId: readPairingIdFromLocation(),

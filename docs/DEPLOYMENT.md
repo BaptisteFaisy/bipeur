@@ -55,6 +55,45 @@ the Modal dashboard (Settings → Billing), then run
 `modal deploy deploy/modal_app.py` — idempotent, prints the public URL. The
 Docker way below is built and verified in the meantime.
 
+### Web Push (BIP-F-19) — three variables and one script
+
+Web Push is off until VAPID keys exist. Without them the Central logs nothing,
+sends nothing, and the pager falls back to the WebSocket stream — which is enough
+as long as the pager is open, and is the documented fallback.
+
+```bash
+# 1. generate a pair (prints three lines, writes no file: nothing to commit)
+pnpm --filter @bipeur/central exec node scripts/vapid.mjs
+
+# 2. put them in the environment of the Central — .env locally, or the
+#    Environment= lines of the systemd unit, or a Modal Secret
+BIPEUR_VAPID_PUBLIC_KEY=B…      # public, published on GET /v1/push-config
+BIPEUR_VAPID_PRIVATE_KEY=…      # secret: environment only, never the repository
+BIPEUR_VAPID_SUBJECT=mailto:you@example.com
+
+# 3. restart, then check
+curl -s https://<host>/v1/push-config
+# → {"enabled":true,"vapid_public_key":"B…"}
+```
+
+What happens then, end to end:
+
+| Step | Who | What |
+|---|---|---|
+| 1 | pager | `GET /v1/push-config` → the VAPID **public** key |
+| 2 | pager | `pushManager.subscribe({userVisibleOnly, applicationServerKey})` |
+| 3 | pager | the subscription, plus the operator's lock-screen masking flag, goes to the Central at pairing |
+| 4 | Central | on delivery, `web-push` sends to every non-revoked device of the right visitor scope |
+| 5 | service worker | `public/sw-notify.js` shows the notification: action buttons for a **green** page only, `requireInteraction` for a red one, never a sound |
+
+Masking (BIP-F-21, BIP-N-04) is enforced **server side**: when the device asked
+for it, the payload carries the code and the station and not the line, so a
+locked screen — and the notification store — cannot leak the command.
+
+Not verified on a real device: whether a given platform renders notification
+action buttons (BIP-N-07 marks this "to verify"). The pager degrades to opening
+the app, which is the documented fallback and what a red page requires anyway.
+
 ### Optional secret (Web Push, fixed station token)
 
 By default the Modal instance boots in demo mode with safe defaults: a

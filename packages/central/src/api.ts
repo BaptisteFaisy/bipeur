@@ -13,6 +13,7 @@ import { registerAdminRoutes } from './routes/admin.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
 import { registerDemoRoutes } from './routes/demo.js';
 import { registerDeviceRoutes } from './routes/devices.js';
+import { registerPushConfigRoute } from './push.js';
 import { registerPageRoutes } from './routes/pages.js';
 import type { Simulator } from './simulator.js';
 import { fallbackPage, servePager } from './static.js';
@@ -33,6 +34,8 @@ export function createApi(deps: ApiDeps): Hono {
   registerPageRoutes(app, { ctx, stationLimiter, deviceLimiter });
   registerDeviceRoutes(app, { ctx, stationLimiter, deviceLimiter, pairLimiter });
   registerAdminRoutes(app, { ctx, stationLimiter });
+  // Public on purpose: a VAPID public key is what a browser needs to subscribe.
+  registerPushConfigRoute(app, ctx.config.vapid);
   registerDashboardRoutes(app, { ctx, stationLimiter });
   registerDemoRoutes(app, { ctx, simulator, limiter: pairLimiter });
 
