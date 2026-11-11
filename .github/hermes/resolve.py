@@ -18,18 +18,24 @@ Design rules, in order of authority:
   escalates to a human. Nothing is ever guessed, nothing fails silently.
 
 `--selftest` replays in-memory cases (derived, JSON merge, LLM leg injected,
-insoluble) and checks the wiring of the direct leg (Fireworks endpoint + model,
-key present => available) with no secret and no network.
+insoluble) and checks the wiring of the direct leg (InferHub endpoint + model,
+key present => available) with no secret and no network. `--livetest` proves
+the direct leg against the real InferHub API; it skips cleanly when no key is
+reachable and is never invoked by CI.
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 
-FIREWORKS_URL = "https://api.fireworks.ai/inference/v1/chat/completions"
-FIREWORKS_DEFAULT_MODEL = "accounts/fireworks/models/deepseek-v4p1-flash-1017"
-KEY_ENV = "FIREWORKS_API_KEY"
+INFERHUB_URL = "https://api.inferhub.dev/v1/chat/completions"
+# `combo/cheap` is InferHub's meta-router: the model that actually answers can
+# change underneath us, which is exactly why `accept_llm_output` guards the
+# reply (empty, leftover conflict markers, absurd size => rejected).
+INFERHUB_DEFAULT_MODEL = "combo/cheap"
+KEY_ENV = "INFERHUB_API_KEY"
 MODEL_ENV = "HERMES_LLM_MODEL"
 LLM_TIMEOUT = 90
 # A side bigger than this cannot be sent without truncation, and a truncated
@@ -180,12 +186,12 @@ def deterministic_resolve(path, kind, base, ours, theirs):
 
 
 def llm_model():
-    """Fireworks model id, overridable by HERMES_LLM_MODEL."""
-    return (os.environ.get(MODEL_ENV) or "").strip() or FIREWORKS_DEFAULT_MODEL
+    """InferHub model id (meta-router by default), overridable by HERMES_LLM_MODEL."""
+    return (os.environ.get(MODEL_ENV) or "").strip() or INFERHUB_DEFAULT_MODEL
 
 
 def llm_available():
-    """True when a Fireworks key is present. The value is never read out loud."""
+    """True when an InferHub key is present. The value is never read out loud."""
     return bool((os.environ.get(KEY_ENV) or "").strip())
 
 
@@ -215,8 +221,8 @@ def accept_llm_output(reply, base="", ours="", theirs=""):
     return text + "\n"
 
 
-def call_fireworks(prompt):
-    """POST the prompt to Fireworks. Returns the raw text, raises on failure."""
+def _post_chat(prompt):
+    """POST one prompt to InferHub (OpenAI-compatible). Returns (status, payload)."""
     import urllib.request
 
     body = json.dumps({
@@ -228,11 +234,16 @@ def call_fireworks(prompt):
         "temperature": 0,
         "max_tokens": 8192,
     }).encode()
-    request = urllib.request.Request(FIREWORKS_URL, data=body, method="POST")
+    request = urllib.request.Request(INFERHUB_URL, data=body, method="POST")
     request.add_header("Authorization", "Bearer " + os.environ[KEY_ENV].strip())
     request.add_header("Content-Type", "application/json")
     with urllib.request.urlopen(request, timeout=LLM_TIMEOUT) as response:
-        payload = json.loads(response.read() or b"{}")
+        return response.status, json.loads(response.read() or b"{}")
+
+
+def call_inferhub(prompt):
+    """The direct leg. Returns the raw reply text, raises on failure."""
+    _, payload = _post_chat(prompt)
     choices = payload.get("choices") or []
     return (choices[0].get("message") or {}).get("content") if choices else None
 
@@ -244,7 +255,7 @@ def resolve_with_llm(path, base, ours, theirs, ask=None):
     if ask is None:
         if not llm_available():
             return None
-        ask = call_fireworks
+        ask = call_inferhub
     try:
         reply = ask(build_prompt(path, base, ours, theirs))
     except Exception as exc:  # network, auth, quota: the leg declines
@@ -325,14 +336,14 @@ def _selftest_llm(problems):
 
 
 def _selftest_wiring(problems):
-    """The direct leg is Fireworks, and a key makes it available (value unread)."""
-    _expect("wiring: the direct leg is Fireworks",
-            FIREWORKS_URL == "https://api.fireworks.ai/inference/v1/chat/completions"
-            and "fireworks" in llm_model(), problems)
+    """The direct leg is InferHub, and a key makes it available (value unread)."""
+    _expect("wiring: the direct leg is InferHub",
+            INFERHUB_URL == "https://api.inferhub.dev/v1/chat/completions"
+            and INFERHUB_DEFAULT_MODEL == "combo/cheap", problems)
     saved = os.environ.pop(KEY_ENV, None)
     _expect("wiring: no key => the leg is unavailable", llm_available() is False, problems)
     os.environ[KEY_ENV] = "selftest-placeholder"
-    _expect("wiring: a Fireworks key => the leg is available",
+    _expect("wiring: an InferHub key => the leg is available",
             llm_available() is True, problems)
     os.environ.pop(KEY_ENV, None)
     if saved is not None:
@@ -348,8 +359,61 @@ def selftest():
     return 1 if problems else 0
 
 
+def _dev_api_key():
+    """InferHub key from ~/.zeroclaw/config.toml (dev convenience). Never printed."""
+    try:
+        with open(os.path.expanduser("~/.zeroclaw/config.toml"), encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError:
+        return None
+    section = re.search(r"^\[providers\.models\.custom\.inferhub\]\s*$(.*?)(?=^\[|\Z)",
+                        text, re.M | re.S)
+    if not section:
+        return None
+    key = re.search(r'^\s*api_key\s*=\s*"([^"]+)"', section.group(1), re.M)
+    return key.group(1) if key else None
+
+
+def livetest():
+    """REAL InferHub call on a 6-line conflict, via the production code path.
+
+    Skips cleanly (exit 0) when no key is reachable: from $INFERHUB_API_KEY or,
+    on a dev machine only, from ~/.zeroclaw/config.toml. CI never invokes this
+    flag, and even if it did, it would skip without the secret. The key itself
+    is never printed, never written to a file.
+    """
+    key = (os.environ.get(KEY_ENV) or "").strip() or _dev_api_key()
+    if not key:
+        print("livetest: SKIPPED (no InferHub key in %s nor ~/.zeroclaw/config.toml)"
+              % KEY_ENV, flush=True)
+        return 0
+    os.environ[KEY_ENV] = key
+    path, base = "packages/core/src/limits.ts", "export const a = 0;\nexport const b = 0;\n"
+    ours = "export const a = 0;\nexport const b = 1;\n"
+    theirs = "export const a = 2;\nexport const b = 0;\n"
+    try:
+        status, payload = _post_chat(build_prompt(path, base, ours, theirs))
+    except Exception as exc:  # network, auth, quota: say the type, never the key
+        print("livetest: FAILED (%s)" % type(exc).__name__, flush=True)
+        return 1
+    choices = payload.get("choices") or []
+    content = (choices[0].get("message") or {}).get("content") if choices else None
+    merged = accept_llm_output(content, base, ours, theirs)
+    print("livetest: HTTP %s, model returned by the API: %r"
+          % (status, payload.get("model")), flush=True)
+    print("livetest: first 40 chars of the reply: %r" % (content or "")[:40], flush=True)
+    print("livetest: guardrails accept the reply: %s" % (merged is not None), flush=True)
+    if merged is not None:
+        print("livetest: merged file:\n%s" % merged.rstrip(), flush=True)
+    ok = status == 200 and merged is not None
+    print("livetest: %s" % ("OK" if ok else "FAILED"), flush=True)
+    return 0 if ok else 1
+
+
 if __name__ == "__main__":
     if "--selftest" in sys.argv[1:]:
         sys.exit(selftest())
+    if "--livetest" in sys.argv[1:]:
+        sys.exit(livetest())
     print(__doc__.strip())
     sys.exit(0)

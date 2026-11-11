@@ -1,7 +1,7 @@
 name: hermes-conflict-resolver
 
 # Résolveur de conflits Hermes : rebase la branche d'une PR, résout les conflits
-# (IA Fireworks d'abord, repli déterministe ensuite), VALIDE le résultat avec la
+# (IA InferHub d'abord, repli déterministe ensuite), VALIDE le résultat avec la
 # toolchain du dépôt, pousse en `--force-with-lease` sur la branche de la PR et
 # rapporte. S'il ne peut pas prouver que le résultat est bon : rebase annulé,
 # label `hermes/conflit`, commentaire avec la raison exacte, sortie non nulle.
@@ -48,10 +48,12 @@ concurrency:
 env:
   NODE_OPTIONS: --disable-warning=ExperimentalWarning
   CI: true
-  # Jambe LLM directe = Fireworks. `combo/cheap` est un alias ZeroClaw, pas un
-  # identifiant de modèle Fireworks : ici c'est l'identifiant Fireworks qui est
-  # attendu, et `resolve.py` retombe sur la même valeur par défaut.
-  HERMES_LLM_MODEL: accounts/fireworks/models/deepseek-v4p1-flash-1017
+  # Jambe LLM directe = InferHub. `combo/cheap` est maintenant exactement le bon
+  # identifiant : c'est le meta-routeur InferHub (le modèle réel qui répond peut
+  # changer sous nous — d'où les garde-fous de `accept_llm_output` dans
+  # `resolve.py`, qui retombe sur la même valeur par défaut si cette variable
+  # est absente).
+  HERMES_LLM_MODEL: combo/cheap
 
 jobs:
   resolve:
@@ -77,7 +79,7 @@ jobs:
           # Noms seulement : aucune valeur de secret n'est affichée, copiée ni
           # passée en argument de commande.
           HERMES_PUSH_TOKEN: ${{ secrets.HERMES_PUSH_TOKEN }}
-          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          INFERHUB_API_KEY: ${{ secrets.INFERHUB_API_KEY }}
           PR_NUMBER: ${{ inputs.pr_number }}
           HERMES_MODE: ${{ inputs.mode }}
         run: python3 .github/hermes/resolver.py

@@ -146,3 +146,8 @@ Kept honest on purpose — this is what makes the rest believable.
    head with runs in *awaiting approval*, so the required checks never exist and
    the merge is refused with `405 — 6 of 6 required status checks are expected`.
    The gate now approves those runs itself (never for a fork) — PR #12.
+6. **The LLM leg was wired to the wrong provider.** Hermes called Fireworks with
+   a model id its own workflow comment admitted was a ZeroClaw alias. The
+   standard is InferHub, whose `combo/cheap` is a *meta-router*: the model that
+   actually answers can change underneath us, so what proves the leg is the
+   guardrails on the reply (`accept_llm_output`), never the provider's name.
