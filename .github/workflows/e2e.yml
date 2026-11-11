@@ -30,7 +30,12 @@ permissions:
 
 concurrency:
   group: e2e-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel: on `main` two merges landing close together cancelled each
+  # other's run, so the suite never completed and main stayed unvalidated by
+  # P1…P7 (measured 2026-11-11: two consecutive `push` runs, both `cancelled`).
+  # Serialising costs a few minutes of runner time after a burst of merges and
+  # buys the guarantee that the last commit on main was actually played.
+  cancel-in-progress: false
 
 env:
   NODE_OPTIONS: --disable-warning=ExperimentalWarning
