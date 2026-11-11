@@ -433,13 +433,14 @@ export class SqliteStore implements Store {
   recentDeliveries(since: number): DeliveryMark[] {
     const rows = this.db
       .prepare(
-        'SELECT delivered_at AS at, risk, code FROM pages WHERE delivered_at IS NOT NULL AND delivered_at > ?',
+        'SELECT delivered_at AS at, risk, code, visitor_id FROM pages WHERE delivered_at IS NOT NULL AND delivered_at > ?',
       )
       .all(since) as SqlRow[];
     return rows.map((row) => ({
       at: Number(row['at'] ?? 0),
       risk: String(row['risk'] ?? 'green') as DeliveryMark['risk'],
       code: Number(row['code'] ?? 0),
+      visitor_id: row['visitor_id'] === null || row['visitor_id'] === undefined ? null : String(row['visitor_id']),
     }));
   }
 
