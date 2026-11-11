@@ -5,8 +5,9 @@ target on a real branch, instead of trusting a self-test.
 
 ## Section under drill
 
-The base version of this paragraph. Two branches will rewrite it in two
-different ways, and the resolver has to keep both intents rather than pick one.
+Side A rewrote this paragraph. It records that the deterministic leg of the
+resolver must keep every JSON key, and that a drill is only worth running on a
+real rebase with the real toolchain validating the result.
 
 ## Expected outcome
 

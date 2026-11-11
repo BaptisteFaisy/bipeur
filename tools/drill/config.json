@@ -2,6 +2,8 @@
   "name": "conflict-drill",
   "purpose": "A target for the Hermes resolver drill: one JSON file merged key by key, one Markdown file merged by the LLM leg.",
   "keep": {
-    "a": "value-a-from-the-base"
-  }
+    "a": "value-a-from-the-base",
+    "b": "value-b-added-by-side-a"
+  },
+  "side": "a"
 }
