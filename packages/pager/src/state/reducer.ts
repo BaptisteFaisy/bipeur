@@ -80,21 +80,35 @@ function pushMemory(memory: MemoryEntry[], entry: MemoryEntry): MemoryEntry[] {
 }
 
 export function reducer(state: PagerState, action: Action): PagerState {
+  return isQueueAction(action) ? reduceQueue(state, action) : reduceRest(state, action);
+}
+
+/** The actions that move the pages around: the queue and the detail index. */
+type QueueAction = Extract<
+  Action,
+  { type: 'page.delivered' | 'page.closed' | 'detail.next' | 'detail.reset' | 'pages.sync' }
+>;
+
+type RestAction = Exclude<Action, QueueAction>;
+
+function isQueueAction(action: Action): action is QueueAction {
+  return QUEUE_ACTION_TYPES.has(action.type);
+}
+
+const QUEUE_ACTION_TYPES: ReadonlySet<Action['type']> = new Set([
+  'page.delivered',
+  'page.closed',
+  'detail.next',
+  'detail.reset',
+  'pages.sync',
+]);
+
+function reduceQueue(state: PagerState, action: QueueAction): PagerState {
   switch (action.type) {
-    case 'screen':
-      return { ...state, screen: action.screen, error: null };
-    case 'connection':
-      return { ...state, connection: action.connection };
     case 'pages.sync':
       return { ...state, queue: action.pages, detailIndex: 0 };
-    case 'page.delivered': {
-      const exists = state.queue.some((page) => page.id === action.page.id);
-      const queue = exists
-        ? state.queue.map((page) => (page.id === action.page.id ? action.page : page))
-        : [...state.queue, action.page];
-      const detailIndex = state.queue.length === 0 ? 0 : state.detailIndex;
-      return { ...state, queue, detailIndex };
-    }
+    case 'page.delivered':
+      return { ...state, ...deliverPage(state, action.page) };
     case 'page.closed':
       return {
         ...state,
@@ -102,12 +116,20 @@ export function reducer(state: PagerState, action: Action): PagerState {
         outbox: state.outbox.filter((decision) => decision.pageId !== action.pageId),
         detailIndex: 0,
       };
-    case 'detail.next': {
-      const total = detailCount(currentPage(state));
-      return { ...state, detailIndex: (state.detailIndex + 1) % total };
-    }
+    case 'detail.next':
+      return { ...state, detailIndex: (state.detailIndex + 1) % detailCount(currentPage(state)) };
     case 'detail.reset':
       return { ...state, detailIndex: 0 };
+  }
+}
+
+/** The actions that touch the decisions, the memory, the settings and the device. */
+function reduceRest(state: PagerState, action: RestAction): PagerState {
+  switch (action.type) {
+    case 'screen':
+      return { ...state, screen: action.screen, error: null };
+    case 'connection':
+      return { ...state, connection: action.connection };
     case 'decision.sent':
       return {
         ...state,
@@ -120,10 +142,7 @@ export function reducer(state: PagerState, action: Action): PagerState {
     case 'decision.queued':
       return {
         ...state,
-        outbox: [
-          ...state.outbox.filter((d) => d.pageId !== action.entry.pageId),
-          action.entry,
-        ],
+        outbox: [...state.outbox.filter((d) => d.pageId !== action.entry.pageId), action.entry],
       };
     case 'outbox.cleared':
       return {
@@ -142,7 +161,15 @@ export function reducer(state: PagerState, action: Action): PagerState {
       return { ...state, notice: action.notice };
     case 'error':
       return { ...state, error: action.error };
-    default:
-      return state;
   }
 }
+
+/** A page already in the queue is refreshed, not duplicated. */
+function deliverPage(state: PagerState, page: PageRecord): Pick<PagerState, 'queue' | 'detailIndex'> {
+  const exists = state.queue.some((item) => item.id === page.id);
+  const queue = exists
+    ? state.queue.map((item) => (item.id === page.id ? page : item))
+    : [...state.queue, page];
+  return { queue, detailIndex: state.queue.length === 0 ? 0 : state.detailIndex };
+}
+

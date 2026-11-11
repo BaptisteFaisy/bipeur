@@ -25,60 +25,37 @@ export interface KeypadProps {
 export function Keypad(props: KeypadProps): React.JSX.Element {
   const { t } = usePager();
   const holdable = props.risk === 'red';
-  const approve: ButtonHandlers = holdable
-    ? holdHandlers(props.hold, 'approve')
-    : { onClick: props.onApprove };
-  const deny: ButtonHandlers = holdable
-    ? holdHandlers(props.hold, 'deny')
-    : { onClick: props.onDeny };
-
   return (
     <div className="keypad">
+      <DecisionKey
+        variant="deny"
+        label={t('key.deny')}
+        glyph="✖"
+        holdable={holdable}
+        hold={props.hold}
+        onTap={props.onDeny}
+      />
       <button
         type="button"
-        className="key key-deny"
-        data-testid="key-deny"
-        aria-label={t('key.deny')}
-        aria-describedby={holdable ? 'hold-hint' : undefined}
-        {...deny}
+        className="key key-next"
+        data-testid="key-next"
+        aria-label={t('key.next')}
+        onClick={props.onNext}
       >
-        <span className="key-glyph" aria-hidden="true">
-          ✖
-        </span>
-        {props.hold.action === 'deny' && <HoldRing progress={props.hold.progress} />}
-      </button>
-      <button type="button" className="key key-next" data-testid="key-next" aria-label={t('key.next')} onClick={props.onNext}>
         <span className="key-glyph" aria-hidden="true">
           ▼
         </span>
       </button>
-      <button
-        type="button"
-        className="key key-approve"
-        data-testid="key-approve"
-        aria-label={t('key.approve')}
-        aria-describedby={holdable ? 'hold-hint' : undefined}
-        {...approve}
-      >
-        <span className="key-glyph" aria-hidden="true">
-          ✔
-        </span>
-        {props.hold.action === 'approve' && <HoldRing progress={props.hold.progress} />}
-      </button>
+      <DecisionKey
+        variant="approve"
+        label={t('key.approve')}
+        glyph="✔"
+        holdable={holdable}
+        hold={props.hold}
+        onTap={props.onApprove}
+      />
       {props.options.map((option) => (
-        <button
-          type="button"
-          key={option.code}
-          className="key key-choice"
-          data-testid={`key-choice-${option.code}`}
-          aria-label={t('key.choose', { code: option.code })}
-          onClick={() => props.onChoose(option.code)}
-        >
-          <span className="key-glyph" aria-hidden="true">
-            {option.code}
-          </span>
-          <span className="key-label">{option.label}</span>
-        </button>
+        <ChoiceKey key={option.code} option={option} onChoose={props.onChoose} />
       ))}
       {holdable && (
         <span id="hold-hint" className="visually-hidden">
@@ -86,6 +63,56 @@ export function Keypad(props: KeypadProps): React.JSX.Element {
         </span>
       )}
     </div>
+  );
+}
+
+interface DecisionKeyProps {
+  variant: 'approve' | 'deny';
+  label: string;
+  glyph: string;
+  holdable: boolean;
+  hold: HoldController;
+  onTap(): void;
+}
+
+/** A decision key: one tap, or one second of press-and-hold on a red page. */
+function DecisionKey(props: DecisionKeyProps): React.JSX.Element {
+  const handlers: ButtonHandlers = props.holdable
+    ? holdHandlers(props.hold, props.variant)
+    : { onClick: props.onTap };
+  const ring = props.hold.action === props.variant ? props.hold.progress : null;
+  return (
+    <button
+      type="button"
+      className={`key key-${props.variant}`}
+      data-testid={`key-${props.variant}`}
+      aria-label={props.label}
+      aria-describedby={props.holdable ? 'hold-hint' : undefined}
+      {...handlers}
+    >
+      <span className="key-glyph" aria-hidden="true">
+        {props.glyph}
+      </span>
+      {ring !== null && <HoldRing progress={ring} />}
+    </button>
+  );
+}
+
+function ChoiceKey(props: { option: PageOption; onChoose(code: string): void }): React.JSX.Element {
+  const { t } = usePager();
+  return (
+    <button
+      type="button"
+      className="key key-choice"
+      data-testid={`key-choice-${props.option.code}`}
+      aria-label={t('key.choose', { code: props.option.code })}
+      onClick={() => props.onChoose(props.option.code)}
+    >
+      <span className="key-glyph" aria-hidden="true">
+        {props.option.code}
+      </span>
+      <span className="key-label">{props.option.label}</span>
+    </button>
   );
 }
 

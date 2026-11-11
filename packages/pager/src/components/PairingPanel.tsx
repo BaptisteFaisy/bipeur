@@ -9,6 +9,40 @@ import { usePager } from '../state/PagerContext.js';
 
 export const CODE_LENGTH = 6;
 
+/** The six-character code, typed by a human who read it on the dashboard. */
+function PairingForm(props: {
+  code: string;
+  onCode(code: string): void;
+  onSubmit(): void;
+}): React.JSX.Element {
+  const { t } = usePager();
+  return (
+    <form
+      className="pairing-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        props.onSubmit();
+      }}
+    >
+      <label htmlFor="pair-code">{t('pairing.code')}</label>
+      <input
+        id="pair-code"
+        name="code"
+        data-testid="pair-code"
+        value={props.code}
+        inputMode="text"
+        autoComplete="off"
+        spellCheck={false}
+        maxLength={CODE_LENGTH}
+        onChange={(event) => props.onCode(normaliseCode(event.target.value))}
+      />
+      <button type="submit" className="primary">
+        {t('pairing.submit')}
+      </button>
+    </form>
+  );
+}
+
 export function PairingPanel(): React.JSX.Element {
   const { state, t, pair, go, cryptoSupported } = usePager();
   const [code, setCode] = useState('');
@@ -20,29 +54,7 @@ export function PairingPanel(): React.JSX.Element {
       <p className="pairing-state" data-testid="pairing-state">
         {state.device ? t('pairing.paired', { n: 1 }) : t('pairing.none')}
       </p>
-      <form
-        className="pairing-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void pair(code);
-        }}
-      >
-        <label htmlFor="pair-code">{t('pairing.code')}</label>
-        <input
-          id="pair-code"
-          name="code"
-          data-testid="pair-code"
-          value={code}
-          inputMode="text"
-          autoComplete="off"
-          spellCheck={false}
-          maxLength={CODE_LENGTH}
-          onChange={(event) => setCode(normaliseCode(event.target.value))}
-        />
-        <button type="submit" className="primary">
-          {t('pairing.submit')}
-        </button>
-      </form>
+      <PairingForm code={code} onCode={setCode} onSubmit={() => void pair(code)} />
       {state.device && (
         <button type="button" className="link" onClick={() => go('pager')}>
           {t('demo.open')}
