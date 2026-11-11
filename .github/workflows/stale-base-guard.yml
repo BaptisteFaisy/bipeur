@@ -26,7 +26,7 @@ concurrency:
 jobs:
   guard:
     name: stale-base-guard
-    runs-on: [self-hosted, bipeur-worker]
+    runs-on: [self-hosted, bipeur-fast]
     timeout-minutes: 5
     steps:
       - name: Mesurer le retard sur la base
