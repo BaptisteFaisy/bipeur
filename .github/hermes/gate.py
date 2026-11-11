@@ -80,16 +80,26 @@ def create_check(repo, token, sha, ok, title, summary):
 
 
 def required_checks_green(repo, token, pr, required):
-    """Statuts de commit requis verts. Liste vide => considéré vert."""
+    """Checks requis verts. Liste vide => considéré vert.
+
+    GitHub Actions publie des *check-runs*, pas des statuts de commit : on
+    lit donc les check-runs (nom du job, conclusion) et, en repli, les statuts
+    classiques pour les vérifications externes.
+    """
     if not required:
         return True
     sha = pr['head']['sha']
+    states = {}
+    sc, data = api('GET', '/repos/%s/commits/%s/check-runs' % (repo, sha), token=token)
+    if sc == 200:
+        for run in data.get('check_runs') or []:
+            states[run.get('name')] = run.get('conclusion')
     sc, data = api('GET', '/repos/%s/commits/%s/status' % (repo, sha), token=token)
-    if sc != 200 or not data:
-        return False
-    states = {s['context']: s['state'] for s in data.get('statuses') or []}
+    if sc == 200:
+        for status in data.get('statuses') or []:
+            states.setdefault(status.get('context'), status.get('state'))
     for ctx in required:
-        if states.get(ctx) != 'success':
+        if states.get(ctx) not in ('success', 'neutral', 'skipped'):
             return False
     return True
 
