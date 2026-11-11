@@ -126,12 +126,24 @@ export interface HttpClientOptions {
   timeoutMs?: number;
 }
 
-export function httpBeeperClient(options: HttpClientOptions): BeeperClient {
+/** One call to the Central, with the station token. */
+export type CentralCaller = (
+  path: string,
+  init: Parameters<FetchLike>[1],
+  ms?: number,
+) => Promise<unknown>;
+
+/** The call helper shared by every endpoint of the Central. */
+function centralCaller(options: HttpClientOptions): CentralCaller {
   const base = options.url.replace(/\/+$/, '');
   const doFetch: FetchLike = options.fetchImpl ?? (globalThis.fetch as unknown as FetchLike);
   const timeoutMs = options.timeoutMs ?? 10_000;
 
-  const call = async (path: string, init: Parameters<FetchLike>[1], ms = timeoutMs): Promise<unknown> => {
+  return async (
+    path: string,
+    init: Parameters<FetchLike>[1],
+    ms = timeoutMs,
+  ): Promise<unknown> => {
     const headers = { authorization: `Bearer ${options.token}`, ...(init.headers ?? {}) };
     const response = await doFetch(`${base}${path}`, {
       ...init,
@@ -141,47 +153,57 @@ export function httpBeeperClient(options: HttpClientOptions): BeeperClient {
     if (!response.ok) throw new CentralError(`Central answered ${response.status} on ${path}`);
     return response.json();
   };
+}
 
+async function postPage(call: CentralCaller, draft: PageDraft): Promise<CreatedPage> {
+  const body = JSON.stringify(buildPageRequest(draft));
+  const raw = (await call('/v1/pages', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body,
+  })) as Record<string, unknown>;
+  const pageId = String(raw.page_id ?? raw.id ?? '');
+  if (!pageId) throw new CentralError('Central returned no page id');
   return {
-    async createPage(draft: PageDraft): Promise<CreatedPage> {
-      const body = JSON.stringify(buildPageRequest(draft));
-      const raw = (await call('/v1/pages', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body,
-      })) as Record<string, unknown>;
-      const pageId = String(raw.page_id ?? raw.id ?? '');
-      if (!pageId) throw new CentralError('Central returned no page id');
-      return {
-        pageId,
-        fingerprint: String(raw.fingerprint ?? ''),
-        line: String(raw.line ?? ''),
-      };
-    },
+    pageId,
+    fingerprint: String(raw.fingerprint ?? ''),
+    line: String(raw.line ?? ''),
+  };
+}
 
-    async waitDecision(pageId: string, waitSeconds: number): Promise<Decision> {
-      const path = `/v1/pages/${encodeURIComponent(pageId)}/decision?wait=${Math.max(1, Math.round(waitSeconds))}`;
-      const raw = (await call(path, { method: 'GET' }, (waitSeconds + 15) * 1000)) as Record<string, unknown>;
-      const status = String(raw.status ?? 'pending') as DecisionStatus;
-      return {
-        status,
-        choice: raw.choice === undefined || raw.choice === null ? null : String(raw.choice),
-        latencyMs: Number(raw.latency_ms ?? 0),
-      };
-    },
+async function getDecision(
+  call: CentralCaller,
+  pageId: string,
+  waitSeconds: number,
+): Promise<Decision> {
+  const seconds = Math.max(1, Math.round(waitSeconds));
+  const path = `/v1/pages/${encodeURIComponent(pageId)}/decision?wait=${seconds}`;
+  const raw = (await call(path, { method: 'GET' }, (seconds + 15) * 1000)) as Record<string, unknown>;
+  const status = String(raw.status ?? 'pending') as DecisionStatus;
+  const choice = raw.choice === undefined || raw.choice === null ? null : String(raw.choice);
+  return { status, choice, latencyMs: Number(raw.latency_ms ?? 0) };
+}
 
-    async getPageState(pageId: string): Promise<string | null> {
-      const raw = (await call(`/v1/pages/${encodeURIComponent(pageId)}`, { method: 'GET' })) as Record<string, unknown>;
-      return raw.state === undefined ? null : String(raw.state);
-    },
+async function getState(call: CentralCaller, pageId: string): Promise<string | null> {
+  const raw = (await call(`/v1/pages/${encodeURIComponent(pageId)}`, { method: 'GET' })) as Record<string, unknown>;
+  return raw.state === undefined ? null : String(raw.state);
+}
 
-    async isOnline(): Promise<boolean> {
-      try {
-        await call('/healthz', { method: 'GET' }, 2_000);
-        return true;
-      } catch {
-        return false;
-      }
-    },
+async function probeHealth(call: CentralCaller): Promise<boolean> {
+  try {
+    await call('/healthz', { method: 'GET' }, 2_000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function httpBeeperClient(options: HttpClientOptions): BeeperClient {
+  const call = centralCaller(options);
+  return {
+    createPage: (draft) => postPage(call, draft),
+    waitDecision: (pageId, waitSeconds) => getDecision(call, pageId, waitSeconds),
+    getPageState: (pageId) => getState(call, pageId),
+    isOnline: () => probeHealth(call),
   };
 }
