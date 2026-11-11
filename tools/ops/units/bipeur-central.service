@@ -1,0 +1,32 @@
+[Unit]
+Description=Beeper Central (Kiroween 2026 demo) — one process, one SQLite file
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/baptiste/bipeur-demo
+Environment=PATH=/home/baptiste/tools/node-v24.11.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NODE_OPTIONS=--disable-warning=ExperimentalWarning
+Environment=BIPEUR_HOST=127.0.0.1
+Environment=BIPEUR_PORT=8813
+Environment=BIPEUR_DB=/home/baptiste/bipeur-demo/data/bipeur.sqlite
+Environment=BIPEUR_RULES=/home/baptiste/bipeur-demo/.bipeur/rules.yaml
+Environment=BIPEUR_DEMO=1
+Environment=BIPEUR_BUDGET_PER_HOUR=6
+Environment=BIPEUR_RETENTION_DAYS=30
+ExecStart=/home/baptiste/tools/node-v24.11.0-linux-x64/bin/node packages/central/dist/bin.js
+Restart=always
+RestartSec=5
+Nice=-5
+CPUWeight=200
+IOWeight=200
+MemoryMin=256M
+MemoryHigh=512M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/home/baptiste/bipeur-demo/data
+
+[Install]
+WantedBy=default.target
