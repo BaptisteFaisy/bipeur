@@ -16,6 +16,47 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    // Node and browser globals, declared explicitly so no extra dependency
+    // (`globals`) is needed. The pager runs in the browser, the rest in Node.
+    files: ['**/*.{js,mjs,cjs,ts,tsx}'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        fetch: 'readonly',
+        crypto: 'readonly',
+        queueMicrotask: 'readonly',
+        structuredClone: 'readonly',
+        performance: 'readonly',
+        localStorage: 'readonly',
+        navigator: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        WebSocket: 'readonly',
+        Response: 'readonly',
+        Request: 'readonly',
+        Headers: 'readonly',
+        AbortController: 'readonly',
+        atob: 'readonly',
+        btoa: 'readonly',
+        __dirname: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        React: 'readonly',
+        JSX: 'readonly',
+      },
+    },
+  },
+  {
     files: ['**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-unused-vars': [
