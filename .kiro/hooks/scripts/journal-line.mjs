@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* global console, process */
 /**
  * journal-reminder's action: append one dated line to KIRO_JOURNAL.md when a
  * spec task ends. The form asks what Kiro changed lot by lot; a journal written
