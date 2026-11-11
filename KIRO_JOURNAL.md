@@ -63,6 +63,33 @@ real and were found on the first runs of `packages/core`.
 | **E2E P1…P7** (03:40 → 05:50, Playwright against a running Central) | The pager stayed `data-connection="offline"` for ever. Four drifts, each invisible to green unit tests on both sides: (1) `POST /v1/devices` answers `{device_id, device_token}` while the pager parsed `{id, name, paired_at}` — no token stored, no `Authorization` header, and `ws://…/v1/stream` opened **without** the token the Central requires; (2) the pager read `{id, payload_sha256, source_alias}` where the Central sends `{page_id, fingerprint, station}`, so every delivered page was dropped by zod; (3) a decision named the device id the pager had invented locally, so the Central matched it to no device; (4) `sync()` right after pairing read React state that had not flushed, so a page created *before* the pairing never reached the screen | PR #18, merged. **15 scenarios green in 2.0 min**, P1…P7, against a real Central, a real pager build, a real WebSocket and real ECDSA signatures |
 | **CI, by hand** (00:45 → 03:20) | Four pipeline defects, each found by a red run rather than by reading: a local composite action used before `actions/checkout`; `::add-path::` disabled on current runners; an empty `env:` key making `contest-guard.yml` unparseable; the gate reading commit *statuses* while Actions publishes *check-runs*; `HERMES_REQUIRED_CHECKS: ''` in the workflow masking the repository variable | PRs #1, #9, #11 |
 
+## The conflict resolver, proven on a real conflict (2026-11-11 15:08 UTC)
+
+Not a self-test: a drill on the repository itself, with two branches editing the
+same lines of the same two files.
+
+| Step | What happened | Evidence |
+|---|---|---|
+| 1 | Side A (#28) adds key `b` to `tools/drill/config.json` and rewrites a paragraph of `docs/CONFLICT-DRILL.md`; Mergify merges it | `3324f2b` |
+| 2 | Side B (#29), branched before, adds key `c` and rewrites the **same** paragraph differently | PR #29 → `mergeable=false`, `mergeable_state=dirty` |
+| 3 | The gate detects the conflict, labels `hermes/conflit`, writes `conflict_prs=29` | gate log: `conflits [29]` |
+| 4 | `hermes-lite.yml` dispatches `hermes-conflict-resolver` in `apply` mode | run 43045346499 |
+| 5 | The resolver rebases on `origin/main` and resolves both files through **InferHub** (`combo/cheap`) | its comment on #29: two rows, strategy `llm`, "merged by combo/cheap" |
+| 6 | It validates with the repository toolchain **before** pushing: install 2 s, typecheck 7 s, lint 4 s, test 10 s, build 10 s — all green, 73 s total | same comment |
+| 7 | `git push --force-with-lease`, label `hermes/resolu`, structured report on the PR | `[resolver] #29 résolu et poussé en 73s` |
+| 8 | Mergify merges #29 | `0281cfe`, merged by `app/mergify` |
+
+The merged result kept **both** sides: the JSON holds keys `a`, `b` **and** `c`,
+and the paragraph states both intents instead of picking a side. The drill files
+were then removed — the proof is this table, not the fixtures.
+
+Two defects of the pipeline were found by running it rather than reading it, and
+both are fixed: the gate read `mergeable` from the **list** endpoint, which does
+not return it, so conflicts were invisible on `workflow_dispatch` and
+`check_run` triggers (PR #31); and a bot push leaves the runs in
+`action_required`, which the gate only approved after its *own* rebase, never
+after the resolver's (PR #34).
+
 ## Hooks
 
 | Hook | Trigger | Fires so far | Note |
