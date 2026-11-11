@@ -117,6 +117,7 @@ export function startDemo(ctx: CentralContext, simulator: Simulator): DemoSessio
     token_hash: hashToken(stationToken),
     last_seen_at: now,
     visitor_id: visitorId,
+    revoked_at: null,
   };
   ctx.store.insertSource(source);
 

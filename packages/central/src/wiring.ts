@@ -59,6 +59,7 @@ export function ensureBootstrapSource(config: Config, store: Store): string | nu
       token_hash: tokenHash,
       last_seen_at: config.now(),
       visitor_id: null,
+      revoked_at: null,
     });
   }
   return config.bootstrapToken === null ? token : null;
