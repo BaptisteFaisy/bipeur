@@ -32,8 +32,8 @@ hermes-conflict-resolver.yml  (workflow_dispatch, un run par PR)
         ├─ identique des 2 côtés   → gardé tel quel
         ├─ package.json            → fusion JSON clé par clé (aucune perte)
         ├─ binaire qui diffère     → NON résolu (un humain tranche)
-        └─ source                  → Fireworks (deepseek-v4p1-flash), puis
-                                     repli déterministe, sinon NON résolu
+        └─ source                  → InferHub (combo/cheap, meta-routeur),
+                                     puis repli déterministe, sinon NON résolu
         │
         ▼
    4. VALIDATION obligatoire, avec la toolchain du dépôt :
@@ -54,7 +54,7 @@ hermes-conflict-resolver.yml  (workflow_dispatch, un run par PR)
 | Jamais de push sur `main` | `push HEAD:refs/heads/<branche de la PR>`, jamais autre chose |
 | Jamais de push sur la branche d'autrui | la branche vient de la PR ; les forks sont refusés |
 | Jamais d'écrasement silencieux | `--force-with-lease=refs/heads/<branche>:<head SHA>` : si quelqu'un a poussé entre-temps, le push est **refusé** |
-| Jamais de valeur de secret exposée | noms seuls (`FIREWORKS_API_KEY`, `HERMES_PUSH_TOKEN`) ; le jeton de push est remis à git par `GIT_ASKPASS`, jamais en argument de commande |
+| Jamais de valeur de secret exposée | noms seuls (`INFERHUB_API_KEY`, `HERMES_PUSH_TOKEN`) ; le jeton de push est remis à git par `GIT_ASKPASS`, jamais en argument de commande |
 | Jamais d'échec silencieux | sans clé LLM : 100 % déterministe ; si rien ne prouve le résultat : label + commentaire + sortie ≠ 0 |
 | Jamais de timeout tué sans explication | `resolver.py` s'arrête à 270 s (`HERMES_BUDGET_SECONDS`) et escalade **avant** le `timeout-minutes: 5` du job |
 
@@ -80,8 +80,13 @@ identiques des deux côtés → gardés, sinon **non résolus** (un humain tranc
 ## Ordre d'activation
 
 1. **Secrets** (dépôt → Settings → Secrets and variables → Actions) :
-   - `FIREWORKS_API_KEY` — jambe LLM directe. Absent : le résolveur reste
-     déterministe et escalade plus souvent, il ne casse pas.
+   - `INFERHUB_API_KEY` — jambe LLM directe (**déjà posé** sur le dépôt).
+     Absent : le résolveur reste déterministe et escalade plus souvent, il ne
+     casse pas. Le modèle par défaut `combo/cheap` est le **meta-routeur**
+     InferHub : le modèle réel qui répond peut changer sous nous, d'où les
+     garde-fous sur la réponse (`accept_llm_output` : vide, marqueurs de
+     conflit restants ou taille aberrante ⇒ rejet et repli déterministe).
+     Surcharge possible via la variable `HERMES_LLM_MODEL`.
    - `HERMES_PUSH_TOKEN` — PAT fine-grained `contents: write` sur ce dépôt.
      Absent : le repli est `github.token`, dont les push **ne déclenchent aucun
      workflow** (anti-récursion GitHub) : la CI ne serait pas relancée sur le
@@ -124,7 +129,7 @@ droit de pousser. Corriger ce lint est une tâche séparée.
 
 ## Actions user restantes
 
-- [ ] Poser le secret `FIREWORKS_API_KEY` (jambe LLM).
+- [x] Secret `INFERHUB_API_KEY` posé (jambe LLM InferHub) — rien à faire.
 - [ ] Poser le secret `HERMES_PUSH_TOKEN` (PAT fine-grained `contents: write`) —
       sinon pas de relance de CI sur le head résolu.
 - [ ] Merger cette PR (elle-même passe par la file Mergify : `ci-budget`,
