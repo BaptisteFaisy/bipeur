@@ -1,13 +1,14 @@
 # Deployment — one process, one SQLite file, one URL (BIP-N-09)
 
-Three ways to host the Central + the pager, from "one command in the cloud" to
-"one command on a bare machine". All three serve the same thing: the Hono API,
-the WebSocket stream and the built pager on **one HTTP port (8787)**, with the
-state in **one SQLite file**.
+Four ways to host the Central + the pager, from "one command on a bare machine"
+to "one command in the cloud". All of them serve the same thing: the Hono API,
+the WebSocket stream and the built pager on **one HTTP port**, with the state in
+**one SQLite file**.
 
 | Way | Files | Best for |
 |---|---|---|
-| Modal (CPU, scale-to-zero) | `deploy/modal_app.py` | the public demo instance for the judges |
+| **Tailscale Funnel — LIVE** | `bipeur-central.service` (systemd user unit) | the public demo instance for the judges, right now |
+| Modal (CPU, scale-to-zero) | `deploy/modal_app.py` | a cloud URL, once the workspace spend limit allows it |
 | Docker / docker compose | `Dockerfile`, `docker-compose.yml`, `.dockerignore` | any container host, self-hosting |
 | Bare Node | — | a machine with Node ≥ 22.13 and pnpm ≥ 10 |
 
@@ -39,18 +40,20 @@ what makes "hosted until 29 January 2027" free.
 
 ### Current status of the public instance
 
-The deployment from the contest workspace was **refused by Modal** on
-2026-11-11 with the exact error:
+**Live since 2026-11-11 on Tailscale Funnel — see section 4 below.**
+
+The Modal deployment was **refused** on 2026-11-11 with the exact error:
 
 ```text
 Workspace ac-3lgJFhzO8zTGDFvgAszRD4 has exceeded its spend limit
 ```
 
-Nothing was forced (no other app was touched, no guard bypassed). To publish
-the instance: raise or reset the workspace spend limit in the Modal dashboard
-(Settings → Billing), then run `modal deploy deploy/modal_app.py` again — the
-command is idempotent and prints the public URL. The Docker way below is fully
-working and verified in the meantime.
+Nothing was forced (no other app was touched, no guard bypassed), and both
+configured profiles resolve to that same workspace, so switching profile changes
+nothing. To publish on Modal later: raise or reset the workspace spend limit in
+the Modal dashboard (Settings → Billing), then run
+`modal deploy deploy/modal_app.py` — idempotent, prints the public URL. The
+Docker way below is built and verified in the meantime.
 
 ### Optional secret (Web Push, fixed station token)
 
@@ -185,10 +188,83 @@ Central — via `.env` for Docker/bare Node, via a Modal Secret for Modal.
 Without them the push sender is a no-op and the pager falls back to the
 WebSocket stream, which is enough for the whole demo.
 
+## 4. Tailscale Funnel — the live public instance
+
+```
+https://r630-debian.tail3a8bdf.ts.net/
+```
+
+Free, HTTPS, no account for the visitor, no port forwarding, and it stays up as
+long as the host does. Tailscale terminates TLS at the edge and proxies to a
+process listening on the loopback only, so nothing else on the machine is
+reachable from the internet.
+
+### What runs
+
+| | |
+|---|---|
+| Host | `r630-debian` (Debian 13, headless, on the tailnet) |
+| Checkout | `/home/baptiste/bipeur-demo`, branch `main` |
+| Service | `bipeur-central.service` (systemd **user** unit, `Restart=always`, linger on) |
+| Bind | `127.0.0.1:8813` — loopback only, never `0.0.0.0` |
+| Funnel | `sudo tailscale funnel --bg 8813` → `https://r630-debian.tail3a8bdf.ts.net/` |
+| Database | `/home/baptiste/bipeur-demo/data/bipeur.sqlite` (WAL) |
+| Mode | `BIPEUR_DEMO=1`, budget 6 pages/hour, retention 30 days |
+| Hardening | `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=full`, `ReadWritePaths` limited to `data/` |
+
+Port 8787 was already taken on that host by another service, hence 8813.
+
+### Reproduce it
+
+```bash
+# on the host, once
+git clone https://github.com/BaptisteFaisy/bipeur.git bipeur-demo && cd bipeur-demo
+pnpm install --frozen-lockfile && pnpm build
+mkdir -p data
+# install the unit (see the table above for the environment), then
+systemctl --user enable --now bipeur-central.service
+sudo tailscale funnel --bg 8813
+
+# update after a merge
+cd ~/bipeur-demo && git pull && pnpm install --frozen-lockfile && pnpm build \
+  && systemctl --user restart bipeur-central.service
+
+# take it down (one command, nothing else changes)
+sudo tailscale funnel --https=443 off
+```
+
+### Verified from outside the tailnet (2026-11-11)
+
+```text
+GET  /healthz          → 200 {"ok":true,"version":"0.1.0"}
+GET  /                 → 200, the pager PWA (701 bytes of HTML)
+POST /v1/demo/start    → 201, visitor_id + station_token + device_token + key pair
+POST /v1/pages         → "110 demo RUN rm -rf packages/ #65e2", risk red, delivered
+WSS  /v1/stream?token= → {"type":"hello","central":"bipeur-central/0.1.0","budget":6}
+                         then page.delivered with the SAME fingerprint
+GET  /v1/metrics       → 200, the indicators of A.3
+```
+
+The WebSocket works through the funnel, which is the one thing that had to be
+proven: without it a judge would see a pager stuck on "offline".
+
+### Known limits of this instance
+
+- **No Web Push**: no VAPID keys are set, so `push.notify` is a no-op that
+  writes to the log. The WebSocket stream is the delivery path — exactly the
+  documented fallback (BIP-F-19). Add `BIPEUR_VAPID_*` to the unit to enable it.
+- **Single host**: no replica. If `r630-debian` reboots, systemd and the funnel
+  config both come back on their own; if the host dies, redeploy elsewhere with
+  the same three commands.
+- **Demo mode is on**, so anyone reaching the URL can open a visitor space. That
+  is the point (no account for the judges), each space is isolated and wiped
+  after 24 h, and the audit log keeps 30 days.
+
 ## Choosing
 
-- **Judges / public demo**: Modal once the spend limit is lifted — free
-  scale-to-zero, HTTPS, one command.
+- **Judges / public demo**: the live Funnel URL above. Modal remains the cleaner
+  long-term answer (scale-to-zero, no host of ours in the path) once its spend
+  limit is lifted.
 - **Self-hosting**: Docker compose on any box; add a reverse proxy (Caddy,
   nginx) for HTTPS and Web Push.
 - **Development**: bare Node (`pnpm central` + `pnpm pager`).
