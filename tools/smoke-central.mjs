@@ -2,10 +2,10 @@
 // accept a page and let a source wait for a decision. Exits non-zero on any
 // surprise. Kept dependency-free on purpose: it runs right after `pnpm build`.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { existsSync } from 'node:fs';
 
 const ENTRY = new URL('../packages/central/dist/bin.js', import.meta.url).pathname;
 
@@ -15,7 +15,26 @@ if (!existsSync(ENTRY)) {
 }
 
 const dir = mkdtempSync(join(tmpdir(), 'bipeur-smoke-'));
-const port = 8790 + Math.floor(Math.random() * 60);
+
+/**
+ * A port the kernel says is free, not a guess in a range. A fixed or random
+ * range collides with whatever else runs on a shared machine: the child then
+ * dies with EADDRINUSE while ANOTHER Central answers on that port, and the
+ * smoke test happily asserts against a server it does not own — it reported
+ * `{"error":"unauthorized"}` instead of saying it never started.
+ */
+async function freePort() {
+  const probe = createServer();
+  await new Promise((resolve, reject) => {
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', resolve);
+  });
+  const { port } = probe.address();
+  await new Promise((resolve) => probe.close(resolve));
+  return port;
+}
+
+const port = await freePort();
 const base = `http://127.0.0.1:${port}`;
 
 const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', ENTRY], {
@@ -34,10 +53,18 @@ const logs = [];
 child.stdout.on('data', (d) => logs.push(String(d)));
 child.stderr.on('data', (d) => logs.push(String(d)));
 
+let exited = null;
+child.on('exit', (code, signal) => {
+  exited = { code, signal };
+});
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function untilHealthy(tries = 60) {
   for (let i = 0; i < tries; i += 1) {
+    // Our child died: stop probing, or another process on this port would
+    // answer and the assertions would be about somebody else's server.
+    if (exited) return false;
     try {
       const res = await fetch(`${base}/healthz`);
       if (res.ok) return true;
@@ -60,7 +87,9 @@ function check(label, condition, detail = '') {
 }
 
 try {
-  check('central boots', await untilHealthy());
+  const healthy = await untilHealthy();
+  check('central boots', healthy, exited ? `child exited code=${exited.code} signal=${exited.signal}` : 'no answer on /healthz');
+  if (!healthy) throw new Error('the Central never answered: the rest of the smoke test would be meaningless');
 
   const created = await fetch(`${base}/v1/pages`, {
     method: 'POST',
