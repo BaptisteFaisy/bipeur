@@ -4,7 +4,8 @@
     "outDir": "dist",
     "rootDir": "src",
     "types": ["node"],
-    "noEmit": false
+    "noEmit": false,
+    "paths": {}
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
