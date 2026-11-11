@@ -23,6 +23,7 @@ export interface SourceRow {
   token_hash: string;
   last_seen_at: number;
   visitor_id: string | null;
+  revoked_at: number | null;
 }
 
 export interface DeviceRow {
@@ -93,6 +94,14 @@ export interface VisitorRow {
   created_at: number;
 }
 
+/** Bounded window over the audit log: filters plus offset pagination. */
+export interface EventFilter {
+  limit: number;
+  type?: AuditEventType | null;
+  sourceId?: string | null;
+  offset?: number;
+}
+
 export interface PagePatch {
   state?: PageState;
   delivered_at?: number;
@@ -125,6 +134,10 @@ export interface Store {
   sourceById(id: string): SourceRow | null;
   sourceByTokenHash(tokenHash: string): SourceRow | null;
   touchSource(id: string, at: number): void;
+  listSources(): SourceRow[];
+  revokeSource(id: string, at: number): boolean;
+  /** Page counts per station, for the dashboard (BIP-F-30). */
+  pageCountBySource(): Record<string, number>;
 
   insertDevice(device: DeviceRow): void;
   deviceById(id: string): DeviceRow | null;
@@ -144,7 +157,7 @@ export interface Store {
   recordNonce(nonce: string, deviceId: string, at: number): void;
 
   appendEvent(event: AuditEvent): number;
-  listEvents(options: { limit: number; type?: AuditEventType | null }): AuditEvent[];
+  listEvents(options: EventFilter): AuditEvent[];
   countEvents(type: AuditEventType): number;
   purgeEventsBefore(cutoff: number): number;
 

@@ -39,9 +39,10 @@ export class AuditLog {
     });
   }
 
-  list(options: { limit?: number; type?: AuditEventType | null } = {}): AuditEvent[] {
+  list(options: { limit?: number; type?: AuditEventType | null; sourceId?: string | null; offset?: number } = {}): AuditEvent[] {
     const limit = Math.min(500, Math.max(1, options.limit ?? 100));
-    return this.store.listEvents({ limit, type: options.type ?? null });
+    const offset = Math.min(10_000, Math.max(0, options.offset ?? 0));
+    return this.store.listEvents({ limit, type: options.type ?? null, sourceId: options.sourceId ?? null, offset });
   }
 
   count(type: AuditEventType): number {

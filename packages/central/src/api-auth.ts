@@ -21,6 +21,7 @@ export function authenticateStation(ctx: CentralContext, limiter: RateLimiter, c
   if (!limiter.take(tokenHash)) return { ok: false, response: json({ error: 'rate_limited' }, 429) };
   const source = ctx.store.sourceByTokenHash(tokenHash);
   if (!source) return { ok: false, response: json({ error: 'unauthorized' }, 401) };
+  if (source.revoked_at !== null) return { ok: false, response: json({ error: 'source_revoked' }, 403) };
   ctx.store.touchSource(source.id, ctx.clock());
   return { ok: true, source };
 }

@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS sources (
   kind TEXT NOT NULL,
   token_hash TEXT NOT NULL UNIQUE,
   last_seen_at INTEGER NOT NULL,
-  visitor_id TEXT
+  visitor_id TEXT,
+  revoked_at INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS devices (
@@ -122,5 +123,17 @@ export function openDatabase(path: string): DatabaseSync {
   db.exec('PRAGMA busy_timeout = 5000');
   db.exec('PRAGMA synchronous = NORMAL');
   db.exec(SCHEMA_SQL);
+  migrate(db);
   return db;
+}
+
+/** Additive migrations for databases created before a column existed. */
+function migrate(db: DatabaseSync): void {
+  ensureColumn(db, 'sources', 'revoked_at', 'INTEGER');
+}
+
+function ensureColumn(db: DatabaseSync, table: string, column: string, type: string): void {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as Array<Record<string, unknown>>;
+  if (rows.some((row) => row['name'] === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
 }
