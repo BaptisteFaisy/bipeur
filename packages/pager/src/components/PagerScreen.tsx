@@ -47,17 +47,7 @@ export function PagerScreen(): React.JSX.Element {
           <QueueCounter count={state.queue.length} />
         </div>
         <Lcd rows={rows} text={page ? source : ''} />
-        {page ? <DetailScreens page={page} index={state.detailIndex} total={total} /> : null}
-        {page === null && (
-          <p className="no-pages" data-testid="no-pages">
-            {t('pager.noPages')}
-          </p>
-        )}
-        {risk === 'red' && (
-          <p className="hold-hint" data-testid="hold-hint">
-            {t('pager.holdHint')}
-          </p>
-        )}
+        <PageFooter page={page} index={state.detailIndex} total={total} risk={risk} />
         <Keypad
           risk={risk ?? 'green'}
           options={options}
@@ -67,27 +57,72 @@ export function PagerScreen(): React.JSX.Element {
           onNext={nextDetail}
           onChoose={(code) => void decide('choice', code)}
         />
-        {queued && (
-          <p className="notice notice-warning" role="status" data-testid="queued-notice">
-            {t('decision.queued')}{' '}
-            <button type="button" className="link" onClick={() => void retry()}>
-              {t('decision.retry')}
-            </button>
-          </p>
-        )}
-        {state.error !== null && (
-          <p className="notice notice-error" role="alert" data-testid="error-notice">
-            {state.error}
-          </p>
-        )}
-        {state.notice !== null && (
-          <p className="notice" role="status" data-testid="notice">
-            {state.notice}
-          </p>
-        )}
+        {queued && <QueuedNotice onRetry={() => void retry()} />}
+        <Notices />
         <p className="keyboard-hint">{t('keyboard.hint')}</p>
       </div>
     </section>
+  );
+}
+
+/** What sits under the LCD: the detail bar, or the "no pages" line. */
+function PageFooter(props: {
+  page: ReturnType<typeof currentPage>;
+  index: number;
+  total: number;
+  risk: Risk | null;
+}): React.JSX.Element {
+  const { t } = usePager();
+  return (
+    <>
+      {props.page ? (
+        <DetailScreens page={props.page} index={props.index} total={props.total} />
+      ) : (
+        <p className="no-pages" data-testid="no-pages">
+          {t('pager.noPages')}
+        </p>
+      )}
+      {props.risk === 'red' && (
+        <p className="hold-hint" data-testid="hold-hint">
+          {t('pager.holdHint')}
+        </p>
+      )}
+    </>
+  );
+}
+
+/** The decision that did not leave the device, with an explicit retry. */
+function QueuedNotice({ onRetry }: { onRetry(): void }): React.JSX.Element {
+  const { t } = usePager();
+  return (
+    <p className="notice notice-warning" role="status" data-testid="queued-notice">
+      {t('decision.queued')}{' '}
+      <button type="button" className="link" onClick={onRetry}>
+        {t('decision.retry')}
+      </button>
+    </p>
+  );
+}
+
+/** The error and the notice of the pager, read out loud by a screen reader. */
+function Notices(): React.JSX.Element {
+  const { state, t } = usePager();
+  return (
+    <>
+      {state.error !== null && (
+        <p className="notice notice-error" role="alert" data-testid="error-notice">
+          {state.error}
+        </p>
+      )}
+      {state.notice !== null && (
+        <p className="notice" role="status" data-testid="notice">
+          {state.notice}
+        </p>
+      )}
+      {state.notice === null && state.error === null && (
+        <span className="visually-hidden">{t('pager.screenLabel')}</span>
+      )}
+    </>
   );
 }
 

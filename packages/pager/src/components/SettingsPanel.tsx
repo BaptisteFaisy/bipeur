@@ -3,11 +3,13 @@
  * detail hidden on a locked screen. Nothing here ever plays a sound (BIP-N-06).
  */
 import { LANGS, type Lang } from '../i18n/index.js';
+import type { Settings } from '../state/types.js';
 import { usePager } from '../state/PagerContext.js';
 
 export function SettingsPanel(): React.JSX.Element {
   const { state, t, updateSettings, revoke } = usePager();
   const { settings } = state;
+  const onQuietHours = (quietHours: Settings['quietHours']): void => updateSettings({ quietHours });
   return (
     <section className="panel" aria-labelledby="settings-title">
       <h2 id="settings-title">{t('settings.title')}</h2>
@@ -31,20 +33,7 @@ export function SettingsPanel(): React.JSX.Element {
         checked={settings.quietHours.enabled}
         onChange={(enabled) => updateSettings({ quietHours: { ...settings.quietHours, enabled } })}
       />
-      <div className="field-row">
-        <TimeField
-          id="quiet-from"
-          label={t('settings.quietFrom')}
-          value={settings.quietHours.from}
-          onChange={(from) => updateSettings({ quietHours: { ...settings.quietHours, from } })}
-        />
-        <TimeField
-          id="quiet-to"
-          label={t('settings.quietTo')}
-          value={settings.quietHours.to}
-          onChange={(to) => updateSettings({ quietHours: { ...settings.quietHours, to } })}
-        />
-      </div>
+      <QuietHoursField quietHours={settings.quietHours} onChange={onQuietHours} />
       <NumberField
         id="setting-budget"
         label={t('settings.budget')}
@@ -63,6 +52,33 @@ export function SettingsPanel(): React.JSX.Element {
     </section>
   );
 }
+
+/** The two hours of the day when the Central holds the quiet pages. */
+function QuietHoursField(props: {
+  quietHours: Settings['quietHours'];
+  onChange(quietHours: Settings['quietHours']): void;
+}): React.JSX.Element {
+  const { t } = usePager();
+  return (
+    <div className="field-row">
+      <TimeField
+        id="quiet-from"
+        label={t('settings.quietFrom')}
+        value={props.quietHours.from}
+        onChange={(from) => props.onChange({ ...props.quietHours, from })}
+      />
+      <TimeField
+        id="quiet-to"
+        label={t('settings.quietTo')}
+        value={props.quietHours.to}
+        onChange={(to) => props.onChange({ ...props.quietHours, to })}
+      />
+    </div>
+  );
+}
+
+/** The device of this pager, and the way to forget it. */
+
 
 interface SwitchProps {
   id: string;
