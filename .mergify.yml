@@ -1,0 +1,70 @@
+# Mergify — merge queue for Beeper.
+#
+# Structure copied from the author's CI scaffold (hermes-port/repo-bootstrap),
+# with the real checks of this repository wired in. Rules:
+#   - nothing enters main without the five CI checks and the contest guard;
+#   - the label `hold` is the manual brake;
+#   - one PR = one commit (squash) so the history stays linear while several
+#     agents work in parallel on disjoint packages;
+#   - conflicts are NOT resolved here: the Hermes resolver
+#     (.github/workflows/hermes-conflict-resolver.yml) rebases, resolves and
+#     re-pushes, and escalates to a human when it cannot prove the result.
+
+queue_rules:
+  - name: default
+    queue_conditions:
+      # CI budget of 5 minutes (user rule 2026-10-24)
+      - check-success = ci-budget
+      # The four real checks
+      - check-success = typecheck
+      - check-success = lint
+      - check-success = test
+      - check-success = build
+      # Kiroween rules: .kiro tracked, licence present, no secret, size limits
+      - check-success = contest-guard
+      # Manual brake and hygiene
+      - -label = hold
+      - -conflict
+      - -draft
+      - base = main
+    batch_size:
+      min: 1
+      max: 3
+    batch_max_wait_time: "30 seconds"
+    max_checks_retries: 1
+    merge_method: squash
+    update_method: rebase
+    commit_message_template: |-
+      {{ title }} (#{{ number }})
+
+priority_rules:
+  - name: urgent
+    conditions:
+      - label = urgent
+    priority: high
+  - name: priority-low
+    conditions:
+      - label = priority-low
+    priority: low
+
+merge_queue:
+  # Six self-hosted workers on the R630 (labels bipeur-worker, ci-node).
+  max_parallel_checks: 4
+
+# Native auto-queue (Merge Queue product) instead of `pull_request_rules`,
+# which needs the Workflow Automation product.
+merge_protections_settings:
+  auto_merge_conditions: true
+
+# A PR labelled `hold`, or in conflict, leaves the queue immediately.
+merge_protections:
+  - name: ci-green-and-no-hold
+    conditions:
+      - check-success = ci-budget
+      - check-success = typecheck
+      - check-success = lint
+      - check-success = test
+      - check-success = build
+      - check-success = contest-guard
+      - -label = hold
+      - base = main

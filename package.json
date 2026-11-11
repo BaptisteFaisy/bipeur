@@ -1,0 +1,35 @@
+{
+  "name": "bipeur",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Beeper — the pager is back, for your AI agents. One line, one code, one tap.",
+  "license": "MIT",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:props": "vitest run --project props",
+    "build": "pnpm -r --filter '!@bipeur/e2e' build",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "central": "pnpm --filter @bipeur/central start",
+    "pager": "pnpm --filter @bipeur/pager dev",
+    "e2e": "pnpm --filter @bipeur/e2e test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^24.19.2",
+    "eslint": "^9.39.5",
+    "fast-check": "^4.10.2",
+    "happy-dom": "^21.0.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  }
+}

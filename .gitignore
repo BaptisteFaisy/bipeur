@@ -1,0 +1,44 @@
+# Dependencies & build output
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+coverage/
+
+# Vite / PWA
+packages/pager/dev-dist/
+.vite/
+
+# Playwright (E2E runs outside PR CI)
+e2e/playwright-report/
+e2e/test-results/
+e2e/.auth/
+
+# Local runtime state — the Central keeps ONE SQLite file + audit log
+data/
+*.sqlite
+*.sqlite-journal
+*.db
+.bipeur/local/
+dev-server/
+
+# Env & secrets — never commit a token, a key or a VAPID pair
+.env
+.env.*
+!.env.example
+*.pem
+
+# Python bytecode (CI scripts in .github/)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Editors & OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# NOTE: `.kiro/` is intentionally NOT ignored — Kiroween requires the
+# folder to be tracked at the root of the repository. The `contest-guard`
+# workflow fails if any .gitignore line ever matches it.

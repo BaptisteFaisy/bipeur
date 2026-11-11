@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+# The lockfile is generated, never hand-edited and never merged by hand:
+# a conflicted lockfile is resolved by regenerating it (`pnpm install`),
+# which is exactly what the Hermes resolver does for derived files.
+pnpm-lock.yaml merge=binary -diff linguist-generated=true
+
+*.png binary
+*.ico binary
+*.woff2 binary

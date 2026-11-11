@@ -1,0 +1,21 @@
+name: 'Setup Node + pnpm (self-hosted R630)'
+description: 'Shallow checkout, pinned Node toolchain on PATH, workspace install'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout (shallow)
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Show toolchain
+      shell: bash
+      run: |
+        node --version
+        pnpm --version
+
+    - name: Install workspace dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile --prefer-offline

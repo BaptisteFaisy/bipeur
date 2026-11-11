@@ -1,0 +1,95 @@
+# Beeper rules file — read by BOTH the local hook (fast path, no page at all)
+# and the Central (which composes the line and the risk level).
+#
+# This classification sorts attention. It is NOT a sandbox: an obfuscated
+# command can fool it, which is why anything unknown pages amber instead of
+# passing silently, and why Kiro's own permission system stays the security
+# boundary (A.9).
+version: 1
+
+defaults:
+  ttl: 15m
+  on_expire: deny          # never approve by default (BIP-F-07)
+
+budget_per_hour: 6         # BIP-F-09 / O2: at most six pages per hour
+
+quiet_hours:
+  enabled: false           # off by default; the operator turns it on
+  start: "23:00"
+  end: "07:00"
+
+allow:                     # never page
+  - shell:
+      - "pnpm test*"
+      - "pnpm lint*"
+      - "pnpm typecheck*"
+      - "pnpm build*"
+      - "npm test*"
+      - "git status*"
+      - "git diff*"
+      - "git log*"
+      - "git show*"
+      - "ls *"
+      - "cat *"
+      - "wc *"
+      - "grep *"
+      - "rg *"
+      - "node --version"
+      - "pnpm --version"
+
+deny:                      # refuse at once, no page at all
+  - shell:
+      - "rm -rf /*"
+      - "rm -rf ~*"
+      - "rm -rf $HOME*"
+      - "* | sh"
+      - "* | bash"
+      - "curl * | sh"
+      - "git push --force*"
+      - "git push -f *"
+      - "git reset --hard origin/*"
+      - ":(){ :|:& };:"
+      - "mkfs*"
+      - "dd if=*"
+      - "chmod -R 777 /*"
+
+page:
+  - match:
+      shell: ["git push*", "gh pr merge*", "gh pr create*", "git merge*"]
+    code: 310
+    risk: amber
+    verb: PUSH
+  - match:
+      shell: ["rm -rf *", "git reset --hard*", "git clean -fd*", "terraform apply*", "kubectl delete*"]
+    code: 110
+    risk: red
+    verb: DELETE
+  - match:
+      shell: ["modal deploy*", "npm publish*", "pnpm publish*", "gh release create*"]
+    code: 320
+    risk: red
+    verb: DEPLOY
+  - match:
+      shell: ["curl *", "wget *", "gh api -X POST*", "gh api -X DELETE*"]
+    code: 410
+    risk: amber
+    verb: CALL
+  - match:
+      shell: ["adb *", "ssh *", "scp *"]
+    code: 420
+    risk: amber
+    verb: SEND
+  - match:
+      tool: ["@mcp"]
+    code: 410
+    risk: amber
+    verb: CALL
+  - match:
+      path: ["/etc/*", "~/.ssh/*", "~/.aws/*", ".env", ".env.*"]
+    code: 210
+    risk: red
+    verb: WRITE
+
+fallback:                  # anything no rule recognises
+  code: 100
+  risk: amber

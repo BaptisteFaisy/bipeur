@@ -1,0 +1,27 @@
+{
+  "name": "@bipeur/hook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "bip-hook: the Kiro PreToolUse/PostToolUse hook that pages a human and blocks the tool until a signed decision arrives.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "bip-hook": "./dist/bin.js",
+    "bip-notice": "./dist/notice-bin.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@bipeur/core": "workspace:*",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}

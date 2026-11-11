@@ -1,0 +1,61 @@
+name: ci
+
+# Four checks, one per concern, all under the 5-minute budget
+# (~/Bureau/CI-BUDGET-5MIN.md, user rule 2026-10-24). E2E lives in e2e.yml and
+# never runs on a pull request: a browser suite has no place in a PR verdict.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned toolchain of the self-hosted runners (R630). `node:sqlite` needs
+  # Node >= 22.13; the Central stores everything in a single SQLite file.
+  PATH: /home/baptiste/tools/node-v24.11.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin
+  NODE_OPTIONS: --disable-warning=ExperimentalWarning
+  CI: true
+
+jobs:
+  typecheck:
+    name: typecheck
+    runs-on: [self-hosted, bipeur-worker]
+    timeout-minutes: 5
+    steps:
+      - uses: ./.github/actions/setup
+      - run: pnpm typecheck
+
+  lint:
+    name: lint
+    runs-on: [self-hosted, bipeur-worker]
+    timeout-minutes: 5
+    steps:
+      - uses: ./.github/actions/setup
+      - run: pnpm lint
+
+  test:
+    name: test
+    runs-on: [self-hosted, bipeur-worker]
+    timeout-minutes: 5
+    steps:
+      - uses: ./.github/actions/setup
+      - name: Unit tests and property tests (BIP-P-01 … BIP-P-12)
+        run: pnpm test
+
+  build:
+    name: build
+    runs-on: [self-hosted, bipeur-worker]
+    timeout-minutes: 5
+    steps:
+      - uses: ./.github/actions/setup
+      - run: pnpm build
+      - name: Smoke — the Central boots and answers
+        run: node tools/smoke-central.mjs

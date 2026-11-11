@@ -1,0 +1,42 @@
+:root {
+  --ink: #d9f5c9;
+  --lcd: #8fa87a;
+  --case: #12100e;
+  --lamp-green: #58d68d;
+  --lamp-amber: #f0b429;
+  --lamp-red: #e74c3c;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #0a0908;
+  color: var(--ink);
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+}
+
+.shell {
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.hint {
+  color: var(--lcd);
+  font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
