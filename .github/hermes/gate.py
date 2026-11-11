@@ -212,6 +212,29 @@ def raise_conflict(pr, repo, token, base_ref, detail):
     set_label(pr, repo, token, LABEL_OK, False)
 
 
+def refresh_and_settle(repo, token, pr, num, behind, base_ref, required):
+    """Rebase serveur d'une PR en retard, puis ré-évaluation dans le même run.
+
+    Le push du rebase est un push de bot : la CI part en attente d'approbation.
+    On approuve — sur la NOUVELLE tête, pas celle lue en début de run, sinon la
+    requête ne trouve aucun run — puis on laisse `settle_after_refresh` attendre
+    les checks.
+    """
+    r = refresh_branch(repo, token, pr)
+    print('[gate] #%d : en retard de %s → refresh %s' % (num, behind, r), flush=True)
+    if r == 'refreshed':
+        sc, fresh = api('GET', '/repos/%s/pulls/%d' % (repo, num), token=token)
+        new_pr = fresh if sc == 200 and fresh else pr
+        new_sha = (new_pr.get('head') or {}).get('sha') or pr['head']['sha']
+        approve_pending_runs(repo, token, new_pr, new_sha)
+        return settle_after_refresh(repo, token, num, required)
+    if r == 'conflict':
+        raise_conflict(pr, repo, token, base_ref,
+                       'Le rebase automatique a été refusé. Rebase manuel '
+                       'puis push, ou label `hermes/intervention-humaine`.')
+    return r
+
+
 def handle_pr(pr, repo, token, required, dry=False):
     num = pr['number']
     sha = pr['head']['sha']
@@ -238,20 +261,7 @@ def handle_pr(pr, repo, token, required, dry=False):
         if dry:
             print('[gate] #%d : en retard de %s commit(s) — rebase serveur (dry-run)' % (num, behind))
             return 'dry'
-        r = refresh_branch(repo, token, pr)
-        print('[gate] #%d : en retard de %s → refresh %s' % (num, behind, r), flush=True)
-        if r == 'refreshed':
-            # Le push du rebase est un push de bot : la CI part en attente
-            # d'approbation. On approuve, puis on ré-évalue et on merge DANS CE
-            # RUN. `settle_after_refresh` laisse le temps aux checks d'arriver.
-            approve_pending_runs(repo, token, pr, sha)
-            return settle_after_refresh(repo, token, num, required, dry=dry)
-        if r == 'conflict':
-            # Le rebase serveur a été refusé : conflit réel après tout.
-            raise_conflict(pr, repo, token, base_ref,
-                           'Le rebase automatique a été refusé. Rebase manuel '
-                           'puis push, ou label `hermes/intervention-humaine`.')
-        return r
+        return refresh_and_settle(repo, token, pr, num, behind, base_ref, required)
 
     set_label(pr, repo, token, LABEL_OK, True)
     create_check(repo, token, sha, True,

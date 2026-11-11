@@ -60,12 +60,26 @@ def strip_noise(line: str) -> str:
     return line
 
 
+def opens_a_block(line: str) -> bool:
+    """True when an arrow function opens its body on the same line.
+
+    `const r = (p) => f(p);` has no block: measuring braces from there would
+    swallow the next unrelated block and report a false positive (seen on
+    vitest.config.ts, where the whole `defineConfig({...})` was counted as the
+    body of a one-line helper).
+    """
+    arrow = line.rfind('=>')
+    if arrow < 0:
+        return '{' in line
+    return '{' in line[arrow + 2:]
+
+
 def check_ts(path: str, lines: list[str]) -> list[str]:
     problems: list[str] = []
     for index, raw in enumerate(lines):
         line = strip_noise(raw)
         match = FUNC_START.match(line)
-        if not match:
+        if not match or not opens_a_block(line):
             continue
         end = scan_braces(lines, index)
         if end < 0:
