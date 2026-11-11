@@ -21,9 +21,15 @@ self.addEventListener('push', (event) => {
     payload = {};
   }
   const risk = payload.risk === 'red' || payload.risk === 'amber' ? payload.risk : 'green';
-  const title = payload.title || `${payload.code || ''} ${payload.station || ''}`.trim() || 'Beeper';
+  // BIP-F-21 / BIP-N-04: when the operator asked for lock-screen masking the
+  // Central omits the line; the notification is reduced to code + station. The
+  // flag is honoured here too, so a payload that still carried a line could not
+  // leak it onto a locked screen.
+  const masked = payload.masked === true;
+  const title =
+    (masked ? '' : payload.title) || `${payload.code || ''} ${payload.station || ''}`.trim() || 'Beeper';
   const options = {
-    body: payload.line || payload.body || '',
+    body: masked ? '' : payload.line || payload.body || '',
     tag: payload.page_id || 'bipeur',
     renotify: true,
     requireInteraction: risk === 'red',
