@@ -69,20 +69,37 @@ def refresh_branch(repo, token, pr):
     return 'error'
 
 
-CI_WORKFLOWS = ('ci.yml', 'contest-guard.yml', 'ci-budget.yml', 'stale-base-guard.yml')
+def approve_pending_runs(repo, token, pr, sha):
+    """Approuve les runs `action_required` d'une branche rafraichie.
 
-def dispatch_ci(repo, token, branch):
-    """Relance la CI sur une branche que le gate vient de rafraichir.
+    Un push de bot (le rebase serveur) ne declenche pas la CI : GitHub met les
+    runs en attente d'approbation. Sans cette etape, la branche fraiche n'a
+    aucun check rattache a la PR et le merge est refuse (405, "N of N required
+    status checks are expected"). Constate le 2026-11-11 sur ce depot.
 
-    Un push de bot ne declenche aucun workflow (anti-recursion GitHub) : sans
-    cette relance explicite, une PR rebasée par le gate resterait sans check et
-    la file n'avancerait jamais.
+    Refuse d'approuver quoi que ce soit pour une PR venant d'un fork : on
+    n'approuve que nos propres workflows sur nos propres branches.
     """
-    for wf in CI_WORKFLOWS:
-        sc, resp = api('POST', '/repos/%s/actions/workflows/%s/dispatches' % (repo, wf),
-                       token=token, body={'ref': branch})
-        if sc not in (201, 202, 204):
-            print('[gate] dispatch %s : %s %s' % (wf, sc, resp), flush=True)
+    head_repo = (pr.get('head') or {}).get('repo') or {}
+    if head_repo.get('fork'):
+        return 0
+    sc, data = api('GET', '/repos/%s/actions/runs?head_sha=%s' % (repo, sha), token=token)
+    if sc != 200 or not data:
+        return 0
+    approved = 0
+    for run in data.get('workflow_runs') or []:
+        if run.get('conclusion') != 'action_required':
+            continue
+        sc2, resp = api('POST', '/repos/%s/actions/runs/%s/approve' % (repo, run['id']),
+                        token=token)
+        if sc2 in (200, 201, 202, 204):
+            approved += 1
+        else:
+            print('[gate] approve run %s : %s %s' % (run['id'], sc2, resp), flush=True)
+    if approved:
+        print('[gate] #%d : %d run(s) approuve(s)' % (pr['number'], approved), flush=True)
+    return approved
+
 
 def create_check(repo, token, sha, ok, title, summary):
     api('POST', '/repos/%s/check-runs' % repo, token=token, body={
@@ -119,14 +136,14 @@ def required_checks_green(repo, token, pr, required):
     return True
 
 
-def settle_after_refresh(repo, token, num, required, attempts=10, pause=6, dry=False):
+def settle_after_refresh(repo, token, num, required, attempts=20, pause=6, dry=False):
     """[HERMES-REFRESH] Ré-évalue la PR après le rebase serveur, DANS CE RUN.
 
     Le push effectué par `update-branch` est un push de bot : il ne déclenche
     AUCUN workflow (anti-récursion GitHub), et hermes-lite n'a ni cron ni
     dispatch possible avec GITHUB_TOKEN. Sans cette boucle, une PR rebasée
     resterait ouverte pour toujours : personne ne la re-évaluerait.
-    Pollue borné (~60 s), puis rend la main (la veille événementielle
+    Pollue borné (~120 s), puis rend la main (la veille événementielle
     rattrapera au prochain check_run de ce head).
     """
     for i in range(attempts):
@@ -224,10 +241,10 @@ def handle_pr(pr, repo, token, required, dry=False):
         r = refresh_branch(repo, token, pr)
         print('[gate] #%d : en retard de %s → refresh %s' % (num, behind, r), flush=True)
         if r == 'refreshed':
-            # Le push du rebase est un push de bot : aucun workflow ne se
-            # déclenche tout seul. On relance donc la CI à la main, puis on
-            # ré-évalue et on merge DANS CE RUN.
-            dispatch_ci(repo, token, pr['head']['ref'])
+            # Le push du rebase est un push de bot : la CI part en attente
+            # d'approbation. On approuve, puis on ré-évalue et on merge DANS CE
+            # RUN. `settle_after_refresh` laisse le temps aux checks d'arriver.
+            approve_pending_runs(repo, token, pr, sha)
             return settle_after_refresh(repo, token, num, required, dry=dry)
         if r == 'conflict':
             # Le rebase serveur a été refusé : conflit réel après tout.
