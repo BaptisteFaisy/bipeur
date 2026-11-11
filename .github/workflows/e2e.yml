@@ -12,6 +12,12 @@ name: e2e
 on:
   push:
     branches: [main]
+  # A merge performed by the gate uses GITHUB_TOKEN, and GitHub does not fire
+  # `push` events for actions made with it (anti-recursion): the push trigger
+  # above therefore never runs on a merged PR. The nightly run is what actually
+  # proves main, until a PAT (HERMES_LITE_TOKEN) makes the merges attributable.
+  schedule:
+    - cron: '30 3 * * *'
   workflow_dispatch:
     inputs:
       grep:
