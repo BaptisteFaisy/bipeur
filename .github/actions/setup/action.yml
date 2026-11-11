@@ -13,6 +13,7 @@ runs:
         for dir in \
           "$HOME/tools/node-v24.11.0-linux-x64/bin" \
           "/home/baptiste/tools/node-v24.11.0-linux-x64/bin" \
+          "$HOME/.local/bin" \
           "$HOME/.local/opt/bin" \
           "$HOME/.local/share/pnpm"; do
           if [ -x "$dir/node" ] || [ -x "$dir/pnpm" ]; then
