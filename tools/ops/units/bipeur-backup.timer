@@ -1,0 +1,12 @@
+[Unit]
+Description=Back up the Beeper Central database every 6 hours
+
+[Timer]
+# OnCalendar, not OnUnitActiveSec: a oneshot that runs longer than expected on
+# this loaded host left the timer with no next elapse (observed 2026-11-11).
+OnCalendar=*-*-* 00/6:20:00
+AccuracySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
