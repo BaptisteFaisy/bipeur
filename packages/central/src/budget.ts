@@ -4,6 +4,12 @@
  * full and delivered in a burst when a slot frees; a red page, or family 9,
  * always goes through. Held pages stay `queued` in SQLite, so a restart keeps
  * them (BIP-P-12).
+ *
+ * The budget is scoped (BIP-F-31): every demo visitor gets an isolated budget
+ * so two judges running the demo never steal each other's beeps, while pages
+ * with no visitor (the real operator and their agents) share one scope —
+ * BIP-F-09 speaks of *the human*, and one operator must not multiply their
+ * budget by opening stations.
  */
 import {
   AttentionBudget,
@@ -20,8 +26,48 @@ import { applyPageState } from './states.js';
 import type { PageRow } from './store/types.js';
 import { pageView } from './view.js';
 
+/** Scope key of the real operator: pages whose `visitor_id` is null. */
+export const OPERATOR_SCOPE = '';
+
+function scopeOf(visitorId: string | null): string {
+  return visitorId ?? OPERATOR_SCOPE;
+}
+
+/**
+ * One `AttentionBudget` per scope, created on demand. Empty scopes are pruned
+ * during the sweep so purged demo visitors (24 h, `purgeVisitorsBefore`) never
+ * leak a budget on a long-running instance.
+ */
+class BudgetScopes {
+  private readonly scopes = new Map<string, AttentionBudget>();
+
+  constructor(
+    private readonly policy: BudgetPolicy,
+    private readonly clock: () => number,
+  ) {}
+
+  get perHour(): number {
+    return this.policy.perHour;
+  }
+
+  forScope(scope: string): AttentionBudget {
+    const existing = this.scopes.get(scope);
+    if (existing) return existing;
+    const created = new AttentionBudget(this.policy, this.clock);
+    this.scopes.set(scope, created);
+    return created;
+  }
+
+  /** Drops every scope with no counted delivery left in the sliding window. */
+  prune(now: number): void {
+    for (const [scope, budget] of this.scopes) {
+      if (budget.window(now).length === 0) this.scopes.delete(scope);
+    }
+  }
+}
+
 export class DeliveryGate {
-  private readonly budget: AttentionBudget;
+  private readonly scopes: BudgetScopes;
   private quiet: QuietHours;
 
   constructor(
@@ -29,30 +75,39 @@ export class DeliveryGate {
     policy: BudgetPolicy = DEFAULT_BUDGET_POLICY,
     quiet: QuietHours = DEFAULT_QUIET_HOURS,
   ) {
-    this.budget = new AttentionBudget(policy, ctx.clock);
+    this.scopes = new BudgetScopes(policy, ctx.clock);
     this.quiet = quiet;
-    // The window survives a restart: it is rebuilt from the pages table.
+    // Windows survive a restart: every scope is rebuilt from the pages table.
     for (const mark of ctx.store.recentDeliveries(ctx.clock() - policy.windowMs)) {
-      this.budget.record(mark.risk, mark.code, mark.at);
+      this.scopes.forScope(scopeOf(mark.visitor_id)).record(mark.risk, mark.code, mark.at);
     }
   }
 
   get perHour(): number {
-    return this.budget.perHour;
+    return this.scopes.perHour;
   }
 
   setQuietHours(quiet: QuietHours): void {
     this.quiet = quiet;
   }
 
+  /**
+   * `GET /v1/metrics` shows the operator scope only: demo visitors are
+   * transient and isolated (BIP-F-31), while `in_use` next to
+   * `budget_per_hour` describes the budget of the human running the station.
+   */
   inUse(now: number): number {
-    return this.budget.inUse(now);
+    return this.scopes.forScope(OPERATOR_SCOPE).inUse(now);
+  }
+
+  inUseFor(visitorId: string | null, now: number): number {
+    return this.scopes.forScope(scopeOf(visitorId)).inUse(now);
   }
 
   admission(page: PageRow, now: number): Admission {
     const quiet = quietAdmission(this.quiet, page.risk, page.code, new Date(now));
     if (!quiet.admit) return quiet;
-    return this.budget.tryAdmit(page.risk, page.code, now);
+    return this.scopes.forScope(scopeOf(page.visitor_id)).tryAdmit(page.risk, page.code, now);
   }
 
   /** Delivers now if admitted, holds or suppresses otherwise. */
@@ -65,13 +120,17 @@ export class DeliveryGate {
       page_id: page.id,
       source_id: page.source_id,
       fingerprint: page.payload_sha256,
-      data: { reason: 'budget', in_use: this.budget.inUse(now), budget: this.perHour },
+      data: { reason: 'budget', in_use: this.inUseFor(page.visitor_id, now), budget: this.perHour },
     });
     return page;
   }
 
-  /** Flushes held pages while the budget allows; returns how many went out. */
+  /**
+   * Flushes held pages while their own scope allows; returns how many went
+   * out. A saturated scope never blocks the pages of another visitor.
+   */
   release(now: number): number {
+    this.scopes.prune(now);
     let delivered = 0;
     const flushed: string[] = [];
     for (const page of this.ctx.store.listPages({ state: 'queued', limit: 100 })) {
@@ -83,11 +142,7 @@ export class DeliveryGate {
         delivered += 1;
         continue;
       }
-      if (verdict.reason === 'quiet') {
-        this.suppress(page, now);
-        continue;
-      }
-      break;
+      if (verdict.reason === 'quiet') this.suppress(page, now);
     }
     if (flushed.length > 0) {
       // BIP-F-09: the held pages arrive as one burst, and the log says so.
@@ -100,7 +155,7 @@ export class DeliveryGate {
   }
 
   private deliver(page: PageRow, now: number): PageRow {
-    this.budget.record(page.risk, page.code, now);
+    this.scopes.forScope(scopeOf(page.visitor_id)).record(page.risk, page.code, now);
     const outcome = applyPageState(this.ctx, page, 'delivered', now, { delivered_at: now });
     if (!outcome.ok) return page;
     const delivered = outcome.page;

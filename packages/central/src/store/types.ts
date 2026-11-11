@@ -123,6 +123,8 @@ export interface DeliveryMark {
   at: number;
   risk: Risk;
   code: number;
+  /** Null for the real operator's pages; a `vis_…` id for demo spaces. */
+  visitor_id: string | null;
 }
 
 export interface Store {
