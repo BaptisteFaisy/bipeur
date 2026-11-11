@@ -6,9 +6,11 @@
 import { MINUTE } from '@bipeur/core';
 import { Hono } from 'hono';
 import type { CentralContext } from './context.js';
+import { registerDashboardUi } from './dashboard/index.js';
 import { json } from './http-json.js';
 import { RateLimiter } from './rate-limit.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerDashboardRoutes } from './routes/dashboard.js';
 import { registerDemoRoutes } from './routes/demo.js';
 import { registerDeviceRoutes } from './routes/devices.js';
 import { registerPageRoutes } from './routes/pages.js';
@@ -31,7 +33,11 @@ export function createApi(deps: ApiDeps): Hono {
   registerPageRoutes(app, { ctx, stationLimiter, deviceLimiter });
   registerDeviceRoutes(app, { ctx, stationLimiter, deviceLimiter, pairLimiter });
   registerAdminRoutes(app, { ctx, stationLimiter });
+  registerDashboardRoutes(app, { ctx, stationLimiter });
   registerDemoRoutes(app, { ctx, simulator, limiter: pairLimiter });
+
+  // BIP-F-30: the dashboard lives on /dashboard only — / keeps serving the pager.
+  registerDashboardUi(app);
 
   app.get('/', () => servePager('/') ?? fallbackPage());
   // Anything under /v1 is API territory: never answered by the static fallback.

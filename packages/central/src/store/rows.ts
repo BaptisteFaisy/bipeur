@@ -67,6 +67,7 @@ export function toSourceRow(row: SqlRow): SourceRow {
     token_hash: text(row, 'token_hash'),
     last_seen_at: num(row, 'last_seen_at'),
     visitor_id: textOrNull(row, 'visitor_id'),
+    revoked_at: numOrNull(row, 'revoked_at'),
   };
 }
 

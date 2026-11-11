@@ -8,6 +8,8 @@ import type { AuditEvent, AuditEventType, Metrics } from '@bipeur/core';
 import { openDatabase } from './schema.js';
 import { computeMetrics } from './metrics.js';
 import {
+  num,
+  text,
   toDecisionRow,
   toDeviceRow,
   toEvent,
@@ -22,6 +24,7 @@ import type {
   DeviceRow,
   DecisionRow,
   DeliveryMark,
+  EventFilter,
   NoticeRow,
   PageFilter,
   PagePatch,
@@ -94,9 +97,17 @@ export class SqliteStore implements Store {
   insertSource(source: SourceRow): void {
     this.db
       .prepare(
-        'INSERT INTO sources (id, alias, kind, token_hash, last_seen_at, visitor_id) VALUES (?,?,?,?,?,?)',
+        'INSERT INTO sources (id, alias, kind, token_hash, last_seen_at, visitor_id, revoked_at) VALUES (?,?,?,?,?,?,?)',
       )
-      .run(source.id, source.alias, source.kind, source.token_hash, source.last_seen_at, source.visitor_id);
+      .run(
+        source.id,
+        source.alias,
+        source.kind,
+        source.token_hash,
+        source.last_seen_at,
+        source.visitor_id,
+        source.revoked_at,
+      );
   }
 
   sourceById(id: string): SourceRow | null {
@@ -109,6 +120,27 @@ export class SqliteStore implements Store {
 
   touchSource(id: string, at: number): void {
     this.db.prepare('UPDATE sources SET last_seen_at = ? WHERE id = ?').run(at, id);
+  }
+
+  listSources(): SourceRow[] {
+    const rows = this.db.prepare('SELECT * FROM sources ORDER BY last_seen_at DESC').all() as SqlRow[];
+    return rows.map(toSourceRow);
+  }
+
+  revokeSource(id: string, at: number): boolean {
+    const result = this.db
+      .prepare('UPDATE sources SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL')
+      .run(at, id);
+    return Number(result.changes) > 0;
+  }
+
+  pageCountBySource(): Record<string, number> {
+    const rows = this.db
+      .prepare('SELECT source_id, COUNT(*) AS value FROM pages GROUP BY source_id')
+      .all() as SqlRow[];
+    const counts: Record<string, number> = {};
+    for (const row of rows) counts[text(row, 'source_id')] = num(row, 'value');
+    return counts;
   }
 
   // --- devices ------------------------------------------------------------
@@ -290,12 +322,22 @@ export class SqliteStore implements Store {
     return Number(result.lastInsertRowid);
   }
 
-  listEvents(options: { limit: number; type?: AuditEventType | null }): AuditEvent[] {
-    const rows = options.type
-      ? (this.db
-          .prepare('SELECT * FROM events WHERE type = ? ORDER BY id DESC LIMIT ?')
-          .all(options.type, options.limit) as SqlRow[])
-      : (this.db.prepare('SELECT * FROM events ORDER BY id DESC LIMIT ?').all(options.limit) as SqlRow[]);
+  listEvents(options: EventFilter): AuditEvent[] {
+    const clauses: string[] = [];
+    const params: (string | number)[] = [];
+    if (options.type) {
+      clauses.push('type = ?');
+      params.push(options.type);
+    }
+    if (options.sourceId) {
+      clauses.push('source_id = ?');
+      params.push(options.sourceId);
+    }
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
+    const offset = Math.max(0, options.offset ?? 0);
+    const rows = this.db
+      .prepare(`SELECT * FROM events ${where} ORDER BY id DESC LIMIT ? OFFSET ?`)
+      .all(...params, options.limit, offset) as SqlRow[];
     return rows.map(toEvent);
   }
 
