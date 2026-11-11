@@ -1,0 +1,36 @@
+# Standby (failover) instance of the Beeper Central, on the workstation.
+# Bound to the Tailscale address ONLY: reachable from the tailnet, never from
+# the LAN and never from the internet. No funnel is configured for it — the
+# public funnel stays on the r630. See docs/OPERATIONS.md for the switch.
+[Unit]
+Description=Beeper Central — standby instance (failover target, tailnet only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/baptiste/bipeur-standby
+Environment=PATH=/home/baptiste/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NODE_OPTIONS=--disable-warning=ExperimentalWarning
+Environment=BIPEUR_HOST=100.120.194.92
+Environment=BIPEUR_PORT=8814
+Environment=BIPEUR_DB=/home/baptiste/bipeur-standby/data/bipeur.sqlite
+Environment=BIPEUR_RULES=/home/baptiste/bipeur-standby/.bipeur/rules.yaml
+Environment=BIPEUR_DEMO=1
+Environment=BIPEUR_BUDGET_PER_HOUR=6
+Environment=BIPEUR_RETENTION_DAYS=30
+ExecStart=/home/baptiste/.local/bin/node packages/central/dist/bin.js
+Restart=always
+RestartSec=5
+Nice=-5
+CPUWeight=100
+IOWeight=100
+MemoryMin=256M
+MemoryHigh=512M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/home/baptiste/bipeur-standby/data
+
+[Install]
+WantedBy=default.target
