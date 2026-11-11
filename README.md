@@ -275,7 +275,13 @@ GitHub Actions on self-hosted runners, **verdict in 5 minutes maximum**:
 `typecheck`, `lint`, `test`, `build` (+ a boot smoke test), `contest-guard`
 (Kiroween rules and the < 500 lines / < 50 lines-per-function rule),
 `ci-budget` (no job may declare more than 5 minutes), `stale-base-guard`,
-`hermes-lite`. Playwright runs outside pull requests. Merges go through the
+`hermes-lite`. Playwright runs outside pull requests: on `main`, on demand, and
+every night at 03:30 UTC — a merge made with `GITHUB_TOKEN` fires no `push`
+event (GitHub's anti-recursion rule), so the nightly run is what proves `main`.
+
+Two lanes of self-hosted runners: `bipeur-fast` (the four checks and the guard,
+7–30 s each) and `bipeur-worker` for anything heavier. A run is never allowed to
+exceed five minutes; when a job grows, it is split, not extended. Merges go through the
 Mergify queue; conflicts are resolved by the Hermes resolver
 (`.github/hermes/`), which falls back to a deterministic strategy and escalates
 to a human rather than guessing.
