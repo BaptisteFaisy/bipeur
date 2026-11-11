@@ -6,6 +6,7 @@ import type { CrewGateway } from '../src/gateway.js';
 export interface BeeperScript {
   decisions?: WaitResponse['status'][];
   choice?: string | null;
+  reason?: string | null;
 }
 
 export interface FakeBeeper {
@@ -34,6 +35,7 @@ export function fakeBeeper(script: BeeperScript = {}): FakeBeeper {
         status,
         page_id: pageId,
         choice: script.choice ?? null,
+        ...(script.reason === undefined ? {} : { reason: script.reason }),
         fingerprint: 'f'.repeat(64),
         latency_ms: 100,
       };
@@ -72,25 +74,33 @@ export function fakeGateway(): FakeGateway {
   };
 }
 
-export interface FakeGatewayFetch {
-  fetchImpl: typeof fetch;
-  calls: { url: string; body: unknown }[];
+export interface GatewayCall {
+  url: string;
+  body: unknown;
+  cookie: string;
 }
 
-/** Simulates the Crew Gateway REST endpoint used to resolve an approval. */
+export interface FakeGatewayFetch {
+  fetchImpl: typeof fetch;
+  calls: GatewayCall[];
+}
+
+/** Simulates the Crew Gateway REST routes the relay calls. */
 export function fakeGatewayFetch(script: { failTimes?: number; status?: number } = {}): FakeGatewayFetch {
-  const calls: { url: string; body: unknown }[] = [];
+  const calls: GatewayCall[] = [];
   let failures = script.failTimes ?? 0;
   const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const headers = new Headers(init?.headers);
     calls.push({
       url: String(input),
-      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      body: typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined,
+      cookie: headers.get('cookie') ?? '',
     });
     if (failures > 0) {
       failures -= 1;
-      throw new TypeError('gateway unreachable');
+      return new Response('{"error":"injected"}', { status: script.status ?? 500 });
     }
-    return new Response('{}', { status: script.status ?? 200 });
+    return new Response('{}', { status: 200 });
   }) as unknown as typeof fetch;
   return { fetchImpl, calls };
 }
@@ -104,6 +114,24 @@ export function fakeClock(start = 1_000_000): {
     now: () => current,
     sleep: async (ms: number) => {
       current += ms;
+    },
+  };
+}
+
+/** The approval frame, shaped like the Gateway broadcasts it. */
+export function approvalFrame(id: string, over: Record<string, unknown> = {}): unknown {
+  return {
+    type: 'approval',
+    data: {
+      id,
+      instance: `${id}-inst`,
+      source: 'chat',
+      tool: 'shell',
+      tool_input: 'pnpm deploy',
+      tool_purpose: 'Deploy the docs site',
+      slot: 'slot-1',
+      ts: 1_700_000_000,
+      ...over,
     },
   };
 }
