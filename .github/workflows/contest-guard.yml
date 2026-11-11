@@ -23,8 +23,6 @@ concurrency:
   group: contest-guard-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-
 jobs:
   contest-guard:
     name: contest-guard
