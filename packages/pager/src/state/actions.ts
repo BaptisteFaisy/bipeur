@@ -4,7 +4,12 @@
  * without React.
  */
 import type { Verdict } from '@bipeur/core';
-import { generateDeviceKeys, supportsDeviceKeys, type DeviceKeys } from '../crypto/device-key.js';
+import {
+  generateDeviceKeys,
+  importDeviceKeys,
+  supportsDeviceKeys,
+  type DeviceKeys,
+} from '../crypto/device-key.js';
 import { translate, type MessageKey } from '../i18n/index.js';
 import { buildSignedDecision, DecisionRefused } from './decide.js';
 import { currentPage, type Action } from './reducer.js';
@@ -25,7 +30,7 @@ export interface PagerActions {
   pair(code: string): Promise<void>;
   startDemo(): Promise<void>;
   revoke(): void;
-  sync(): Promise<void>;
+  sync(device?: DeviceInfo | null): Promise<void>;
 }
 
 export function createActions(ctx: ActionContext): PagerActions {
@@ -35,7 +40,7 @@ export function createActions(ctx: ActionContext): PagerActions {
     pair: (code) => pair(ctx, code),
     startDemo: () => startDemo(ctx),
     revoke: () => revoke(ctx),
-    sync: () => sync(ctx),
+    sync: (device) => sync(ctx, device),
   };
 }
 
@@ -143,49 +148,90 @@ async function pair(ctx: ActionContext, code: string): Promise<void> {
   }
   try {
     const keys = await generateDeviceKeys(ctx.deps.crypto);
+    const pushSubscription = await ctx.deps.push.subscribe();
     const pairing = await ctx.deps.client.pair({
       code: clean,
+      pairingId: readPairingIdFromLocation(),
       deviceName: DEVICE_NAME,
       publicKeyJwk: keys.publicKeyJwk,
-    });
-    const pushSubscription = await ctx.deps.push.subscribe();
-    const device = await ctx.deps.client.registerDevice({
-      code: clean,
-      deviceName: DEVICE_NAME,
-      publicKeyJwk: keys.publicKeyJwk,
-      pairingId: pairing.pairingId,
-      deviceId: pairing.deviceId,
       pushSubscription,
     });
     ctx.keysRef.current = keys;
-    const info: DeviceInfo = { id: device.id, name: device.name, pairedAt: device.paired_at };
-    writeJson(ctx.deps.storage, STORAGE_KEYS.device, info);
-    ctx.dispatch({ type: 'device.paired', device: info });
-    await sync(ctx);
+    const info: DeviceInfo = {
+      id: pairing.deviceId,
+      name: pairing.name,
+      pairedAt: pairing.pairedAt,
+      token: pairing.deviceToken,
+    };
+    adoptDevice(ctx, info);
+    await sync(ctx, info);
   } catch (error) {
     ctx.dispatch({ type: 'error', error: errorMessage(error) });
   }
 }
 
+/**
+ * The Central's QR carries `/?pair=<pairing_id>&code=<code>`; opening the pager
+ * from it skips typing the code. Absent everywhere else (tests, a typed code).
+ */
+function readPairingIdFromLocation(): string | null {
+  const search = (globalThis as { location?: Location }).location?.search;
+  if (!search) return null;
+  return new URLSearchParams(search).get('pair');
+}
+
+/** One place where a device becomes the current one: token, storage, state. */
+function adoptDevice(ctx: ActionContext, info: DeviceInfo): void {
+  ctx.deps.deviceToken.current = info.token;
+  writeJson(ctx.deps.storage, STORAGE_KEYS.device, info);
+  ctx.dispatch({ type: 'device.paired', device: info });
+}
+
 /** Resynchronise the queue from the Central (BIP-F-22). */
-async function sync(ctx: ActionContext): Promise<void> {
-  const device = ctx.stateRef.current.device;
-  if (!device) return;
+/**
+ * Resynchronise the queue from the Central (BIP-F-22).
+ *
+ * `device` is passed explicitly by the callers that just paired: React has not
+ * flushed `device.paired` yet at that point, so reading the state would skip the
+ * very first synchronisation — and a page created before the pairing would
+ * never reach the screen.
+ */
+async function sync(ctx: ActionContext, device?: DeviceInfo | null): Promise<void> {
+  const target = device ?? ctx.stateRef.current.device;
+  if (!target) return;
   try {
-    const pages = await ctx.deps.client.fetchPending(device.id);
+    const pages = await ctx.deps.client.fetchPending(target.id);
     ctx.dispatch({ type: 'pages.sync', pages });
   } catch {
     /* offline: whatever is already on screen stays on screen */
   }
 }
 
+/**
+ * BIP-F-31: the demo space arrives already paired — device id, token and a key
+ * pair generated for this visitor only, wiped after 24 h. Adopting it is what
+ * lets a judge decide without pairing anything.
+ */
 async function startDemo(ctx: ActionContext): Promise<void> {
+  const lang = ctx.stateRef.current.settings.lang;
   try {
-    await ctx.deps.client.startDemo();
-    ctx.dispatch({
-      type: 'notice',
-      notice: translate(ctx.stateRef.current.settings.lang, 'demo.started'),
-    });
+    const space = await ctx.deps.client.startDemo();
+    if (ctx.deps.crypto) {
+      ctx.keysRef.current = await importDeviceKeys(
+        ctx.deps.crypto,
+        space.device_private_key_jwk as JsonWebKey,
+        space.device_id,
+      );
+    }
+    const info: DeviceInfo = {
+      id: space.device_id,
+      name: DEVICE_NAME,
+      pairedAt: space.expires_at ?? ctx.deps.now(),
+      token: space.device_token,
+    };
+    adoptDevice(ctx, info);
+    ctx.dispatch({ type: 'notice', notice: translate(lang, 'demo.started') });
+    await sync(ctx, info);
   } catch (error) {
     ctx.dispatch({ type: 'error', error: errorMessage(error) });
   }
@@ -194,6 +240,7 @@ async function startDemo(ctx: ActionContext): Promise<void> {
 function revoke(ctx: ActionContext): void {
   ctx.deps.storage.remove(STORAGE_KEYS.device);
   ctx.deps.storage.remove(STORAGE_KEYS.memory);
+  ctx.deps.deviceToken.current = null;
   ctx.keysRef.current = null;
   ctx.dispatch({ type: 'device.revoked' });
 }

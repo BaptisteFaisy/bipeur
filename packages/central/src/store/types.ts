@@ -153,6 +153,11 @@ export interface Store {
 
   insertPairing(pairing: PairingRow): void;
   pairingById(id: string): PairingRow | null;
+  /**
+   * The live pairing for a six-character code, if any. A pager opened by hand
+   * (a typed code, no QR link) knows the code but not the pairing id.
+   */
+  pairingByCode(code: string, now: number): PairingRow | null;
   consumePairing(id: string, at: number): boolean;
 
   insertVisitor(visitor: VisitorRow): void;

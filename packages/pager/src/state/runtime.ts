@@ -21,6 +21,12 @@ export interface Deps {
   push: PushPort;
   storage: StoragePort;
   now: () => number;
+  /**
+   * Live device token. A mutable holder because pairing happens long after the
+   * client is built: the client reads it on every call instead of being
+   * rebuilt, and the WebSocket reconnects with it.
+   */
+  deviceToken: { current: string | null };
 }
 
 export interface RuntimeInput {
@@ -29,16 +35,28 @@ export interface RuntimeInput {
   push?: PushPort;
   storage?: StoragePort;
   now?: () => number;
+  deviceToken?: { current: string | null };
 }
 
 export function createDeps(input: RuntimeInput): Deps {
+  const storage = input.storage ?? browserStorage();
+  const deviceToken = input.deviceToken ?? { current: storedToken(storage) };
   return {
-    client: input.client ?? createCentralClient({}),
+    client:
+      input.client ??
+      createCentralClient({ getDeviceToken: () => deviceToken.current }),
     crypto: input.crypto === undefined ? browserCrypto() : input.crypto,
     push: input.push ?? browserPush,
-    storage: input.storage ?? browserStorage(),
+    storage,
     now: input.now ?? (() => Date.now()),
+    deviceToken,
   };
+}
+
+/** The token of an already paired device, read back from storage on boot. */
+function storedToken(storage: StoragePort): string | null {
+  const device = readJson<DeviceInfo | null>(storage, STORAGE_KEYS.device, null);
+  return device?.token ?? null;
 }
 
 /** Rebuild the state from storage, then let explicit overrides win (tests). */

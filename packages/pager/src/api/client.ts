@@ -11,17 +11,17 @@
 import {
   signedDecisionSchema,
   streamMessageSchema,
-  type DeviceRecord,
   type PageRecord,
   type StreamMessage,
 } from '@bipeur/core';
 import {
   decisionAckSchema,
+  demoResponseSchema,
   deviceResponseSchema,
   pageListSchema,
   pageRecordSchema,
-  pairingResponseSchema,
   toPageRecord,
+  type DemoSpace,
 } from './schemas.js';
 import type { Connection } from '../state/types.js';
 import type { SignedDecision } from '../state/decide.js';
@@ -44,20 +44,24 @@ export interface StreamHandlers {
 }
 
 export interface PairInput {
+  /** The six-character code the Central displays, or the QR link carries. */
   code: string;
+  /** Present when the pager was opened from the QR link; optional otherwise. */
+  pairingId?: string | null;
   deviceName: string;
   publicKeyJwk: JsonWebKey;
+  pushSubscription?: unknown | null;
 }
 
 export interface PairResult {
-  pairingId: string;
   deviceId: string;
-}
-
-export interface RegisterInput extends PairInput {
-  pairingId: string;
-  deviceId: string;
-  pushSubscription: unknown | null;
+  /**
+   * Authenticates every later call, the WebSocket included. A secret: it is
+   * stored, sent as a bearer token, and never logged or rendered.
+   */
+  deviceToken: string;
+  name: string;
+  pairedAt: number;
 }
 
 export interface DecisionAck {
@@ -70,9 +74,9 @@ export interface CentralClient {
   fetchPending(deviceId: string): Promise<PageRecord[]>;
   markRead(pageId: string): Promise<void>;
   sendDecision(pageId: string, decision: SignedDecision): Promise<DecisionAck>;
+  /** BIP-F-15: register the public key against the code, receive the token. */
   pair(input: PairInput): Promise<PairResult>;
-  registerDevice(input: RegisterInput): Promise<DeviceRecord>;
-  startDemo(): Promise<void>;
+  startDemo(): Promise<DemoSpace>;
 }
 
 export class CentralError extends Error {
@@ -93,6 +97,12 @@ export interface ClientOptions {
   webSocketFactory?: WebSocketFactory;
   /** `maxAttempts` counts the reconnection attempts, the first socket excluded. */
   backoff?: { baseMs: number; maxMs: number; maxAttempts: number };
+  /**
+   * Live read of the device token. A getter, not a value: pairing happens after
+   * the client exists, and every device-scoped call needs the header (the
+   * Central answers 401 without it).
+   */
+  getDeviceToken?: () => string | null;
 }
 
 /** Bounded exponential back-off: 1 s, 2 s, 4 s … capped, then give up. */
@@ -109,9 +119,14 @@ export function createCentralClient(options: ClientOptions = {}): CentralClient 
   const backoff = options.backoff ?? DEFAULT_BACKOFF;
 
   async function request<T>(path: string, init: RequestInit, parse: (json: unknown) => T): Promise<T> {
+    const token = options.getDeviceToken?.() ?? null;
     const response = await fetchImpl(`${baseUrl}${path}`, {
       ...init,
-      headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(init.headers ?? {}),
+      },
     });
     if (!response.ok) {
       const detail = await response.text().catch(() => '');
@@ -140,8 +155,15 @@ export function createCentralClient(options: ClientOptions = {}): CentralClient 
 
       const open = (): void => {
         if (closed) return;
+        const token = options.getDeviceToken?.() ?? null;
+        if (!token) {
+          // Without a device token the Central refuses the upgrade (401) and
+          // destroys the socket: retrying would only spin. The pager says so.
+          handlers.onStatus('offline');
+          return;
+        }
         handlers.onStatus('connecting');
-        const current = openSocket(streamUrl(baseUrl));
+        const current = openSocket(streamUrl(baseUrl, token));
         socket = current;
         current.onopen = () => {
           attempt = 0;
@@ -190,39 +212,25 @@ export function createCentralClient(options: ClientOptions = {}): CentralClient 
 
     async pair(input) {
       const body = JSON.stringify({
+        ...(input.pairingId ? { pairing_id: input.pairingId } : {}),
         code: input.code,
         device_name: input.deviceName,
         public_key_jwk: input.publicKeyJwk,
-      });
-      return request('/v1/pairings', { method: 'POST', body }, (json) => {
-        const parsed = pairingResponseSchema.parse(json);
-        return { pairingId: parsed.pairing_id, deviceId: parsed.device_id };
-      });
-    },
-
-    async registerDevice(input) {
-      const body = JSON.stringify({
-        pairing_id: input.pairingId,
-        device_id: input.deviceId,
-        device_name: input.deviceName,
-        public_key_jwk: input.publicKeyJwk,
-        push_subscription: input.pushSubscription,
+        push_subscription: input.pushSubscription ?? null,
       });
       return request('/v1/devices', { method: 'POST', body }, (json) => {
         const parsed = deviceResponseSchema.parse(json);
         return {
-          id: parsed.id,
+          deviceId: parsed.device_id,
+          deviceToken: parsed.device_token,
           name: parsed.name,
-          public_key_jwk: input.publicKeyJwk,
-          push_subscription: input.pushSubscription,
-          paired_at: parsed.paired_at,
-          revoked_at: null,
-        } satisfies DeviceRecord;
+          pairedAt: parsed.paired_at,
+        };
       });
     },
 
     async startDemo() {
-      await request('/v1/demo/start', { method: 'POST' }, () => undefined);
+      return request('/v1/demo/start', { method: 'POST' }, (json) => demoResponseSchema.parse(json));
     },
   };
 }
@@ -241,11 +249,17 @@ function parseStream(data: unknown): StreamMessage | null {
   }
 }
 
-function streamUrl(baseUrl: string): string {
-  if (baseUrl) return `${baseUrl.replace(/^http/, 'ws').replace(/\/$/, '')}/v1/stream`;
+/**
+ * A browser WebSocket cannot carry an Authorization header, so the device
+ * token travels in the query string — the form the Central reads first
+ * (`packages/central/src/stream.ts`).
+ */
+export function streamUrl(baseUrl: string, token: string): string {
+  const query = `?token=${encodeURIComponent(token)}`;
+  if (baseUrl) return `${baseUrl.replace(/^http/, 'ws').replace(/\/$/, '')}/v1/stream${query}`;
   const location = (globalThis as { location?: Location }).location;
   const protocol = location?.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${location?.host ?? '127.0.0.1:8787'}/v1/stream`;
+  return `${protocol}//${location?.host ?? '127.0.0.1:8787'}/v1/stream${query}`;
 }
 
 function defaultWebSocketFactory(): WebSocketFactory {

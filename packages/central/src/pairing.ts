@@ -14,7 +14,8 @@ export const PAIRING_TTL_MS = 5 * MINUTE;
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 const pairDeviceSchema = pairingRequestSchema.extend({
-  pairing_id: z.string().min(1).max(64),
+  /** Optional: a pager opened from the QR link carries it, a typed code does not. */
+  pairing_id: z.string().min(1).max(64).optional(),
   code: z.string().regex(/^[A-Z0-9]{6}$/),
 });
 
@@ -57,7 +58,9 @@ export function pairDevice(
     return { status: 422, body: { error: 'invalid_request', issues: parsed.error.issues.map((i) => i.path.join('.')) } };
   }
   const request = parsed.data;
-  const pairing = ctx.store.pairingById(request.pairing_id);
+  const pairing = request.pairing_id
+    ? ctx.store.pairingById(request.pairing_id)
+    : ctx.store.pairingByCode(request.code, ctx.clock());
   if (!pairing) return { status: 404, body: { error: 'unknown_pairing' } };
   const now = ctx.clock();
   if (pairing.consumed_at !== null) return { status: 409, body: { error: 'pairing_used' } };

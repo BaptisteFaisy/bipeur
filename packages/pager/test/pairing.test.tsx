@@ -5,8 +5,14 @@
  */
 import { describe, expect, it } from 'vitest';
 import { normaliseCode } from '../src/components/PairingPanel.js';
+import { STORAGE_KEYS, memoryStorage, readJson, type StoragePort } from '../src/state/storage.js';
+import type { DeviceInfo } from '../src/state/types.js';
 import { navButton, press, submit, typeInto, waitFor } from './support/render.js';
 import { mountPager } from './support/setup.js';
+
+function storedDevice(storage: StoragePort): DeviceInfo | null {
+  return readJson<DeviceInfo | null>(storage, STORAGE_KEYS.device, null);
+}
 
 describe('BIP-F-15 — pairing', () => {
   it('reports the pairing state and asks for a six-character code', async () => {
@@ -25,7 +31,8 @@ describe('BIP-F-15 — pairing', () => {
   });
 
   it('pairs with a six-character code and sends the public key only', async () => {
-    const ui = await mountPager({ pages: [], paired: false });
+    const storage = memoryStorage();
+    const ui = await mountPager({ pages: [], paired: false, storage });
     await press(navButton(ui, 'Pair'));
     await typeInto(ui.find('pair-code') as HTMLInputElement, 'a1b2c3');
     await submit(ui.container.querySelector('form')!);
@@ -35,7 +42,10 @@ describe('BIP-F-15 — pairing', () => {
     expect(sent.publicKeyJwk.kty).toBe('EC');
     expect(sent.publicKeyJwk.crv).toBe('P-256');
     expect(sent.publicKeyJwk.d).toBeUndefined();
-    expect(ui.client.devices).toHaveLength(1);
+    // The token the Central issued must be kept: without it every later call,
+    // the WebSocket included, is refused with 401.
+    expect(storedDevice(storage)?.token).toBe(ui.client.deviceToken);
+    expect(storedDevice(storage)?.id).toBe('dev_fake1');
     await ui.unmount();
   });
 

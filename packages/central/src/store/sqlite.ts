@@ -58,6 +58,8 @@ function pageWhere(filter: PageFilter): { clause: string; params: (string | numb
   return { clause: clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '', params };
 }
 
+type SqlParam = string | number | null;
+
 export class SqliteStore implements Store {
   readonly path: string;
   private readonly db: DatabaseSync;
@@ -334,6 +336,16 @@ export class SqliteStore implements Store {
     return this.one('SELECT * FROM pairings WHERE id = ?', id, toPairingRow);
   }
 
+  /** Most recent pairing still usable for this code: unconsumed, unexpired. */
+  pairingByCode(code: string, now: number): PairingRow | null {
+    return this.one(
+      'SELECT * FROM pairings WHERE code = ? AND consumed_at IS NULL AND expires_at > ? ' +
+        'ORDER BY created_at DESC LIMIT 1',
+      [code, now],
+      toPairingRow,
+    );
+  }
+
   consumePairing(id: string, at: number): boolean {
     const result = this.db
       .prepare('UPDATE pairings SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL')
@@ -395,8 +407,9 @@ export class SqliteStore implements Store {
 
   // --- helpers ------------------------------------------------------------
 
-  private one<T>(sql: string, param: string, map: (row: SqlRow) => T): T | null {
-    const row = this.db.prepare(sql).get(param) as SqlRow | undefined;
+  private one<T>(sql: string, params: SqlParam | SqlParam[], map: (row: SqlRow) => T): T | null {
+    const bound = Array.isArray(params) ? params : [params];
+    const row = this.db.prepare(sql).get(...bound) as SqlRow | undefined;
     return row ? map(row) : null;
   }
 }

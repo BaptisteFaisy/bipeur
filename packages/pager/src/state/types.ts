@@ -47,6 +47,11 @@ export interface DeviceInfo {
   id: string;
   name: string;
   pairedAt: number;
+  /**
+   * The bearer token the Central issued at pairing. A secret: it authenticates
+   * every device call and the WebSocket, it is never rendered and never logged.
+   */
+  token: string;
 }
 
 export interface PagerState {

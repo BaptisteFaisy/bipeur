@@ -51,6 +51,38 @@ describe('BIP-F-15 — pairing is single use and expires', () => {
     expect(created.status).toBe(410);
   });
 
+  it('pairs with the code alone, the way a hand-typed code arrives', async () => {
+    // The pager opened by hand knows the six characters, not the pairing id:
+    // the Central resolves the live pairing from the code.
+    const pairing = await call(bench.central, 'POST', '/v1/pairings', bench.stationToken, {});
+    const paired = await call(bench.central, 'POST', '/v1/devices', bench.stationToken, {
+      code: pairing.body.code,
+      device_name: 'Beeper',
+      public_key_jwk: JWK,
+    });
+    expect(paired.status).toBe(201);
+    expect(paired.body.device_id).toMatch(/^dev_/);
+    expect(typeof paired.body.device_token).toBe('string');
+
+    // The code is single use: a second pairing with it is refused.
+    const replay = await call(bench.central, 'POST', '/v1/devices', bench.stationToken, {
+      code: pairing.body.code,
+      device_name: 'Beeper',
+      public_key_jwk: JWK,
+    });
+    expect(replay.status).toBe(404);
+  });
+
+  it('refuses an unknown code', async () => {
+    const paired = await call(bench.central, 'POST', '/v1/devices', bench.stationToken, {
+      code: 'ZZZZZZ',
+      device_name: 'Beeper',
+      public_key_jwk: JWK,
+    });
+    expect(paired.status).toBe(404);
+    expect(paired.body.error).toBe('unknown_pairing');
+  });
+
   it('refuses a wrong code', async () => {
     const pairing = await call(bench.central, 'POST', '/v1/pairings', bench.stationToken, {});
     const created = await call(bench.central, 'POST', '/v1/devices', bench.stationToken, {

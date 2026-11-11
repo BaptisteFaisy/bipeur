@@ -1,0 +1,65 @@
+name: e2e
+
+# Playwright scenarios P1…P7 against a real Central, a real pager build, a real
+# WebSocket and real ECDSA signatures.
+#
+# NEVER runs on a pull request: the verdict of a PR must stay inside five
+# minutes (~/Bureau/CI-BUDGET-5MIN.md, user rule 2026-10-24) and a browser suite
+# has no place in it. It runs on `main` after a merge and on demand.
+#
+# Measured on the fast lane: build ~30 s + 15 scenarios ~2 min 15 s.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      grep:
+        description: 'Only run the scenarios matching this pattern (empty = all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_OPTIONS: --disable-warning=ExperimentalWarning
+  CI: true
+
+jobs:
+  e2e:
+    name: e2e
+    runs-on: [self-hosted, bipeur-fast]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      - name: Browsers (cached in the runner's home)
+        run: pnpm --filter @bipeur/e2e exec playwright install chromium
+
+      - name: Scenarios P1…P7
+        run: |
+          if [ -n "${{ github.event.inputs.grep }}" ]; then
+            pnpm --filter @bipeur/e2e exec playwright test --grep "${{ github.event.inputs.grep }}"
+          else
+            pnpm --filter @bipeur/e2e test
+          fi
+
+      - name: Keep the report when a scenario fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
