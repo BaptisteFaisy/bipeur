@@ -1,0 +1,66 @@
+{
+  "name": "bipeur",
+  "version": "0.1.0",
+  "description": "Relays Kiro Crew approval events to a Beeper pager and resolves each approval from the human's signed decision.",
+  "publisher": "Beeper",
+  "license": "MIT",
+  "pages": [
+    {
+      "path": "/apps/bipeur",
+      "title": "Beeper",
+      "entry": "page/index.html",
+      "description": "Pending Crew approvals and the pager screen, inside the Crew dashboard."
+    }
+  ],
+  "processes": [
+    {
+      "name": "relay",
+      "runtime": "node",
+      "entry": "dist/bin.js",
+      "restart": "on-failure",
+      "env": [
+        "CREW_GATEWAY_URL",
+        "CREW_APPROVAL_PATH",
+        "CREW_NOTIFICATION_PATH",
+        "BIPEUR_URL",
+        "BIPEUR_TOKEN",
+        "BIPEUR_STATION"
+      ]
+    }
+  ],
+  "permissions": {
+    "network": {
+      "outbound": [
+        {
+          "method": "POST",
+          "path": "/api/crew/approvals/resolve",
+          "configuredBy": "CREW_APPROVAL_PATH",
+          "purpose": "resolve a Crew approval from the decision taken on the pager"
+        },
+        {
+          "method": "POST",
+          "path": "/api/crew/notifications",
+          "configuredBy": "CREW_NOTIFICATION_PATH",
+          "purpose": "write a notice in the Crew journal of record"
+        }
+      ]
+    }
+  },
+  "config": {
+    "CREW_GATEWAY_URL": {
+      "default": "ws://127.0.0.1:8790",
+      "description": "Crew Gateway base URL, ws(s) or http(s). Exact value to verify (A.9)."
+    },
+    "CREW_APPROVAL_PATH": {
+      "default": "/api/crew/approvals/resolve",
+      "description": "POST path that resolves an approval. Exact path to verify (A.9)."
+    },
+    "CREW_NOTIFICATION_PATH": {
+      "default": "/api/crew/notifications",
+      "description": "POST path that posts a notification. Exact path to verify (A.9)."
+    },
+    "BIPEUR_URL": { "default": "http://127.0.0.1:8787", "description": "Beeper Central URL." },
+    "BIPEUR_TOKEN": { "default": "", "description": "Station token of the Central. Required." },
+    "BIPEUR_STATION": { "default": "crew", "description": "Station alias shown on the page line." }
+  }
+}
