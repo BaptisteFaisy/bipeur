@@ -21,12 +21,21 @@ export interface ToolFacts {
   command?: string;
   path?: string;
   cwd?: string;
+  /** Git branch the action touches, when the agent says so. */
+  branch?: string;
+  /** Diff stats the agent reports, when it reports them. */
+  stats?: string;
+  /** The agent's own words: shown on detail screen 4 only (A.6). */
+  agent_says?: string;
   /** Dedupe scope: the same session asking twice gets the same page (BIP-N-02). */
   session_id: string;
 }
 
 const COMMAND_KEYS = ['command', 'cmd'] as const;
 const PATH_KEYS = ['path', 'file_path', 'target_file', 'filePath'] as const;
+const BRANCH_KEYS = ['branch', 'git_branch', 'ref'] as const;
+const STATS_KEYS = ['stats', 'diff_stats', 'changes'] as const;
+const SAYS_KEYS = ['agent_says', 'description', 'reason', 'message'] as const;
 
 export function parseHookEvent(raw: string): Result<HookEvent> {
   const text = raw.trim();
@@ -57,6 +66,9 @@ export function toolFacts(event: HookEvent): ToolFacts {
     command: firstString(input, COMMAND_KEYS),
     path: firstString(input, PATH_KEYS),
     cwd: event.cwd,
+    branch: firstString(input, BRANCH_KEYS),
+    stats: firstString(input, STATS_KEYS),
+    agent_says: firstString(input, SAYS_KEYS),
     session_id: event.session_id ?? event.cwd ?? 'unknown',
   };
 }

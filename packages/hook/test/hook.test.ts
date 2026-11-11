@@ -97,6 +97,26 @@ describe('BIP-F-24 — a paged tool is created, waited on, then approved', () =>
   });
 });
 
+describe('BIP-F-26 — the page carries the facts the pager shows', () => {
+  it('sends the branch, the stats and the agent words when the event has them', async () => {
+    const central = fakeCentral((call) => (call.method === 'POST' ? created() : decision('denied')));
+    const event = preToolUse(COMMAND, {
+      tool_input: {
+        command: COMMAND,
+        branch: 'feat/adapters',
+        stats: '3 files changed',
+        agent_says: 'the branch is green',
+      },
+    });
+    await runHook(event, options(central.fetchImpl));
+
+    const body = central.calls.find((call) => call.method === 'POST')?.body as Record<string, string>;
+    expect(body['branch']).toBe('feat/adapters');
+    expect(body['stats']).toBe('3 files changed');
+    expect(body['agent_says']).toBe('the branch is green');
+  });
+});
+
 describe('BIP-F-24 — a refusal from the human exits 2 with the reason', () => {
   it('carries the human reason on stderr', async () => {
     const central = fakeCentral((call) =>
