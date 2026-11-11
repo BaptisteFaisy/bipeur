@@ -69,6 +69,21 @@ def refresh_branch(repo, token, pr):
     return 'error'
 
 
+CI_WORKFLOWS = ('ci.yml', 'contest-guard.yml', 'ci-budget.yml', 'stale-base-guard.yml')
+
+def dispatch_ci(repo, token, branch):
+    """Relance la CI sur une branche que le gate vient de rafraichir.
+
+    Un push de bot ne declenche aucun workflow (anti-recursion GitHub) : sans
+    cette relance explicite, une PR rebasée par le gate resterait sans check et
+    la file n'avancerait jamais.
+    """
+    for wf in CI_WORKFLOWS:
+        sc, resp = api('POST', '/repos/%s/actions/workflows/%s/dispatches' % (repo, wf),
+                       token=token, body={'ref': branch})
+        if sc not in (201, 202, 204):
+            print('[gate] dispatch %s : %s %s' % (wf, sc, resp), flush=True)
+
 def create_check(repo, token, sha, ok, title, summary):
     api('POST', '/repos/%s/check-runs' % repo, token=token, body={
         'name': CHECK_NAME,
@@ -210,7 +225,9 @@ def handle_pr(pr, repo, token, required, dry=False):
         print('[gate] #%d : en retard de %s → refresh %s' % (num, behind, r), flush=True)
         if r == 'refreshed':
             # Le push du rebase est un push de bot : aucun workflow ne se
-            # déclenche. Ré-évaluation et merge DANS CE RUN.
+            # déclenche tout seul. On relance donc la CI à la main, puis on
+            # ré-évalue et on merge DANS CE RUN.
+            dispatch_ci(repo, token, pr['head']['ref'])
             return settle_after_refresh(repo, token, num, required, dry=dry)
         if r == 'conflict':
             # Le rebase serveur a été refusé : conflit réel après tout.
