@@ -34,6 +34,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallbackDenylist: [/^\/v1\//],
+        // BIP-F-19: the notification layer (push, action buttons).
+        importScripts: ['/sw-notify.js'],
       },
     }),
   ],

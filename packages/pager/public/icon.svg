@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Beeper">
+  <rect width="512" height="512" rx="96" fill="#12100e"/>
+  <rect x="96" y="120" width="320" height="200" rx="20" fill="#9fae8f"/>
+  <g fill="#1f2a1a" font-family="monospace" font-size="52">
+    <text x="124" y="185">110 fw RUN</text>
+    <text x="124" y="248">rm -rf dist/</text>
+  </g>
+  <circle cx="150" cy="392" r="34" fill="#58c46a"/>
+  <rect x="228" y="366" width="60" height="52" rx="12" fill="#3a352d"/>
+  <circle cx="362" cy="392" r="34" fill="#d9534f"/>
+</svg>
