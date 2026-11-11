@@ -1,9 +1,25 @@
-name: 'Setup Node + pnpm (self-hosted R630)'
+name: 'Setup Node + pnpm (self-hosted)'
 description: 'Shallow checkout, pinned Node toolchain on PATH, workspace install'
 
 runs:
   using: 'composite'
   steps:
+    - name: Put the Node toolchain on PATH
+      shell: bash
+      run: |
+        # The runners are not all the same machine: R630 has a pinned Node in
+        # ~/tools, the workstation has the npm global prefix. Each runner
+        # contributes the first directory it actually owns.
+        for dir in \
+          "$HOME/tools/node-v24.11.0-linux-x64/bin" \
+          "/home/baptiste/tools/node-v24.11.0-linux-x64/bin" \
+          "$HOME/.local/opt/bin" \
+          "$HOME/.local/share/pnpm"; do
+          if [ -x "$dir/node" ] || [ -x "$dir/pnpm" ]; then
+            echo "::add-path::$dir"
+          fi
+        done
+
     - name: Show toolchain
       shell: bash
       run: |

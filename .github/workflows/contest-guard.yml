@@ -24,7 +24,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PATH: /home/baptiste/tools/node-v24.11.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin
 
 jobs:
   contest-guard:

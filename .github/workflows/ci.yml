@@ -18,16 +18,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Pinned toolchain of the self-hosted runners (R630). `node:sqlite` needs
-  # Node >= 22.13; the Central stores everything in a single SQLite file.
-  PATH: /home/baptiste/tools/node-v24.11.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin
   NODE_OPTIONS: --disable-warning=ExperimentalWarning
   CI: true
 
 jobs:
   typecheck:
     name: typecheck
-    runs-on: [self-hosted, bipeur-worker]
+    runs-on: [self-hosted, bipeur-fast]
     timeout-minutes: 5
     steps:
       - name: Checkout (shallow)
@@ -40,7 +37,7 @@ jobs:
 
   lint:
     name: lint
-    runs-on: [self-hosted, bipeur-worker]
+    runs-on: [self-hosted, bipeur-fast]
     timeout-minutes: 5
     steps:
       - name: Checkout (shallow)
@@ -53,7 +50,7 @@ jobs:
 
   test:
     name: test
-    runs-on: [self-hosted, bipeur-worker]
+    runs-on: [self-hosted, bipeur-fast]
     timeout-minutes: 5
     steps:
       - name: Checkout (shallow)
@@ -67,7 +64,7 @@ jobs:
 
   build:
     name: build
-    runs-on: [self-hosted, bipeur-worker]
+    runs-on: [self-hosted, bipeur-fast]
     timeout-minutes: 5
     steps:
       - name: Checkout (shallow)
