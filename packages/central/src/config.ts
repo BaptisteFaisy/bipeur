@@ -28,6 +28,13 @@ export interface Config {
   bootstrapToken: string | null;
   stationAlias: string;
   rateLimitPerMinute: number;
+  /**
+   * Believe `X-Forwarded-For` when keying the rate limiter. Off by default:
+   * the header belongs to the client, so trusting it lets anyone mint a fresh
+   * bucket per request. Turn it on only behind a proxy that rewrites it
+   * (Tailscale Funnel, nginx, Caddy).
+   */
+  trustProxy?: boolean;
   sweepIntervalMs: number;
   /** Injected clock: the domain logic never reads the wall clock itself. */
   now: () => number;
@@ -46,6 +53,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     bootstrapToken: env.BIPEUR_BOOTSTRAP_TOKEN?.trim() || null,
     stationAlias: env.BIPEUR_STATION_ALIAS?.trim() || 'main',
     rateLimitPerMinute: intFrom(env.BIPEUR_RATE_LIMIT_PER_MINUTE, 240, 1, 1_000_000),
+    trustProxy: flagFrom(env.BIPEUR_TRUST_PROXY),
     sweepIntervalMs: intFrom(env.BIPEUR_SWEEP_INTERVAL_MS, 1000, 0, 60_000),
     now: () => Date.now(),
   };
