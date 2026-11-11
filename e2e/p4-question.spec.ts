@@ -22,7 +22,7 @@ const QUESTION = {
 };
 
 test('P4 — tap B on the pager and the source receives choice B', async ({ page }) => {
-  const dedicated = await startDedicatedCentral(8816);
+  const dedicated = await startDedicatedCentral('p4Choice');
   try {
     const central = dedicated.central;
     const created = await central.createPage(QUESTION);

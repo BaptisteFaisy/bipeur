@@ -15,7 +15,7 @@ const REQUESTS = Array.from({ length: 7 }, (_, index) => ({
 }));
 
 test('P6 — seven requests give six deliveries and one held page', async () => {
-  const dedicated = await startDedicatedCentral(8831);
+  const dedicated = await startDedicatedCentral('p6Budget');
   try {
     const central = dedicated.central;
     const created = [];
@@ -44,7 +44,7 @@ test('P6 — seven requests give six deliveries and one held page', async () => 
 });
 
 test('P6 — a red page goes through even when the budget is full', async () => {
-  const dedicated = await startDedicatedCentral(8832);
+  const dedicated = await startDedicatedCentral('p6RedGoesThrough');
   try {
     const central = dedicated.central;
     for (const request of REQUESTS) {

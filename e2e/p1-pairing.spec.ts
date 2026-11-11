@@ -11,7 +11,7 @@ import { openPager } from './helpers/pager.js';
 import { startDedicatedCentral } from './helpers/server.js';
 
 test('P1 — pair the pager: the Central shows one paired pager', async ({ page }) => {
-  const dedicated = await startDedicatedCentral(8811);
+  const dedicated = await startDedicatedCentral('p1Pair');
   try {
     const central = dedicated.central;
     const pairing = await central.createPairing();
@@ -34,7 +34,7 @@ test('P1 — pair the pager: the Central shows one paired pager', async ({ page 
 });
 
 test('P1 — the pairing link is single use, and a wrong code pairs nothing', async () => {
-  const dedicated = await startDedicatedCentral(8812);
+  const dedicated = await startDedicatedCentral('p1SingleUse');
   try {
     const central = dedicated.central;
     const pairing = await central.createPairing();
@@ -71,7 +71,7 @@ test('P1 — the pairing link is single use, and a wrong code pairs nothing', as
 });
 
 test('P1 — the pairing screen shows the QR note and the unpaired state', async ({ page }) => {
-  const dedicated = await startDedicatedCentral(8813);
+  const dedicated = await startDedicatedCentral('p1PairingScreen');
   try {
     await openPager(page, dedicated.central.url);
     await page.getByRole('navigation', { name: 'Screens' }).getByRole('button', { name: 'Pair' }).click();

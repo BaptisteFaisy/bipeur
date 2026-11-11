@@ -6,7 +6,8 @@
  *
  * Usage: node e2e/scripts/central-server.mjs
  * Environment:
- *   BIPEUR_E2E_PORT      port to bind (default 8799)
+ *   BIPEUR_E2E_PORT      port to bind — REQUIRED; every port of the suite
+ *                        derives from BIPEUR_E2E_PORT_BASE (helpers/ports.ts)
  *   BIPEUR_E2E_TOKEN     station token of the first post (default e2e-station-token)
  *   BIPEUR_E2E_DB_DIR    directory of the SQLite files and the descriptor
  */
@@ -16,7 +17,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const PORT = Number.parseInt(process.env.BIPEUR_E2E_PORT ?? '8799', 10);
+const PORT = Number.parseInt(process.env.BIPEUR_E2E_PORT ?? '', 10);
+if (!Number.isInteger(PORT)) {
+  console.error('[e2e] BIPEUR_E2E_PORT is required — ports derive from BIPEUR_E2E_PORT_BASE, see e2e/helpers/ports.ts');
+  process.exit(1);
+}
 const TOKEN = process.env.BIPEUR_E2E_TOKEN ?? 'e2e-station-token';
 const DB_DIR = resolve(process.env.BIPEUR_E2E_DB_DIR ?? resolve(ROOT, 'e2e/.runtime'));
 const BIN = resolve(ROOT, 'packages/central/dist/bin.js');

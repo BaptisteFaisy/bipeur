@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Central } from './central.js';
+import { portFor, type PortRole } from './ports.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = resolve(HERE, '../..');
@@ -32,8 +33,9 @@ async function waitForHealth(url: string, attempts = 200): Promise<void> {
   throw new Error(`the Central never answered on ${url}/healthz`);
 }
 
-/** Starts a Central on its own port, with its own database. */
-export async function startDedicatedCentral(port: number): Promise<DedicatedCentral> {
+/** Starts the Central of one scenario: its own port, its own database. */
+export async function startDedicatedCentral(role: PortRole): Promise<DedicatedCentral> {
+  const port = portFor(role);
   const dbDir = mkdtempSync(join(tmpdir(), 'bipeur-e2e-'));
   const token = `e2e-token-${port}`;
   const child = spawn(process.execPath, [resolve(REPO_ROOT, 'e2e/scripts/central-server.mjs')], {
@@ -42,6 +44,10 @@ export async function startDedicatedCentral(port: number): Promise<DedicatedCent
       BIPEUR_E2E_PORT: String(port),
       BIPEUR_E2E_DB_DIR: dbDir,
       BIPEUR_E2E_TOKEN: token,
+      // The run's launcher (the Playwright webServer) has just built the
+      // Central and the pager: a scenario Central reuses that build instead
+      // of rebuilding, which kept the health window tight on a loaded runner.
+      BIPEUR_E2E_SKIP_BUILD: '1',
     },
     stdio: 'ignore',
   });

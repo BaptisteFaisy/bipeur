@@ -4,10 +4,8 @@
  * an address or a token.
  */
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const HERE = dirname(fileURLToPath(import.meta.url));
+import { resolve } from 'node:path';
+import { portFor, runtimeDir } from './helpers/ports.js';
 
 interface Descriptor {
   url: string;
@@ -17,9 +15,8 @@ interface Descriptor {
 }
 
 export default function globalSetup(): void {
-  const port = process.env.BIPEUR_E2E_PORT ?? '8799';
-  const directory = process.env.BIPEUR_E2E_DB_DIR ?? resolve(HERE, '.runtime');
-  const file = resolve(directory, `central-${port}.json`);
+  const port = portFor('sharedCentral');
+  const file = resolve(runtimeDir(), `central-${port}.json`);
   if (!existsSync(file)) {
     throw new Error(`the Central descriptor is missing: ${file}`);
   }

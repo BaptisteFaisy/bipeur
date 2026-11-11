@@ -21,7 +21,7 @@ const PUSH = {
 };
 
 test('P2 — tap approve on the pager and the source receives the approval', async ({ page }) => {
-  const dedicated = await startDedicatedCentral(8814);
+  const dedicated = await startDedicatedCentral('p2Approve');
   try {
     const central = dedicated.central;
     const session = await pairPager(page, central);
