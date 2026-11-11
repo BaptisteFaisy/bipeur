@@ -7,6 +7,12 @@ on:
     types: [opened, reopened, ready_for_review, synchronize]
   check_run:
     types: [completed]
+  # Filet de sécurité : sur ce dépôt les événements `check_run` ne déclenchent
+  # jamais de run (constaté le 2026-11-11 : aucun run check_run dans
+  # l'historique, alors que la file attendait qu'un check finisse). Une
+  # ré-évaluation toutes les 5 minutes garantit que la file avance toujours.
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       pr_number:
