@@ -11,6 +11,7 @@ const r = (p: string): string => fileURLToPath(new URL(p, import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
+      '@bipeur/core/node': r('./packages/core/src/node.ts'),
       '@bipeur/core': r('./packages/core/src/index.ts'),
       '@bipeur/central': r('./packages/central/src/index.ts'),
       '@bipeur/snpp': r('./packages/snpp/src/index.ts'),

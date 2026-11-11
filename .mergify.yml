@@ -34,8 +34,6 @@ queue_rules:
     max_checks_retries: 1
     merge_method: squash
     update_method: rebase
-    commit_message_template: |-
-      {{ title }} (#{{ number }})
 
 priority_rules:
   - name: urgent
@@ -59,7 +57,9 @@ merge_protections_settings:
 # A PR labelled `hold`, or in conflict, leaves the queue immediately.
 merge_protections:
   - name: ci-green-and-no-hold
-    conditions:
+    if:
+      - base = main
+    success_conditions:
       - check-success = ci-budget
       - check-success = typecheck
       - check-success = lint
@@ -67,4 +67,3 @@ merge_protections:
       - check-success = build
       - check-success = contest-guard
       - -label = hold
-      - base = main

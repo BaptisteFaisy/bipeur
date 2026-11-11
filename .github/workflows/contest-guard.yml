@@ -23,13 +23,10 @@ concurrency:
   group: contest-guard-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  PATH: /home/baptiste/tools/node-v24.11.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin
-
 jobs:
   contest-guard:
     name: contest-guard
-    runs-on: [self-hosted, bipeur-worker]
+    runs-on: [self-hosted, bipeur-fast]
     timeout-minutes: 5
     steps:
       - name: Checkout

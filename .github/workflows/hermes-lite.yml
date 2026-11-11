@@ -20,8 +20,12 @@ permissions:
   checks: write
 
 concurrency:
+  # The gate re-evaluates on every `check_run: completed` (that is how it
+  # merges once CI is green). Cancelling a running gate would swallow those
+  # events and leave the check permanently pending, so runs are serialised,
+  # never cancelled.
   group: hermes-lite-${{ github.repository }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   GH_TOKEN: ${{ secrets.HERMES_LITE_TOKEN || github.token }}
@@ -33,7 +37,7 @@ env:
 jobs:
   gate:
     name: Verdict
-    runs-on: [self-hosted, bipeur-worker]
+    runs-on: [self-hosted, bipeur-fast]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
