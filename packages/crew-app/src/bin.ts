@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /** Background process of the Crew app: relay Gateway events to the pager. */
+import { createCrewAuth } from './auth.js';
 import { createBeeperClient } from './beeper.js';
 import { loadConfig } from './config.js';
 import { relay } from './relay.js';
@@ -11,8 +12,11 @@ if (config.beeperToken.length === 0) {
 }
 
 const client = createBeeperClient({ baseUrl: config.beeperUrl, token: config.beeperToken });
-const app = relay(config, client);
-process.stdout.write(`crew-app: ${config.gatewayUrl} -> ${config.beeperUrl} (station ${config.station})\n`);
+const auth = createCrewAuth(config, process.env);
+const app = relay(config, client, { auth });
+process.stdout.write(
+  `crew-app: ${config.gatewayUrl} (app ${config.appName}) -> ${config.beeperUrl} (station ${config.station})\n`,
+);
 
 const shutdown = (): void => {
   app.stop();
