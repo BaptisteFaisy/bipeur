@@ -4,6 +4,16 @@
     {
       "name": "Beeper: the line composer keeps its two properties",
       "trigger": "FileSave",
+      "matcher": "packages/{core,central}/src/line.ts",
+      "timeout": 0,
+      "action": {
+        "type": "command",
+        "command": "npx vitest run --project props packages/core/test/line.props.test.ts"
+      }
+    },
+    {
+      "name": "Beeper: the line composer keeps its two properties (split modules)",
+      "trigger": "FileSave",
       "matcher": "packages/{core,central}/src/line/**",
       "timeout": 0,
       "action": {
