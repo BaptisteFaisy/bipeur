@@ -113,11 +113,16 @@ requests — a `git push`, a destructive `rm -rf`, a design question, a budget
 warning, a stuck agent — in a space isolated per visitor and wiped after 24 h.
 Open the pager in a second tab or scan the QR code with your phone.
 
-Hosted demo: the public instance is deployed from `deploy/modal_app.py` (one
-CPU container, one volume) with demo mode **on by default** — no account, an
-isolated space per visitor, wiped after 24 h. The public URL and the hosting
-status live in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md); Docker Compose and
-bare-Node hosting are documented there too.
+**Hosted demo — live: <https://r630-debian.tail3a8bdf.ts.net/>** (demo mode on
+by default, no account, an isolated space per visitor wiped after 24 h). Click
+**Start demo**, then **Open pager** in a second tab or on your phone.
+
+It runs as a systemd service on a host of ours, behind Tailscale Funnel: HTTPS
+is terminated at the edge and the process binds to the loopback only, so nothing
+else on that machine is reachable. Modal (ready, but refused by the workspace
+spend limit), Docker Compose and bare Node are documented in
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), with the verification transcript of
+the live instance.
 
 ---
 
