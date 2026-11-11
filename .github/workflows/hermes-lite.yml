@@ -18,6 +18,9 @@ permissions:
   contents: write
   pull-requests: write
   checks: write
+  # Requis par l'étape finale : dispatcher hermes-conflict-resolver.yml sur un
+  # vrai conflit (`gh workflow run`). Le gate lui-même n'écrit rien d'autre.
+  actions: write
 
 concurrency:
   # The gate re-evaluates on every `check_run: completed` (that is how it
@@ -45,7 +48,28 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Gate
+        id: gate
         run: |
           export INPUT_PR_NUMBER="${{ github.event.inputs.pr_number }}"
           export HERMES_LITE_DRY_RUN="${{ vars.HERMES_LITE_DRY_RUN || '0' }}"
           python3 .github/hermes/gate.py
+      # Seule addition de ce workflow : quand le gate a vu un VRAI conflit, on
+      # dispatche le résolveur (rebase + résolution + validation + push). Le
+      # comportement du gate est inchangé — il signale toujours le conflit, le
+      # résolveur n'est qu'un bras en plus, et il escalade s'il ne peut pas
+      # prouver son résultat.
+      - name: Dispatcher le résolveur Hermes (conflits)
+        if: steps.gate.outputs.conflict_prs != ''
+        env:
+          GH_TOKEN: ${{ secrets.HERMES_LITE_TOKEN || github.token }}
+          MODE: ${{ vars.HERMES_LITE_DRY_RUN == '1' && 'dry-run' || 'apply' }}
+          CONFLICT_PRS: ${{ steps.gate.outputs.conflict_prs }}
+        run: |
+          set -uo pipefail
+          for num in ${CONFLICT_PRS//,/ }; do
+            echo "::notice::#${num} en conflit — dispatch du résolveur (${MODE})"
+            gh workflow run hermes-conflict-resolver.yml \
+              --repo "$GITHUB_REPOSITORY" \
+              -f pr_number="$num" -f mode="$MODE" \
+              || echo "::warning::dispatch du résolveur refusé pour #${num}"
+          done
