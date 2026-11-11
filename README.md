@@ -123,7 +123,10 @@ which the Central prints once at boot.
 
 It runs as a systemd service on a host of ours, behind Tailscale Funnel: HTTPS
 is terminated at the edge and the process binds to the loopback only, so nothing
-else on that machine is reachable. Modal (ready, but refused by the workspace
+else on that machine is reachable. It is reachable **from any network** — measured
+from 53 vantage points in about 30 countries, and with the WebSocket proven
+through the public edge rather than through our tailnet
+([the transcript](docs/DEPLOYMENT.md#reachable-from-any-ip--measured-not-assumed)). Modal (ready, but refused by the workspace
 spend limit), Docker Compose and bare Node are documented in
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), with the verification transcript of
 the live instance.
