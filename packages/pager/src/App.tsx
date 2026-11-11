@@ -1,14 +1,37 @@
 /**
- * Placeholder shell. The pager lot replaces this with the real device:
- * 4 rows × 20 columns, three keys, risk lamp, queue counter, memory, settings,
- * pairing and the signed-decision flow (BIP-F-15 … BIP-F-23).
+ * Screen router of the pager. Five screens, one state: the device, the memory,
+ * the settings, the pairing and the demonstration (A.11).
  */
-export function App(): React.JSX.Element {
+import { DemoPanel } from './components/DemoPanel.js';
+import { MemoryList } from './components/MemoryList.js';
+import { PagerScreen } from './components/PagerScreen.js';
+import { PairingPanel } from './components/PairingPanel.js';
+import { SettingsPanel } from './components/SettingsPanel.js';
+import { StatusBar } from './components/StatusBar.js';
+import { PagerProvider, usePager, type PagerProviderProps } from './state/PagerContext.js';
+
+export type AppProps = Omit<PagerProviderProps, 'children'>;
+
+export function App(props: AppProps): React.JSX.Element {
   return (
-    <main className="shell">
-      <h1>Beeper</h1>
-      <p>One line. One code. One tap.</p>
-      <p className="hint">The pager screen is being wired to the Central.</p>
-    </main>
+    <PagerProvider {...props}>
+      <Shell />
+    </PagerProvider>
+  );
+}
+
+function Shell(): React.JSX.Element {
+  const { state } = usePager();
+  return (
+    <div className="app">
+      <StatusBar />
+      <main className="screen">
+        {state.screen === 'pager' && <PagerScreen />}
+        {state.screen === 'memory' && <MemoryList />}
+        {state.screen === 'settings' && <SettingsPanel />}
+        {state.screen === 'pairing' && <PairingPanel />}
+        {state.screen === 'demo' && <DemoPanel />}
+      </main>
+    </div>
   );
 }

@@ -1,0 +1,97 @@
+/** French strings — the second UI language (BIP-N-08). Same keys as `en`. */
+import type { Dict } from './en.js';
+
+export const fr: Dict = {
+  'app.name': 'Bipeur',
+  'nav.label': 'Écrans',
+  'nav.pager': 'Bipeur',
+  'nav.memory': 'Mémoire',
+  'nav.settings': 'Réglages',
+  'nav.pairing': 'Appairer',
+  'nav.demo': 'Démo',
+
+  'status.connecting': 'Connexion',
+  'status.online': 'En ligne',
+  'status.offline': 'Hors ligne',
+
+  'pager.noPages': 'Aucun bip. Vos agents vont bien.',
+  'pager.emptyScreen': 'AUCUN BIP',
+  'pager.queue': '{n} en file',
+  'pager.queueNone': 'File vide',
+  'pager.detail': 'Détail {n} sur {total}',
+  'pager.detailLine': 'Ligne du bip',
+  'pager.holdHint': 'Maintenez appuyé une seconde',
+  'pager.lockedDetail': "Détail masqué tant que l'écran est verrouillé",
+  'pager.screenLabel': 'Écran du bipeur',
+
+  'risk.green': 'Vert',
+  'risk.amber': 'Ambre',
+  'risk.red': 'Rouge',
+  'risk.green.hint': 'Local et réversible',
+  'risk.amber.hint': "Touche l'extérieur",
+  'risk.red.hint': 'Irréversible ou destructeur',
+
+  'key.approve': 'Approuver',
+  'key.deny': 'Refuser',
+  'key.next': 'Suite',
+  'key.choose': 'Choisir {code}',
+  'keyboard.hint': 'Clavier : Entrée approuve, Échap refuse, Bas défile, A-D choisissent',
+
+  'offline.banner': "Hors ligne — les décisions restent sur cet appareil et ne sont pas envoyées.",
+
+  'decision.queued': 'En attente, non envoyée. Réessayez une fois reconnecté.',
+  'decision.rejected': 'Le Central a refusé cette décision : {reason}',
+  'decision.retry': 'Réessayer',
+  'decision.sent': 'Envoyée',
+
+  'memory.title': 'Mémoire — les 50 derniers bips',
+  'memory.empty': 'Rien encore. Vos décisions apparaîtront ici.',
+  'memory.verdict': 'Décision',
+  'memory.latency': 'Délai',
+  'memory.when': 'Quand',
+
+  'verdict.approve': 'Approuvé',
+  'verdict.deny': 'Refusé',
+  'verdict.choice': 'Choix {code}',
+
+  'settings.title': 'Réglages',
+  'settings.sound': 'Son',
+  'settings.soundHint': "Désactivé à l'installation. L'activer ne fait qu'inscrire une demande de bip dans le journal — le bipeur ne joue jamais de son.",
+  'settings.vibration': 'Vibration',
+  'settings.vibrationHint': "Désactivée à l'installation. Sert à une courte impulsion à l'arrivée d'un bip.",
+  'settings.quietHours': 'Heures calmes',
+  'settings.quietFrom': 'De',
+  'settings.quietTo': 'À',
+  'settings.budget': 'Bips par heure',
+  'settings.hideDetail': "Masquer le détail sur l'écran verrouillé",
+  'settings.hideDetailHint': "Garde les écrans 2 à 4 cachés jusqu'au déverrouillage.",
+  'settings.language': 'Langue',
+  'settings.device': 'Appareil',
+  'settings.none': 'Aucun appareil appairé',
+  'settings.revoke': 'Révoquer cet appareil',
+  'settings.revoked': 'Appareil révoqué. Appairez de nouveau pour recevoir des bips.',
+
+  'pairing.title': 'Appairer ce bipeur',
+  'pairing.code': 'Code à six caractères',
+  'pairing.codeHint': 'Lisez-le sur le tableau de bord du Central, ou scannez son QR code pour arriver ici.',
+  'pairing.submit': 'Appairer',
+  'pairing.paired': '{n} bipeur appairé',
+  'pairing.none': 'Aucun bipeur appairé',
+  'pairing.unsupported': "Ce navigateur ne sait pas créer de clé ECDSA P-256 non extractible. L'appairage est impossible ici ; utilisez un Chrome, Edge, Firefox ou Safari 16.4+ récent.",
+  'pairing.keyLost': "Un appareil est enregistré, mais sa clé privée ne vit qu'en mémoire et a été perdue au rechargement. Appairez de nouveau.",
+  'pairing.link': "Lien d'appairage",
+  'pairing.qrNote': "Le QR code lui-même est affiché par le tableau de bord du Central ; cet écran accepte le code qu'il contient.",
+  'pairing.invalidCode': 'Un code d’appairage fait six lettres ou chiffres.',
+
+  'demo.title': 'Démonstration',
+  'demo.hint': 'Trois agents fictifs vous bipent pendant deux minutes. Rien ne quitte cette machine.',
+  'demo.start': 'Lancer la démo',
+  'demo.open': 'Ouvrir le bipeur',
+  'demo.started': 'Démo lancée — les bips arrivent.',
+
+  'callback.label': 'Rappeler',
+  'callback.hint': "Ouvrir la session de l'agent qui a envoyé ce bip.",
+
+  'error.generic': "Une erreur est survenue.",
+  'error.notPaired': 'Appairez ce bipeur avant de décider.',
+};

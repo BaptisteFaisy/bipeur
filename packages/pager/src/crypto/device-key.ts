@@ -1,0 +1,87 @@
+/**
+ * Device identity (BIP-F-15, BIP-F-18).
+ *
+ * The private key is generated non-extractable: WebCrypto keeps it inside the
+ * browser and never lets JavaScript read it, so a stolen `localStorage` is not
+ * a stolen pager. The public half travels as a JWK and is what the Central
+ * verifies. Nothing here is persisted by design — the key lives in memory for
+ * the lifetime of the tab.
+ */
+
+/** The tiny slice of WebCrypto we need, injected so tests can control it. */
+export interface CryptoPort {
+  subtle: Pick<SubtleCrypto, 'generateKey' | 'exportKey' | 'sign'>;
+  getRandomValues(bytes: Uint8Array): Uint8Array;
+}
+
+export interface DeviceKeys {
+  deviceId: string;
+  keyPair: CryptoKeyPair;
+  publicKeyJwk: JsonWebKey;
+}
+
+export const ECDSA_ALGORITHM = { name: 'ECDSA', namedCurve: 'P-256' } as const;
+export const SIGN_ALGORITHM = { name: 'ECDSA', hash: 'SHA-256' } as const;
+
+/** Raised instead of silently falling back to something weaker. */
+export class DeviceKeyUnavailable extends Error {
+  constructor() {
+    super('WebCrypto cannot create a non-extractable ECDSA P-256 key in this browser');
+    this.name = 'DeviceKeyUnavailable';
+  }
+}
+
+/** The browser's WebCrypto, or `null` when it is missing (old or stripped build). */
+export function browserCrypto(): CryptoPort | null {
+  const globalCrypto = (globalThis as { crypto?: Crypto }).crypto;
+  if (!globalCrypto?.subtle) return null;
+  return {
+    subtle: globalCrypto.subtle,
+    getRandomValues: (bytes) => globalCrypto.getRandomValues(bytes),
+  };
+}
+
+export function supportsDeviceKeys(port: CryptoPort | null): port is CryptoPort {
+  return port !== null && typeof port.subtle?.generateKey === 'function';
+}
+
+export function randomHex(port: CryptoPort, byteLength: number): string {
+  const bytes = port.getRandomValues(new Uint8Array(byteLength));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * `extractable: false` applies to the private key only: WebCrypto always keeps
+ * the public key exportable, which is exactly what the pairing needs.
+ */
+export async function generateDeviceKeys(port: CryptoPort): Promise<DeviceKeys> {
+  if (!supportsDeviceKeys(port)) throw new DeviceKeyUnavailable();
+  const keyPair = (await port.subtle.generateKey(ECDSA_ALGORITHM, false, [
+    'sign',
+    'verify',
+  ])) as CryptoKeyPair;
+  const publicKeyJwk = await port.subtle.exportKey('jwk', keyPair.publicKey);
+  return { deviceId: `dev_${randomHex(port, 8)}`, keyPair, publicKeyJwk };
+}
+
+/** Sign the exact bytes of a decision (see `decisionSigningString`). */
+export async function signClaims(
+  port: CryptoPort,
+  keys: DeviceKeys,
+  signingString: string,
+): Promise<string> {
+  const bytes = new TextEncoder().encode(signingString);
+  const raw = await port.subtle.sign(SIGN_ALGORITHM, keys.keyPair.privateKey, bytes);
+  return toBase64(raw);
+}
+
+/** Single-use nonce: 16 random bytes, hex encoded (32 characters). */
+export function newNonce(port: CryptoPort): string {
+  return randomHex(port, 16);
+}
+
+function toBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  for (const byte of new Uint8Array(buffer)) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
