@@ -1,0 +1,33 @@
+# Beeper — single-service hosting (BIP-N-09: one process, one SQLite file).
+#
+#   docker compose up -d --build     # then open http://localhost:8787
+#
+# Values are read from the shell or from `.env` (see `.env.example`);
+# no secret is stored in this file.
+
+services:
+  central:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bipeur-central:local
+    restart: unless-stopped
+    ports:
+      - "${BIPEUR_PUBLISH_PORT:-8787}:8787"
+    volumes:
+      - bipeur-data:/data
+    environment:
+      BIPEUR_HOST: 0.0.0.0
+      BIPEUR_PORT: "8787"
+      BIPEUR_DB: /data/bipeur.sqlite
+      BIPEUR_RULES: /app/.bipeur/rules.yaml
+      BIPEUR_DEMO: ${BIPEUR_DEMO:-0}
+      BIPEUR_BUDGET_PER_HOUR: ${BIPEUR_BUDGET_PER_HOUR:-6}
+      BIPEUR_RETENTION_DAYS: ${BIPEUR_RETENTION_DAYS:-30}
+      BIPEUR_BOOTSTRAP_TOKEN: ${BIPEUR_BOOTSTRAP_TOKEN:-}
+      BIPEUR_VAPID_PUBLIC_KEY: ${BIPEUR_VAPID_PUBLIC_KEY:-}
+      BIPEUR_VAPID_PRIVATE_KEY: ${BIPEUR_VAPID_PRIVATE_KEY:-}
+      BIPEUR_VAPID_SUBJECT: ${BIPEUR_VAPID_SUBJECT:-}
+
+volumes:
+  bipeur-data:

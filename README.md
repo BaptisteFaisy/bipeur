@@ -113,7 +113,11 @@ requests — a `git push`, a destructive `rm -rf`, a design question, a budget
 warning, a stuck agent — in a space isolated per visitor and wiped after 24 h.
 Open the pager in a second tab or scan the QR code with your phone.
 
-Hosted demo: **see the Devpost submission page** (link added at submission time).
+Hosted demo: the public instance is deployed from `deploy/modal_app.py` (one
+CPU container, one volume) with demo mode **on by default** — no account, an
+isolated space per visitor, wiped after 24 h. The public URL and the hosting
+status live in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md); Docker Compose and
+bare-Node hosting are documented there too.
 
 ---
 
