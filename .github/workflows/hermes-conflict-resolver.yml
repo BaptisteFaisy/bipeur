@@ -46,8 +46,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Toolchain épinglée des runners self-hosted (R630), comme ci.yml.
-  PATH: /home/baptiste/tools/node-v24.11.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin
   NODE_OPTIONS: --disable-warning=ExperimentalWarning
   CI: true
   # Jambe LLM directe = Fireworks. `combo/cheap` est un alias ZeroClaw, pas un
@@ -58,7 +56,7 @@ env:
 jobs:
   resolve:
     name: resolve
-    runs-on: [self-hosted, bipeur-worker]
+    runs-on: [self-hosted, bipeur-fast]
     timeout-minutes: 5
     steps:
       - name: Checkout (historique complet)
@@ -69,6 +67,9 @@ jobs:
           # persistés, le push passe par HERMES_PUSH_TOKEN via GIT_ASKPASS.
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Toolchain (node + pnpm du runner)
+        uses: ./.github/actions/toolchain
 
       - name: Résoudre, valider, pousser
         env:
