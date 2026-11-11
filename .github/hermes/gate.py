@@ -263,6 +263,11 @@ def handle_pr(pr, repo, token, required, dry=False):
     pr = refresh_mergeable(repo, token, pr)
     num = pr['number']
     sha = pr['head']['sha']
+    # Un push de bot (rebase serveur, mais aussi push du résolveur) met la CI en
+    # attente d'approbation : sans check, la protection de branche répond 405 et
+    # Mergify attend pour toujours. On approuve à chaque évaluation, pas
+    # seulement juste après notre propre rebase.
+    approve_pending_runs(repo, token, pr, sha)
     base_ref = pr['base']['ref']
     mergeable = pr.get('mergeable')           # None = calcul en cours
     mergeable_state = pr.get('mergeable_state') or ''
