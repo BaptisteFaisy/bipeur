@@ -42,9 +42,20 @@ export function fakeCentral(script: FakeScript = {}): {
     if (method === 'POST' && url.endsWith('/v1/pages')) {
       if (script.failCreate) throw new TypeError('fetch failed');
       if (script.statusCreate !== undefined) return json({ error: 'boom' }, script.statusCreate);
+      // Mirrors the REAL Central (A.9): the id field is `page_id`, and the
+      // answer carries the composed line, the code, the risk and the deadline.
+      // A mock that answers `id` instead would hide a contract drift.
       return json({
-        id: script.pageId ?? 'page_1',
+        page_id: script.pageId ?? 'page_1',
         line: script.line ?? '510 crew PICK Deploy now? #a3f9',
+        code: 510,
+        risk: 'green',
+        state: 'delivered',
+        fingerprint: 'f'.repeat(64),
+        expires_at: 1_000_000 + 900_000,
+        detail: [],
+        options: [],
+        kind: 'question',
       });
     }
     if (url.includes('/decision')) {

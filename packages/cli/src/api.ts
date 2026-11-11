@@ -36,11 +36,21 @@ export interface ClientOptions {
 
 type Caller = (path: string, init: RequestInit) => Promise<unknown>;
 
-const pageResponseSchema = z.object({
-  id: z.string().min(1),
-  line: z.string(),
-  expires_at: z.number().optional(),
-});
+/**
+ * The Central answers with `page_id` (A.9); an older shape used `id`. Both are
+ * accepted so the CLI cannot drift from the server, exactly like the hook and
+ * the MCP server do.
+ */
+const pageResponseSchema = z
+  .object({
+    page_id: z.string().min(1).optional(),
+    id: z.string().min(1).optional(),
+    line: z.string(),
+    expires_at: z.number().optional(),
+  })
+  .refine((page) => page.page_id !== undefined || page.id !== undefined, {
+    message: 'the page answer carries neither page_id nor id',
+  });
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -53,7 +63,11 @@ function readPage(raw: unknown): PageSummary {
   if (!parsed.success) {
     throw new CliError('the Central answered with an unexpected page shape', 'invalid');
   }
-  return { id: parsed.data.id, line: parsed.data.line, expiresAt: parsed.data.expires_at ?? null };
+  const id = parsed.data.page_id ?? parsed.data.id;
+  if (!id) {
+    throw new CliError('the Central answered with an unexpected page shape', 'invalid');
+  }
+  return { id, line: parsed.data.line, expiresAt: parsed.data.expires_at ?? null };
 }
 
 /** One authenticated JSON round trip. A network failure is never a decision. */
