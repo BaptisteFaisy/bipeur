@@ -218,9 +218,21 @@ Twelve properties are written down before the code and tested with
 
 ## Kiro usage
 
-The whole project is driven by Kiro specs, steering, hooks, custom agents, a
-skill and MCP. `/.kiro` is tracked on purpose — the `contest-guard` workflow fails
-if any `.gitignore` rule ever matches it.
+The repository ships the complete Kiro scaffolding — six specs, eight steering
+files, five hooks, two custom agents, a skill and an MCP configuration — and the
+steering files were the binding contract of every build lot: the 80-character
+line format, the "no new dependency" rule, the ownership table that kept seven
+parallel lots from touching one another, injected clocks, fail-closed behaviour.
+
+`/.kiro` is tracked on purpose — the `contest-guard` workflow fails if any
+`.gitignore` rule ever matches it.
+
+**What has actually run inside Kiro, and what has not, is recorded surface by
+surface in [`KIRO_JOURNAL.md`](KIRO_JOURNAL.md).** The specs and hooks are
+written and consistent with the code, but the lots still to build are the ones
+that should be driven through the Kiro IDE, its hooks in a live session, the two
+custom agents and Crew — the journal says exactly which rows are still pending,
+because a submission that overstates its Kiro usage is a disqualification.
 
 | Surface | Path | What it does here |
 |---|---|---|
@@ -235,7 +247,7 @@ if any `.gitignore` rule ever matches it.
 | Steering | `.kiro/steering/security.md` | `fileMatch: packages/central/**` — the parades of A.10, written as prohibitions. |
 | Steering | `.kiro/steering/rfc1861.md` | `fileMatch: packages/snpp/**` — the commands and reply codes we implement. |
 | Hook | `.kiro/hooks/bipeur-approve.json` | `PreToolUse` on `shell` → `npx bip-hook --rules .bipeur/rules.yaml`. This repository is supervised by its own product. |
-| Hook | `.kiro/hooks/line-budget.json` | File save under `packages/{core,central}/src/line/**` → replays BIP-P-01 and BIP-P-02. |
+| Hook | `.kiro/hooks/line-budget.json` | File save on `packages/{core,central}/src/line.ts` (or anything under `src/line/`) → replays BIP-P-01 and BIP-P-02. |
 | Hook | `.kiro/hooks/state-machine-guard.json` | File save on `states.ts` → BIP-P-03, then regenerates the diagram above from `states.ts`. |
 | Hook | `.kiro/hooks/kiro-dir-guard.json` | End of turn → `python3 .github/checks/contest_guard.py` (`.kiro` tracked, licence present, README sections). |
 | Hook | `.kiro/hooks/journal-reminder.json` | After a spec task → appends a dated line to `KIRO_JOURNAL.md`. |
