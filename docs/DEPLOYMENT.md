@@ -266,7 +266,18 @@ au/il/tr/pl/se/nl/pt/ro/rs/ru/ua/hu/si/es/it/ch/at/md/is/kz/vn/id  200
 → 53 nodes, ~30 countries, every one HTTP 200, edge IPs 176.58.90.{46,63,145}
 ```
 
-**2. Through the edge IP, with the tailnet path ruled out.** Resolution forced
+**2. Both stacks, from public DNS** (queried over DoH, so not our resolver):
+
+```text
+r630-debian.tail3a8bdf.ts.net  A     → 176.58.90.46, 176.58.90.63, 176.58.90.145
+r630-debian.tail3a8bdf.ts.net  AAAA  → 2a00:dd80:3e::47e, ::b3a, ::e2c
+```
+
+Three edge addresses per family: a judge on IPv6-only reaches the same demo.
+(Not measured from our side — the workstation has no IPv6 egress, `curl -6`
+fails to connect — so this is the published record, not an observation.)
+
+**3. Through the edge IP, with the tailnet path ruled out.** Resolution forced
 onto `176.58.90.46` (`curl --resolve` for HTTP, a custom `https.Agent({lookup})`
 for the socket), so the request cannot fall back to `100.124.18.48`:
 
