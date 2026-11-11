@@ -180,9 +180,19 @@ function readPairingIdFromLocation(): string | null {
   return new URLSearchParams(search).get('pair');
 }
 
-/** One place where a device becomes the current one: token, storage, state. */
+/**
+ * One place where a device becomes the current one: token, storage, state.
+ *
+ * The device id is the Central's, not the one the pager made up locally: a
+ * decision names the device the Central knows, and the signature is verified
+ * against the key registered with that id. Adopting the id here is what makes
+ * the Central accept the decision.
+ */
 function adoptDevice(ctx: ActionContext, info: DeviceInfo): void {
   ctx.deps.deviceToken.current = info.token;
+  if (ctx.keysRef.current) {
+    ctx.keysRef.current = { ...ctx.keysRef.current, deviceId: info.id };
+  }
   writeJson(ctx.deps.storage, STORAGE_KEYS.device, info);
   ctx.dispatch({ type: 'device.paired', device: info });
 }
