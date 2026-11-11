@@ -235,7 +235,32 @@ def refresh_and_settle(repo, token, pr, num, behind, base_ref, required):
     return r
 
 
+def refresh_mergeable(repo, token, pr, attempts=4, pause=2):
+    """Récupère `mergeable` / `mergeable_state` sur le DÉTAIL de la PR.
+
+    Deux pièges mesurés le 2026-11-11 sur la PR #29 (conflit réel, `dirty`) :
+    - l'endpoint liste `GET /pulls?state=open` ne renvoie **pas** ces champs,
+      donc un gate déclenché par `workflow_dispatch` ou `check_run` ne voyait
+      jamais aucun conflit et ne dispatchait jamais le résolveur ;
+    - GitHub calcule `mergeable` à la demande : le premier appel renvoie `null`.
+      D'où les quelques tentatives espacées.
+    """
+    num = pr['number']
+    fresh = dict(pr)
+    for _ in range(attempts):
+        sc, detail = api('GET', '/repos/%s/pulls/%d' % (repo, num), token=token)
+        if sc == 200 and detail:
+            for key in ('mergeable', 'mergeable_state', 'head', 'base', 'draft'):
+                if detail.get(key) is not None:
+                    fresh[key] = detail[key]
+            if fresh.get('mergeable') is not None:
+                return fresh
+        time.sleep(pause)
+    return fresh
+
+
 def handle_pr(pr, repo, token, required, dry=False):
+    pr = refresh_mergeable(repo, token, pr)
     num = pr['number']
     sha = pr['head']['sha']
     base_ref = pr['base']['ref']
