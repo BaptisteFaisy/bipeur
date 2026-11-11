@@ -1,0 +1,14 @@
+[Unit]
+Description=Beeper Central — consistent database backup (SQLite online backup API)
+
+[Service]
+Type=oneshot
+Environment=PATH=/home/baptiste/tools/node-v24.11.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin
+Environment=BIPEUR_REPO=/home/baptiste/bipeur-demo
+Environment=BIPEUR_NODE=/home/baptiste/tools/node-v24.11.0-linux-x64/bin/node
+Environment=BIPEUR_BACKUP_DIR=/home/baptiste/bipeur-backups
+Environment=BIPEUR_BACKUP_KEEP=14
+Environment=BIPEUR_BACKUP_REPLICA=baptiste@100.120.194.92:bipeur-backups/r630
+ExecStart=/home/baptiste/bipeur-demo/tools/ops/backup.sh
+Nice=10
+IOSchedulingClass=idle
