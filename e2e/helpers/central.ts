@@ -8,6 +8,7 @@
 import { generateKeyPairSync, sign as cryptoSign, type KeyObject } from 'node:crypto';
 import { decisionSigningString, type DecisionClaims } from '@bipeur/core';
 import { fingerprint } from '@bipeur/core/node';
+import { portFor } from './ports.js';
 
 export interface PageView {
   page_id: string;
@@ -78,7 +79,7 @@ export interface CentralBase {
 /** The address of the Central under test; the launcher writes it down. */
 export function centralBase(): CentralBase {
   return {
-    url: process.env.BIPEUR_E2E_URL ?? `http://127.0.0.1:${process.env.BIPEUR_E2E_PORT ?? '8799'}`,
+    url: process.env.BIPEUR_E2E_URL ?? `http://127.0.0.1:${portFor('sharedCentral')}`,
     token: process.env.BIPEUR_E2E_TOKEN ?? 'e2e-station-token',
   };
 }

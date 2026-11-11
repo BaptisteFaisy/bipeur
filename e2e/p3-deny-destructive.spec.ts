@@ -19,7 +19,7 @@ const RED = {
 };
 
 test('P3 — a red page refuses a quick tap and accepts one second of hold', async ({ page }) => {
-  const dedicated = await startDedicatedCentral(8815);
+  const dedicated = await startDedicatedCentral('p3HoldToRefuse');
   try {
     const central = dedicated.central;
     const session = await pairPager(page, central);

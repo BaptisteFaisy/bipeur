@@ -10,7 +10,7 @@ import { expect, test } from '@playwright/test';
 import { startDedicatedCentral } from './helpers/server.js';
 
 test('P5 — an unanswered page expires and refuses by default', async () => {
-  const dedicated = await startDedicatedCentral(8821);
+  const dedicated = await startDedicatedCentral('p5Expiry');
   try {
     const central = dedicated.central;
     const created = await central.createPage({
