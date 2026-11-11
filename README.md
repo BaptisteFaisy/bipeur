@@ -29,6 +29,7 @@ Built for [Kiroween 2026](https://kiroween.devpost.com/) — **Resurrection** tr
 | **MCP server** | `page_human`, `page_wait`, `page_cancel` — any MCP client can ask the human, without changing the agent. |
 | **SNPP gateway** | A real RFC 1861 two-way transaction over TCP (`2WAY`, `PAGEr`, `MESSage`, `RTYPe`, `MCREsponse`, `ACKRead`, `EXPTag`, `SEND`, `MSTAtus`, `KTAG`). |
 | **Crew app** | Relays Kiro Crew approval events to the pager and resolves them from a signed decision. |
+| **Dashboard** | \`/dashboard\` on the Central: active stations (with one-click revocation), the pending queue and *why* a page is held, the filterable audit history, the metrics of A.3, and a rules bench that shows the line a command would produce **without** paging anyone. |
 
 ### The page line
 
@@ -113,9 +114,12 @@ requests — a `git push`, a destructive `rm -rf`, a design question, a budget
 warning, a stuck agent — in a space isolated per visitor and wiped after 24 h.
 Open the pager in a second tab or scan the QR code with your phone.
 
-**Hosted demo — live: <https://r630-debian.tail3a8bdf.ts.net/>** (demo mode on
-by default, no account, an isolated space per visitor wiped after 24 h). Click
-**Start demo**, then **Open pager** in a second tab or on your phone.
+**Hosted demo — live: <https://r630-debian.tail3a8bdf.ts.net/>** (demo mode on by
+default, no account, an isolated space per visitor wiped after 24 h). Click
+**Start demo**, then **Open pager** in a second tab or on your phone. The
+operator dashboard lives at
+<https://r630-debian.tail3a8bdf.ts.net/dashboard> — it needs a station token,
+which the Central prints once at boot.
 
 It runs as a systemd service on a host of ours, behind Tailscale Funnel: HTTPS
 is terminated at the edge and the process binds to the loopback only, so nothing
