@@ -10,12 +10,14 @@ import { canonicalize, type ToolPayload } from '@bipeur/core';
 import { sha256Hex } from './digest.js';
 import type { ToolFacts } from './hook-event.js';
 
-export function toolPayload(facts: ToolFacts, agentSays?: string): ToolPayload {
+export function toolPayload(facts: ToolFacts): ToolPayload {
   const payload: ToolPayload = { tool_name: facts.tool_name };
   if (facts.command) payload.command = facts.command;
   if (facts.path) payload.path = facts.path;
   if (facts.cwd) payload.cwd = facts.cwd;
-  if (agentSays) payload.agent_says = agentSays;
+  if (facts.branch) payload.branch = facts.branch;
+  if (facts.stats) payload.stats = facts.stats;
+  if (facts.agent_says) payload.agent_says = facts.agent_says;
   return payload;
 }
 
