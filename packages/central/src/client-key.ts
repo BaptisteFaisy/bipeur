@@ -31,12 +31,26 @@ export function peerAddress(c: Context): string {
   return address.startsWith('::ffff:') ? address.slice(7) : address;
 }
 
-/** First hop of `X-Forwarded-For`, which is the original client when trusted. */
+/**
+ * The client address out of `X-Forwarded-For` — taken from the **right**, not
+ * the left.
+ *
+ * A trusted proxy *appends* the peer it saw, so the right-most entry is the one
+ * the proxy itself vouches for and the left-most is whatever the caller wrote.
+ * Reading the first hop would hand the limiter straight back to the attacker:
+ * `X-Forwarded-For: 1.2.3.4` from behind Funnel arrives as
+ * `1.2.3.4, <real client>`, and the forged value would mint a fresh bucket per
+ * request — the exact defect this module exists to close.
+ *
+ * With several stacked proxies the operator should count back one hop per
+ * trusted proxy; one edge (Funnel, nginx, Caddy) is the common case and the
+ * right-most entry is then the real client.
+ */
 export function forwardedAddress(c: Context): string | null {
   const header = c.req.header('x-forwarded-for');
   if (!header) return null;
-  const first = header.split(',')[0]?.trim();
-  return first ? first : null;
+  const hops = header.split(',').map((hop) => hop.trim()).filter((hop) => hop.length > 0);
+  return hops.length > 0 ? hops[hops.length - 1]! : null;
 }
 
 export function clientKey(c: Context, trustProxy: boolean): string {

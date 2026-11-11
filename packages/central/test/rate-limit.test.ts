@@ -33,8 +33,20 @@ describe('the limiter key cannot be forged', () => {
 
   it('honours X-Forwarded-For only when the operator says there is a proxy', () => {
     const c = fakeContext({ 'x-forwarded-for': '198.51.100.4, 10.0.0.9' }, '10.0.0.9');
-    expect(clientKey(c, true)).toBe('198.51.100.4');
+    expect(clientKey(c, true)).toBe('10.0.0.9');
     expect(clientKey(c, false)).toBe('10.0.0.9');
+  });
+
+  it('reads the right-most hop: a proxy appends, the caller prepends', () => {
+    // What Funnel/nginx actually forward when the caller forges the header.
+    const spoofed = fakeContext({ 'x-forwarded-for': '10.0.0.1, 203.0.113.9' }, '127.0.0.1');
+    expect(clientKey(spoofed, true)).toBe('203.0.113.9');
+    // Two callers behind the same edge, one of them forging: still two buckets,
+    // keyed on what the edge vouches for, not on what they wrote.
+    const a = fakeContext({ 'x-forwarded-for': '1.1.1.1, 198.51.100.7' }, '127.0.0.1');
+    const b = fakeContext({ 'x-forwarded-for': '2.2.2.2, 198.51.100.7' }, '127.0.0.1');
+    expect(clientKey(a, true)).toBe(clientKey(b, true));
+    expect(forwardedAddress(fakeContext({ 'x-forwarded-for': ' , ' }))).toBeNull();
   });
 
   it('normalises an IPv4-mapped IPv6 address and falls back to local', () => {
