@@ -248,6 +248,52 @@ GET  /v1/metrics       → 200, the indicators of A.3
 The WebSocket works through the funnel, which is the one thing that had to be
 proven: without it a judge would see a pager stuck on "offline".
 
+### Reachable from any IP — measured, not assumed
+
+The host is behind NAT (no public address of its own: `eno1` is `192.168.2.193`,
+its egress IP is `46.193.66.237`), so "public" here means the Funnel edge, not a
+port forward. Two things had to be proven, because a check from the workstation
+is worthless: that machine is **inside** the tailnet, and Tailscale's MagicDNS
+answers `100.124.18.48` instead of the edge — a local test silently proves the
+tailnet path, never the internet path.
+
+**1. From the internet, 53 vantage points** (`check-host.net`, `GET /healthz`):
+
+```text
+fr2 200 in 0.111 s   de1 200 in 0.246 s   uk1 200 in 0.136 s   us1 200 in 0.586 s
+jp1 200 in 0.899 s   sg1 200 in 0.849 s   br1 200 in 0.815 s   in1 200 in 0.895 s
+au/il/tr/pl/se/nl/pt/ro/rs/ru/ua/hu/si/es/it/ch/at/md/is/kz/vn/id  200
+→ 53 nodes, ~30 countries, every one HTTP 200, edge IPs 176.58.90.{46,63,145}
+```
+
+**2. Through the edge IP, with the tailnet path ruled out.** Resolution forced
+onto `176.58.90.46` (`curl --resolve` for HTTP, a custom `https.Agent({lookup})`
+for the socket), so the request cannot fall back to `100.124.18.48`:
+
+```text
+GET  /healthz    → 200 via 176.58.90.46 in 0.196 s
+GET  /           → 200 via 176.58.90.46 in 0.095 s
+GET  /dashboard  → 200 via 176.58.90.46 in 0.102 s
+WSS  /v1/stream?token=…  opened via 176.58.90.46
+     ← {"type":"hello","central":"bipeur-central/0.1.0","budget":6}
+     ← page.delivered  "100 demo RUN cannot reach registry (3 tries) #2eb5"
+       fingerprint identical to the one POST /v1/pages returned
+```
+
+The WebSocket is the part that mattered: Funnel proxies the `Upgrade`, so a
+judge on 4G gets a live pager and not one stuck on `offline`.
+
+An independent third-party fetcher (`r.jina.ai`, which renders pages from its own
+network) returned the real pager screen — `Title: Beeper`, `No pages. Your agents
+are fine.`, `Keys: Enter approves, Escape refuses, Down scrolls, A-D choose`.
+
+**A trap worth recording.** The first socket test appeared to fail: the page was
+created but never pushed. It was not the tunnel — it was the **attention budget**,
+saturated by the previous demo spaces (`pages_created: 46, pages_delivered: 29`).
+A red page, which bypasses the budget by design (BIP-P-08), went straight
+through. Two lessons: probe a rate-limited system with something that bypasses
+the limit, and demo visitors must not share one budget (fixed separately).
+
 ### Known limits of this instance
 
 - **No Web Push**: no VAPID keys are set, so `push.notify` is a no-op that
@@ -256,6 +302,9 @@ proven: without it a judge would see a pager stuck on "offline".
 - **Single host**: no replica. If `r630-debian` reboots, systemd and the funnel
   config both come back on their own; if the host dies, redeploy elsewhere with
   the same three commands.
+- **The URL is a Tailscale one** (`*.ts.net`), not a custom domain. It is stable
+  and public, but it says what it is; a custom domain would need a real reverse
+  proxy in front, which is the Modal or Docker route.
 - **Demo mode is on**, so anyone reaching the URL can open a visitor space. That
   is the point (no account for the judges), each space is isolated and wiped
   after 24 h, and the audit log keeps 30 days.
