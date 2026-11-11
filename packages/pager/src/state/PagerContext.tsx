@@ -65,37 +65,27 @@ export function PagerProvider(props: PagerProviderProps): React.JSX.Element {
   );
   const stateRef = useRef(state);
   stateRef.current = state;
+  // The client reads the token live: a device hydrated from storage (or paired
+  // a moment ago) must be usable by the very next request and by the socket.
+  deps.deviceToken.current = state.device?.token ?? null;
   const keysRef = useRef<DeviceKeys | null>(props.deviceKeys ?? null);
   const actions = useMemo<PagerActions>(
     () => createActions({ deps, dispatch, stateRef, keysRef }),
     [deps],
   );
 
-  useStream(deps, dispatch, stateRef);
+  // The token is a dependency: pairing (or starting the demo) hands one over,
+  // and only then can the socket authenticate. Without it the stream would
+  // stay offline for the life of the tab.
+  useStream(deps, dispatch, stateRef, state.device?.token ?? null);
   useNetworkListeners(dispatch);
   useServiceWorkerActions(actions, stateRef);
   useOpenRequest(actions, dispatch, stateRef);
   useBoot(actions, dispatch, stateRef, keysRef);
 
   const api = useMemo<PagerApi>(
-    () => ({
-      state,
-      t: (key, vars) => translate(state.settings.lang, key, vars),
-      go: (screen) => dispatch({ type: 'screen', screen }),
-      nextDetail: () => dispatch({ type: 'detail.next' }),
-      updateSettings: (patch) => {
-        writeJson(deps.storage, STORAGE_KEYS.settings, { ...stateRef.current.settings, ...patch });
-        dispatch({ type: 'settings', patch });
-      },
-      decide: actions.decide,
-      retry: actions.retry,
-      pair: actions.pair,
-      startDemo: actions.startDemo,
-      revoke: actions.revoke,
-      cryptoSupported: supportsDeviceKeys(deps.crypto),
-      now: deps.now,
-    }),
-    [state, deps, actions],
+    () => buildApi(state, deps, actions, dispatch, stateRef),
+    [state, deps, actions, dispatch, stateRef],
   );
 
   return <PagerContext.Provider value={api}>{props.children}</PagerContext.Provider>;
@@ -113,6 +103,7 @@ function useStream(
   deps: Deps,
   dispatch: Dispatch,
   stateRef: { current: PagerState },
+  deviceToken: string | null,
 ): void {
   useEffect(
     () =>
@@ -121,7 +112,10 @@ function useStream(
           handleStream(message, { dispatch, settings: () => stateRef.current.settings }),
         onStatus: (connection) => dispatch({ type: 'connection', connection }),
       }),
-    [deps, dispatch, stateRef],
+    // Reconnecting on a new token is what makes pairing take effect at once:
+    // the Central refuses an unauthenticated upgrade, so there is nothing to
+    // connect to before the device exists.
+    [deps, dispatch, stateRef, deviceToken],
   );
 }
 
@@ -207,4 +201,32 @@ function useOpenRequest(
     const page = targetPage(stateRef.current, { type: 'bipeur:action', action: request.action, page_id: request.pageId });
     if (page) void actions.decide(request.action);
   }, [actions, dispatch, stateRef]);
+}
+
+
+/** The value handed to the screen components: state, translator and actions. */
+function buildApi(
+  state: PagerState,
+  deps: Deps,
+  actions: PagerActions,
+  dispatch: Dispatch,
+  stateRef: { current: PagerState },
+): PagerApi {
+  return {
+    state,
+    t: (key, vars) => translate(state.settings.lang, key, vars),
+    go: (screen) => dispatch({ type: 'screen', screen }),
+    nextDetail: () => dispatch({ type: 'detail.next' }),
+    updateSettings: (patch) => {
+      writeJson(deps.storage, STORAGE_KEYS.settings, { ...stateRef.current.settings, ...patch });
+      dispatch({ type: 'settings', patch });
+    },
+    decide: actions.decide,
+    retry: actions.retry,
+    pair: actions.pair,
+    startDemo: actions.startDemo,
+    revoke: actions.revoke,
+    cryptoSupported: supportsDeviceKeys(deps.crypto),
+    now: deps.now,
+  };
 }

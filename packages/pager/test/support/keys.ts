@@ -7,4 +7,23 @@ export async function testKeys(): Promise<DeviceKeys> {
   return generateDeviceKeys(port);
 }
 
-export const TEST_DEVICE = { id: 'dev_fake1', name: 'Beeper', pairedAt: 0 };
+export const TEST_DEVICE_TOKEN = 'tok_fake_device';
+export const TEST_DEVICE = {
+  id: 'dev_fake1',
+  name: 'Beeper',
+  pairedAt: 0,
+  token: TEST_DEVICE_TOKEN,
+};
+
+/**
+ * A throwaway P-256 private JWK, generated for this suite and used by no real
+ * device. The demo space hands its key over in the clear (that is what makes
+ * "Start demo" work without pairing); a test needs one to import.
+ */
+export const TEST_DEMO_PRIVATE_JWK: JsonWebKey = {
+  kty: 'EC',
+  crv: 'P-256',
+  x: 'B6Gc-zlqbltKPCex_aq3HlLBJYetzSDddwUO5GckJLs',
+  y: 'Gt83muzCnJONRDqd32x-XUK-CiAhWRywcg7IOovdAoA',
+  d: 'Puo_fXdfHBxPKmaCNTs6ErcKytD_S7Mc8Vo_nQY_B3U',
+};

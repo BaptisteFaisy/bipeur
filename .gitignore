@@ -14,6 +14,8 @@ packages/pager/dev-dist/
 e2e/playwright-report/
 e2e/test-results/
 e2e/.auth/
+# The E2E launcher's Central: SQLite files and the runtime descriptor
+e2e/.runtime/
 
 # Local runtime state — the Central keeps ONE SQLite file + audit log
 data/

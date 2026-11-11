@@ -116,9 +116,20 @@ function toolSubject(request: Extract<CreatePageRequest, { kind: 'tool' }>, verb
   return request.tool_name;
 }
 
+/**
+ * The subject of a question, with the seeded replies appended so the letters on
+ * the keypad mean something: `Deploy now? A Yes B No`.
+ *
+ * A label the question already spells out is not repeated — the specification's
+ * own example (`date lib? A dayjs B luxon C temporal`) is written that way, and
+ * echoing it would waste half of the 80 characters for nothing.
+ */
 function questionSubject(request: Extract<CreatePageRequest, { kind: 'question' }>): string {
-  const options = (request.options ?? []).map((option) => `${option.code} ${option.label}`);
-  return [request.question, ...options].join(' ');
+  const question = request.question;
+  const missing = (request.options ?? [])
+    .filter((option) => !question.toLowerCase().includes(option.label.toLowerCase()))
+    .map((option) => `${option.code} ${option.label}`);
+  return [question, ...missing].join(' ');
 }
 
 function detailOf(request: CreatePageRequest): string[] {

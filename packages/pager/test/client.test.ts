@@ -89,37 +89,99 @@ describe('the client codes against the Central contract', () => {
     expect(ack.reason).toBe('replayed nonce');
   });
 
-  it('pairs then registers the device', async () => {
-    const { impl, calls } = fakeFetch((call) =>
-      call.url === '/v1/pairings'
-        ? jsonResponse({ pairing_id: 'pair_1', device_id: 'dev_1' })
-        : jsonResponse({ id: 'dev_1', name: 'Beeper', paired_at: 42 }),
+  it('registers the device in one call and keeps the token', async () => {
+    const { impl, calls } = fakeFetch(() =>
+      jsonResponse({ device_id: 'dev_1', device_token: 'tok_1', name: 'Beeper', paired_at: 42 }),
     );
     const client = createCentralClient({ fetchImpl: impl });
-    const pair = await client.pair({
+    const paired = await client.pair({
       code: 'A1B2C3',
       deviceName: 'Beeper',
       publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'x', y: 'y' },
-    });
-    expect(pair).toEqual({ pairingId: 'pair_1', deviceId: 'dev_1' });
-
-    const device = await client.registerDevice({
-      code: 'A1B2C3',
-      deviceName: 'Beeper',
-      publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'x', y: 'y' },
-      pairingId: pair.pairingId,
-      deviceId: pair.deviceId,
       pushSubscription: null,
     });
-    expect(device.id).toBe('dev_1');
-    expect(calls[1]?.url).toBe('/v1/devices');
+    expect(paired).toEqual({
+      deviceId: 'dev_1',
+      deviceToken: 'tok_1',
+      name: 'Beeper',
+      pairedAt: 42,
+    });
+    expect(calls[0]?.url).toBe('/v1/devices');
+    expect(JSON.parse(String(calls[0]?.init?.body ?? '{}'))).toMatchObject({
+      code: 'A1B2C3',
+      device_name: 'Beeper',
+    });
   });
 
-  it('starts the demo', async () => {
-    const { impl, calls } = fakeFetch(() => jsonResponse({ ok: true }));
+  it('refuses a pairing answer that carries no device token', async () => {
+    const { impl } = fakeFetch(() => jsonResponse({ device_id: 'dev_1' }));
     const client = createCentralClient({ fetchImpl: impl });
-    await client.startDemo();
+    await expect(
+      client.pair({
+        code: 'A1B2C3',
+        deviceName: 'Beeper',
+        publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'x', y: 'y' },
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('sends the device token on every request and on the socket URL', async () => {
+    let token: string | null = null;
+    const { impl, calls } = fakeFetch(() => jsonResponse([]));
+    const sockets: string[] = [];
+    const client = createCentralClient({
+      fetchImpl: impl,
+      getDeviceToken: () => token,
+      webSocketFactory: (url) => {
+        sockets.push(url);
+        return {
+          onopen: null,
+          onmessage: null,
+          onclose: null,
+          onerror: null,
+          close() {
+            /* no-op */
+          },
+        };
+      },
+    });
+
+    // No token: the socket is not even attempted, the pager stays offline.
+    const statuses: string[] = [];
+    const disconnect = client.connect({
+      onMessage: () => undefined,
+      onStatus: (connection) => statuses.push(connection),
+    });
+    expect(sockets).toHaveLength(0);
+    expect(statuses).toContain('offline');
+    disconnect();
+
+    token = 'tok_1';
+    await client.fetchPending('dev_1');
+    const headers = calls[0]?.init?.headers as Record<string, string> | undefined;
+    expect(headers?.authorization).toBe('Bearer tok_1');
+
+    const disconnect2 = client.connect({ onMessage: () => undefined, onStatus: () => undefined });
+    expect(sockets[0]).toContain('/v1/stream?token=tok_1');
+    disconnect2();
+  });
+
+  it('starts the demo and reads back the visitor space', async () => {
+    const { impl, calls } = fakeFetch(() =>
+      jsonResponse({
+        visitor_id: 'vis_1',
+        device_id: 'dev_1',
+        device_token: 'tok_1',
+        station_token: 'tok_station',
+        device_private_key_jwk: { kty: 'EC', crv: 'P-256', x: 'x', y: 'y', d: 'd' },
+        pager_url: '/',
+      }),
+    );
+    const client = createCentralClient({ fetchImpl: impl });
+    const space = await client.startDemo();
     expect(calls[0]?.url).toBe('/v1/demo/start');
+    expect(space.device_token).toBe('tok_1');
+    expect(space.device_id).toBe('dev_1');
   });
 
   it('raises a typed error on a non-2xx answer', async () => {
@@ -155,10 +217,16 @@ describe('the WebSocket stream', () => {
 
   it('opens /v1/stream and reports the status', () => {
     const { factory, sockets } = fakeSocket();
-    const client = createCentralClient({ webSocketFactory: factory, baseUrl: 'http://127.0.0.1:8787' });
+    const client = createCentralClient({
+      webSocketFactory: factory,
+      baseUrl: 'http://127.0.0.1:8787',
+      getDeviceToken: () => 'tok_1',
+    });
     const statuses: string[] = [];
     const stop = client.connect({ onMessage: () => undefined, onStatus: (s) => statuses.push(s) });
-    expect((sockets[0] as unknown as { url: string }).url).toBe('ws://127.0.0.1:8787/v1/stream');
+    expect((sockets[0] as unknown as { url: string }).url).toBe(
+      'ws://127.0.0.1:8787/v1/stream?token=tok_1',
+    );
     sockets[0]!.onopen?.();
     expect(statuses).toEqual(['connecting', 'online']);
     stop();
@@ -166,7 +234,11 @@ describe('the WebSocket stream', () => {
 
   it('parses a valid stream message and drops a malformed one', () => {
     const { factory, sockets } = fakeSocket();
-    const client = createCentralClient({ webSocketFactory: factory, baseUrl: 'http://x' });
+    const client = createCentralClient({
+      webSocketFactory: factory,
+      baseUrl: 'http://x',
+      getDeviceToken: () => 'tok_1',
+    });
     const received: StreamMessage[] = [];
     const stop = client.connect({ onMessage: (m) => received.push(m), onStatus: () => undefined });
     sockets[0]!.onmessage?.({ data: JSON.stringify({ type: 'hello', central: '0.1.0', budget: 6 }) });
@@ -183,6 +255,7 @@ describe('the WebSocket stream', () => {
     const client = createCentralClient({
       webSocketFactory: factory,
       baseUrl: 'http://x',
+      getDeviceToken: () => 'tok_1',
       backoff: { baseMs: 100, maxMs: 400, maxAttempts: 4 },
     });
     const statuses: string[] = [];
@@ -204,6 +277,7 @@ describe('the WebSocket stream', () => {
     const client = createCentralClient({
       webSocketFactory: factory,
       baseUrl: 'http://x',
+      getDeviceToken: () => 'tok_1',
       backoff: { baseMs: 10, maxMs: 20, maxAttempts: 2 },
     });
     const statuses: string[] = [];
