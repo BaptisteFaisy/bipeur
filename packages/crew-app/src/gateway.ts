@@ -1,7 +1,13 @@
 /**
- * The Crew Gateway, behind an injectable interface: the relay never imports a
- * transport, so a WebSocket (or, later, a long-poll) is a detail. Reconnection
- * uses a bounded exponential backoff; the relay keeps its own bounded queue.
+ * The Crew Gateway event stream, behind an injectable interface: the relay
+ * never imports a transport. The real stream is the Gateway's `/api/ws`
+ * WebSocket, authenticated with the same `mc_token_<port>` cookie as REST
+ * (kirocrew-client `create_ws` reuses the client's auth cookie).
+ *
+ * Reconnection uses a bounded exponential backoff — the official client's
+ * policy is base 1 s, cap 30 s (`ws_client.py`); ours is configurable with
+ * the same shape. Every reconnect attempt re-reads the cookie header, so a
+ * token exchanged while the socket was down rides the next handshake.
  */
 import { WebSocket } from 'ws';
 
@@ -22,10 +28,16 @@ export interface WebSocketLike {
   close(): void;
 }
 
-export type WebSocketFactory = (url: string) => WebSocketLike;
+export interface SocketOptions {
+  headers: Record<string, string>;
+}
+
+export type WebSocketFactory = (url: string, options: SocketOptions) => WebSocketLike;
 
 export interface WebSocketGatewayOptions {
   url: string;
+  /** Called on every connection attempt; supplies the auth cookie header. */
+  headers?: () => Promise<Record<string, string>> | Record<string, string>;
   createSocket?: WebSocketFactory;
   backoffMs?: number;
   maxBackoffMs?: number;
@@ -46,7 +58,8 @@ function decode(data: unknown): unknown {
   return data;
 }
 
-const defaultSocket: WebSocketFactory = (url) => new WebSocket(url) as unknown as WebSocketLike;
+const defaultSocket: WebSocketFactory = (url, options) =>
+  new WebSocket(url, { headers: options.headers }) as unknown as WebSocketLike;
 
 /** Everything one connection attempt owns; `stop()` and reconnection both use it. */
 interface Link {
@@ -57,18 +70,13 @@ interface Link {
   state: GatewayState;
 }
 
-function openLink(
+function wireSocket(
   link: Link,
+  current: WebSocketLike,
   options: WebSocketGatewayOptions,
   schedule: (fn: () => void, ms: number) => unknown,
   reconnect: () => void,
 ): void {
-  const createSocket = options.createSocket ?? defaultSocket;
-  const backoffMs = options.backoffMs ?? 500;
-  const maxBackoffMs = options.maxBackoffMs ?? 30_000;
-  const current = createSocket(options.url);
-  link.socket = current;
-
   current.onopen = () => {
     link.attempt = 0;
     link.state = 'connected';
@@ -86,24 +94,38 @@ function openLink(
     link.state = 'disconnected';
     options.onState?.('disconnected', link.attempt);
     if (link.stopped) return;
-    const delay = Math.min(maxBackoffMs, backoffMs * 2 ** link.attempt);
+    const delay = Math.min(options.maxBackoffMs ?? 30_000, (options.backoffMs ?? 500) * 2 ** link.attempt);
     link.attempt += 1;
     schedule(reconnect, delay);
   };
 }
 
+async function openLink(
+  link: Link,
+  options: WebSocketGatewayOptions,
+  schedule: (fn: () => void, ms: number) => unknown,
+  reconnect: () => void,
+): Promise<void> {
+  const createSocket = options.createSocket ?? defaultSocket;
+  let headers: Record<string, string> = {};
+  try {
+    headers = (await options.headers?.()) ?? {};
+  } catch {
+    // No auth yet: connect anyway. The Gateway refuses the handshake and the
+    // bounded backoff retries — a dead relay must not be a thrown promise.
+  }
+  if (link.stopped) return;
+  const current = createSocket(options.url, { headers });
+  link.socket = current;
+  wireSocket(link, current, options, schedule, reconnect);
+}
+
 export function createWebSocketGateway(options: WebSocketGatewayOptions): CrewGateway {
   const schedule = options.schedule ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
-  const link: Link = {
-    socket: null,
-    handler: null,
-    stopped: true,
-    attempt: 0,
-    state: 'disconnected',
-  };
+  const link: Link = { socket: null, handler: null, stopped: true, attempt: 0, state: 'disconnected' };
   const reconnect = (): void => {
     if (link.stopped || link.handler === null) return;
-    openLink(link, options, schedule, reconnect);
+    void openLink(link, options, schedule, reconnect);
   };
 
   return {

@@ -1,66 +1,57 @@
 {
   "name": "bipeur",
   "version": "0.1.0",
-  "description": "Relays Kiro Crew approval events to a Beeper pager and resolves each approval from the human's signed decision.",
-  "publisher": "Beeper",
+  "displayName": "Beeper",
+  "description": "Resurrects the pager as an attention protocol: relays Crew approval requests to a Beeper station and resolves each one from the human's signed decision, wherever the human is.",
+  "author": "Baptiste Faisy",
   "license": "MIT",
-  "pages": [
-    {
-      "path": "/apps/bipeur",
-      "title": "Beeper",
-      "entry": "page/index.html",
-      "description": "Pending Crew approvals and the pager screen, inside the Crew dashboard."
-    }
+  "repo": "BaptisteFaisy/bipeur",
+  "minKiroCrewVersion": "0.1.0",
+  "tags": ["pager", "approvals", "attention", "snpp", "retro"],
+  "highlights": [
+    "Every pending tool approval becomes a page on a real pager screen",
+    "A signed decision on the pager resolves the Crew approval exactly once",
+    "Denials carry the human's reason back through the native decide form",
+    "Journal events reach the Beeper record and the Crew notification bus",
+    "Fails closed: an expired page resolves as a denial, never an approval"
   ],
-  "processes": [
-    {
-      "name": "relay",
-      "runtime": "node",
-      "entry": "dist/bin.js",
-      "restart": "on-failure",
-      "env": [
-        "CREW_GATEWAY_URL",
-        "CREW_APPROVAL_PATH",
-        "CREW_NOTIFICATION_PATH",
-        "BIPEUR_URL",
-        "BIPEUR_TOKEN",
-        "BIPEUR_STATION"
-      ]
-    }
-  ],
-  "permissions": {
-    "network": {
-      "outbound": [
-        {
-          "method": "POST",
-          "path": "/api/crew/approvals/resolve",
-          "configuredBy": "CREW_APPROVAL_PATH",
-          "purpose": "resolve a Crew approval from the decision taken on the pager"
-        },
-        {
-          "method": "POST",
-          "path": "/api/crew/notifications",
-          "configuredBy": "CREW_NOTIFICATION_PATH",
-          "purpose": "write a notice in the Crew journal of record"
-        }
-      ]
+  "ui": {
+    "entry": "ui/page.mjs",
+    "pages": [
+      {
+        "route": "/apps/bipeur",
+        "label": "Beeper",
+        "icon": "Radio",
+        "entryPoint": "ui/page.mjs",
+        "mountFunction": "mount"
+      }
+    ],
+    "sidebar": {
+      "section": "Apps",
+      "order": 10
     }
   },
-  "config": {
-    "CREW_GATEWAY_URL": {
-      "default": "ws://127.0.0.1:8790",
-      "description": "Crew Gateway base URL, ws(s) or http(s). Exact value to verify (A.9)."
-    },
-    "CREW_APPROVAL_PATH": {
-      "default": "/api/crew/approvals/resolve",
-      "description": "POST path that resolves an approval. Exact path to verify (A.9)."
-    },
-    "CREW_NOTIFICATION_PATH": {
-      "default": "/api/crew/notifications",
-      "description": "POST path that posts a notification. Exact path to verify (A.9)."
-    },
-    "BIPEUR_URL": { "default": "http://127.0.0.1:8787", "description": "Beeper Central URL." },
-    "BIPEUR_TOKEN": { "default": "", "description": "Station token of the Central. Required." },
-    "BIPEUR_STATION": { "default": "crew", "description": "Station alias shown on the page line." }
+  "backend": {
+    "entryPoint": "dist/bin.js",
+    "type": "node"
+  },
+  "permissions": {
+    "api": ["/api/chat/slots", "/api/approvals"],
+    "events": ["slots:user", "notification:system", "task_complete", "task_update"],
+    "sessionApproval": true,
+    "network": true,
+    "storage": false,
+    "cron": false,
+    "memory": ""
+  },
+  "notifications": {
+    "channels": [
+      {
+        "id": "journal",
+        "name": "Beeper journal",
+        "icon": "Radio",
+        "defaultPriority": "passive"
+      }
+    ]
   }
 }

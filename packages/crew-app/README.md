@@ -5,105 +5,132 @@ background processes, agents and MCP servers. This one brings the pager into the
 Crew dashboard (BIP-F-27, lot A7): approval events become Beeper pages, and the
 human's signed decision becomes an approval resolution.
 
+The wire contract is **established, not guessed**: every path, header and event
+shape comes from the official docs and from the Gateway's own source
+(`github.com/kirodotdev/KiroCrew`). Read [`docs/CREW.md`](../../docs/CREW.md)
+for the fact table, the sources, and the short list of things only a real Crew
+can confirm.
+
 ```
-app.json           the manifest: one page, one background process, two paths
+app.json           the manifest: one dashboard page, one node backend, minimal permissions
 src/index.ts       relay(config, client) and the public exports
-src/relay.ts       Gateway events -> pages and notices, bounded queue, retries
-src/resolve.ts     decision -> POST <CREW_APPROVAL_PATH> {approval_id, decision, reason}
-src/gateway.ts     CrewGateway interface + WebSocket transport with bounded backoff
-src/events.ts      the event contract (approval, task_complete, notification)
+src/auth.ts        app secret -> token exchange -> mc_token_<port> cookie, rotation on 401/403
+src/config.ts      the real Gateway paths, with env overrides for tests and odd deployments
+src/relay.ts       Gateway frames -> pages and notices, bounded queue, bounded retries
+src/resolve.ts     decision -> POST /api/chat/slots/{slot}/approve (native form carries the reason)
+src/gateway.ts     CrewGateway interface + /api/ws transport with bounded backoff and cookie auth
+src/events.ts      the frame contract: approval, approval_resolved, notification, task_*
 src/beeper.ts      the Beeper Central client (shared zod schemas of @bipeur/core)
-src/page/          the dashboard page: pending approvals + the pager screen
+ui/page.mjs        the dashboard page: host-mounted ESM, bare imports resolved by the host
 ```
 
-## To verify — read this before trusting the paths
+## Authentication
 
-The contest specification (A.9) explicitly marks two things **"to verify"** in the
-Crew API reference: **the exact REST paths of the Gateway** and **the shape of the
-`approval` event**. No client library exists for the Gateway, so the process calls
-the REST and WebSocket endpoints directly.
+The relay is a standalone backend process. The Gateway hands launched backends
+their secret in `KIROCREW_PROXY_SECRET` (beside `KIROCREW_APP_NAME`); older
+Gateways keep it in `~/.kiro/crew/apps/bipeur/.app_secret`. The secret is
+exchanged for a short-lived token (`POST /api/apps/bipeur/token`, header
+`X-App-Secret`), carried as the `mc_token_<port>` cookie on every request and
+on the WebSocket handshake, and re-exchanged once on a 401/403. Neither the
+secret nor the token is ever logged, and `CREW_APP_SECRET` exists for tests
+only.
 
-Consequences in this code:
+## Frame contract (over `/api/ws`)
 
-- the paths are **never hard-coded in the logic**: they are read from
-  `CREW_GATEWAY_URL`, `CREW_APPROVAL_PATH` and `CREW_NOTIFICATION_PATH`
-  (`src/config.ts`); the defaults in `DEFAULTS` are documented placeholders,
-  repeated in `app.json` under `config`;
-- the event parser (`src/events.ts`) is lenient: unknown events are ignored, an
-  `{payload: …}` or `{data: …}` envelope is unwrapped, `id` is accepted for
-  `approval_id` and `line` for `message`. A wrong shape degrades to "event
-  ignored", never to a crash or a false beep.
-
-The only hard-coded values left are the Crew-side semantics the app owns:
-`tool_name: 'crew.approval'` and the dedupe key `crew:approval:<approval_id>`.
-
-## Event contract
+Every frame is `{"type": <event>, "data": {...}}`.
 
 | Event | Fields used | Effect |
 |---|---|---|
-| `approval` | `approval_id`, `summary`, `tool_name`, `command`, `path` | creates a `tool` page, `tool_name: 'crew.approval'`, `dedupe_key: crew:approval:<id>`, the Crew summary goes to `agent_says` (screen 4 only — the honesty rule) |
-| `task_complete` | `task_id`, `summary` | `POST /v1/notices`, `CREW DONE <summary>` — no page, no beep |
-| `notification` | `message`, `level` | `POST /v1/notices`, `CREW NOTIFY <message>` — no page, no beep |
+| `approval` | `id`, `instance`, `slot`, `tool`, `tool_input`, `tool_purpose` | creates a `tool` page, `dedupe_key: crew:approval:<id>:<instance>`, purpose goes to `agent_says` (screen 4 only — the honesty rule) |
+| `approval_resolved` | `id` | the request was decided elsewhere: never page for it again |
+| `notification` | `title`/`body` | journal notice `CREW NOTIFY …` — no page, no beep |
+| `task_complete` / `task_update` | `summary`/`task_id` | journal notice `CREW DONE …` — no page, no beep (listed by the SDK docs; no Gateway emitter found in the open-source tree, handled leniently) |
+
+Unknown frames are ignored; a wrong shape never crashes and never beeps.
 
 ## Decision mapping
 
-| Page decision | Resolution |
+| Page decision | Resolution on the Gateway |
 |---|---|
-| `approved` | `approve`, reason `approved from the pager` |
-| `choice X` | `approve`, reason `choice X from the pager` |
-| `denied` | `deny`, the human's reason |
-| `cancelled` | `deny`, reason `page cancelled` |
-| `expired` / `pending` | `deny`, reason `no decision before expiry` — fail closed |
+| `approved` / `choice X` | slot decide `{action:"approved", request_id, response_id}` |
+| `denied` (with reason) | **native decide** `{origin:"native", request_id, request_mid:<instance>, action:"rejected", reason, response_id}` — the only form the Gateway admits a reason on; a 400 falls back to the plain reason-less denial |
+| `cancelled` / `expired` / `pending` | denial, fail closed (BIP-F-07) — never an approval |
 
-The resolution is `POST <CREW_APPROVAL_PATH>` with
-`{"approval_id": "…", "decision": "approve" | "deny", "reason": "…"}`. A failure
-is retried three times with a backoff, then written to the journal of record as
-`CREW RESOLVE FAILED <approval_id> after 3 tries`: a lost resolution is never
-silent.
+`response_id` is stable per (request, decision), so a retry replays the same
+Gateway outcome instead of resolving twice. A frame without `slot` falls back
+to the global route `POST /api/approvals/{id}/{approve|reject}`. A 404 means
+the approval is settled or out of scope: one explicit `CREW SETTLED …` notice,
+no retry. Any other failure is retried three times with a backoff, then
+written to the journal of record as `CREW RESOLVE FAILED <id> after 3 tries`:
+a lost resolution is never silent.
 
 ## Configuration
 
 | Variable | Default | Role |
 |---|---|---|
-| `CREW_GATEWAY_URL` | `ws://127.0.0.1:8790` | Gateway base, `ws(s)://` or `http(s)://` (to verify) |
-| `CREW_APPROVAL_PATH` | `/api/crew/approvals/resolve` | approval resolution path (to verify) |
-| `CREW_NOTIFICATION_PATH` | `/api/crew/notifications` | notification path (to verify) |
+| `CREW_GATEWAY_URL` | `http://localhost:{KIROCREW_PORT or 5476}` | Gateway base |
+| `CREW_APP_NAME` / `KIROCREW_APP_NAME` | `bipeur` | app identity for token exchange |
+| `KIROCREW_PROXY_SECRET` / `CREW_APP_SECRET` | — | app secret (env-injected; else the `.app_secret` file) |
+| `CREW_TOKEN_PATH`, `CREW_WS_PATH`, `CREW_APPROVAL_PATH`, `CREW_GLOBAL_APPROVAL_PATH`, `CREW_NOTIFICATION_PATH` | the real Gateway paths | overrides for tests and unusual deployments |
 | `BIPEUR_URL` | `http://127.0.0.1:8787` | Beeper Central |
 | `BIPEUR_TOKEN` | — | station token, required, never logged |
 | `BIPEUR_STATION` | `crew` | station alias on the page line |
 | `CREW_PAGE_TTL` | `900` | page lifetime, seconds |
 | `CREW_QUEUE_LIMIT` | `200` | bound of the local event queue |
-| `CREW_BACKOFF_MS` / `CREW_MAX_BACKOFF_MS` | `500` / `30000` | bounded exponential backoff |
+| `CREW_BACKOFF_MS` / `CREW_MAX_BACKOFF_MS` | `500` / `30000` | bounded exponential backoff (the official client's shape) |
 | `CREW_RESOLVE_ATTEMPTS` | `3` | attempts before the explicit notice |
 | `CREW_WAIT_SECONDS` | `50` | ceiling of one decision long-poll |
 
+## Permissions (declared in `app.json`, enforced by the Gateway)
+
+- `permissions.api`: `/api/chat/slots` and `/api/approvals` — the two approval
+  families, nothing else. (`/api/ws`, the token exchange and
+  `/api/notifications/push` are protocol-layer / implicitly allowed.)
+- `permissions.events`: `slots:user` (slot-scoped frames of user sessions —
+  where the approvals we carry live), `notification:system`, and the two
+  task events.
+- `permissions.sessionApproval: true` — without it every decide answers 403
+  `session_approval_not_granted`; expect a consent prompt at install.
+- `notifications.channels`: one `journal` channel for the notices the relay
+  mirrors into the Crew notification bus.
+- `network: true` — the relay dials the Beeper Central.
+
+`test/manifest.test.ts` fails if the declaration and the paths the code calls
+drift apart, in either direction.
+
 ## Reliability
 
-- **Reconnection**: bounded exponential backoff, capped at `CREW_MAX_BACKOFF_MS`,
-  state kept in the relay, so a Gateway restart does not duplicate a page.
-- **No lost event on a cut**: a bounded local queue (`CREW_QUEUE_LIMIT`) holds
-  events while the Central or the Gateway is away; past the bound the oldest is
-  dropped **and counted in the log**, never silently.
-- **Idempotence**: one `approval_id` gives one page (Central dedupe key) and one
-  resolution; a re-emitted approval after a failed resolution retries the
-  resolution, not the page.
-- **Fail closed**: an expired page or an unreachable Central resolves to `deny`.
-- **No sound**, and no token or payload in the logs.
+- **Reconnection**: bounded exponential backoff; each attempt re-reads the
+  cookie, so a token rotated during a cut rides the next handshake.
+- **No lost frame on a cut**: a bounded local queue (`CREW_QUEUE_LIMIT`) holds
+  frames while the Central or the Gateway is away; past the bound the oldest
+  is dropped **and counted in the log**, never silently.
+- **Idempotence**: one approval record (`id` + `instance`) gives one page
+  (Central dedupe key) and one resolution (Gateway `response_id` replay).
+- **Fail closed**: an expired page or an unreachable Central resolves to a
+  denial.
+- **No sound**, no secret, no token and no event payload in the logs.
 
 ## The page
 
-`src/page/index.html` + `src/page/page.js`, no dependency: it renders the pager
-screen (4 rows × 20 columns) and the approvals still waiting, inside the Crew
-dashboard. It is **read-only**: a decision must be signed by the paired pager,
-never taken from a dashboard tab. Its feed URL (`/v1/pages?state=queued`) is a
-placeholder too — see the "To verify" section.
+`ui/page.mjs` is the `ui.pages[].entryPoint` the host mounts through the
+exported `mount(el)`. It imports `react` and `@kirocrew/app-sdk` as **bare
+specifiers** — resolved by the dashboard's import map at runtime, never
+npm-installed, which is why the file ships as plain source with no bundler.
+It inherits the host theme (`useTheme`) instead of imposing colors, shows the
+approvals currently on the pager line (`useAppEvents`), and is **read-only**:
+a decision must be signed by the paired pager, never taken from a dashboard
+tab.
 
 ## Tests
 
-`pnpm test` (no network, no WebSocket, no timer):
-
-- an `approval` event creates one page with `dedupe_key: crew:approval:<id>`, and
-  a second emission of the same id creates nothing;
-- an approved decision calls the resolution once;
-- a failing resolution is attempted three times, then a notice names the approval;
-- a `notification` and a `task_complete` post a notice and never page.
+`pnpm test` — unit doubles for the fast paths, plus
+`test/gateway-contract.test.ts`: the relay end-to-end against a fake Gateway
+that implements the real contract (token exchange, cookie auth, `/api/ws`
+frames, the decide route with its exact refusal codes, `response_id` replay,
+notification push). It proves: approval → one page → exactly one resolution;
+denial → rejected **with the reason**; failure → three attempts then an
+explicit journal notice; expired token → transparent re-auth, no approval
+lost; WS drop → reconnect, order kept, no duplicate; journal events → notice,
+never a beep; missing `sessionApproval` → refused and reported, never silent.
+No test touches a real Gateway or the machine's real secret file.
