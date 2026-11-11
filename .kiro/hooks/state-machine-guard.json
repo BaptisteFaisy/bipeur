@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Beeper: the page state machine never leaves its graph",
+      "trigger": "FileSave",
+      "matcher": "**/states.ts",
+      "timeout": 0,
+      "action": {
+        "type": "command",
+        "command": "npx vitest run --project props packages/core/test/states.props.test.ts && node .kiro/hooks/scripts/render-state-graph.mjs"
+      }
+    }
+  ]
+}
