@@ -74,9 +74,15 @@ export async function flush(turns = 6): Promise<void> {
  * observable result instead of guessing. Never used to wait for a sound or a
  * network call — only for a promise the app already started.
  */
-export async function waitFor(predicate: () => boolean, turns = 400): Promise<void> {
+export async function waitFor(predicate: () => boolean, turns = 800): Promise<void> {
   for (let i = 0; i < turns; i += 1) {
     if (predicate()) return;
+    // On a loaded runner (multiple runners in parallel), a WebCrypto thread
+    // may take several milliseconds to complete: mix micro-turns and real
+    // timers so the loop yields to the system scheduler.
+    if (i % 20 === 0) {
+      await new Promise<void>((resolve) => realTimeout(resolve, 5));
+    }
     await flush(1);
   }
   throw new Error('waitFor: condition never became true');
