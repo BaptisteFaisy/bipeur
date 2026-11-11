@@ -22,6 +22,12 @@ export default defineConfig({
     },
   },
   test: {
+    // The suite opens real SQLite files and signs with WebCrypto; on a shared
+    // machine the 5 s default timed out two tests that pass in 1 s alone. A
+    // longer ceiling is not a weaker assertion — the waits themselves are
+    // bounded and injected, nothing here sleeps to prove a timeout.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     projects: [
       {
         extends: true,

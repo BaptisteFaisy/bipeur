@@ -70,7 +70,13 @@ jobs:
         if: steps.gate.outputs.conflict_prs != ''
         env:
           GH_TOKEN: ${{ secrets.HERMES_LITE_TOKEN || github.token }}
-          MODE: ${{ vars.HERMES_LITE_DRY_RUN == '1' && 'dry-run' || 'apply' }}
+          # Two independent switches, because the merge pilot and the conflict
+          # resolver are not the same role:
+          #   HERMES_RESOLVER_MODE  apply | dry-run   (default: apply)
+          #   HERMES_LITE_DRY_RUN   1 = the gate only evaluates, Mergify merges
+          # With Mergify as the merge pilot, the gate stays in dry-run while the
+          # resolver must still push its rebases — hence the separate variable.
+          MODE: ${{ vars.HERMES_RESOLVER_MODE || 'apply' }}
           CONFLICT_PRS: ${{ steps.gate.outputs.conflict_prs }}
         run: |
           set -uo pipefail
