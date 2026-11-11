@@ -1,10 +1,14 @@
 {
+  // Build of the package: `@bipeur/core` resolves through its published types
+  // (`dist/index.d.ts`, built first by `pnpm -r`), not through the workspace
+  // `paths` of the root config, which point at sources outside `rootDir`.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
     "types": ["node"],
-    "noEmit": false
+    "noEmit": false,
+    "paths": {}
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
