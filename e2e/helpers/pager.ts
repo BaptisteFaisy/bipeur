@@ -81,28 +81,21 @@ async function installSigner(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Relays the pairing handshake to the real Central.
+ *
+ * The pager calls `POST /v1/devices` with the six-character code; the browser
+ * cannot reach the dedicated Central of the scenario directly (different origin),
+ * so the route forwards it and hands the REAL answer back — `device_id` and
+ * `device_token`. Answering anything else is what kept the pager offline: it
+ * would store no token, send no Authorization header, and open the stream
+ * without the token the Central requires.
+ */
 async function installPairing(
   page: Page,
   options: BridgeOptions,
   session: BridgeSession,
 ): Promise<void> {
-  await page.route('**/v1/pairings', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    const pairing = options.pairing;
-    if (!pairing) {
-      await route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"no_pairing"}' });
-      return;
-    }
-    await route.fulfill({
-      status: 201,
-      contentType: 'application/json',
-      body: JSON.stringify({ pairing_id: pairing.pairing_id, device_id: 'pending' }),
-    });
-  });
-
   await page.route('**/v1/devices', async (route) => {
     if (route.request().method() !== 'POST') {
       await route.fallback();
@@ -127,12 +120,6 @@ async function installPairing(
     const payload = (await answer.json()) as { device_id: string; device_token: string };
     session.deviceId = payload.device_id ?? null;
     session.deviceToken = payload.device_token ?? null;
-    await page.evaluate((id) => {
-      (window as unknown as { __bipeurDeviceId?: string }).__bipeurDeviceId = id;
-    }, session.deviceId);
-    // The REAL answer of the Central, unchanged: the pager keeps the token and
-    // sends it on every later call and on the WebSocket. Answering the old
-    // `{id, name, paired_at}` shape is exactly what kept the pager offline.
     await route.fulfill({
       status: answer.status,
       contentType: 'application/json',
