@@ -69,12 +69,6 @@ export async function flush(turns = 6): Promise<void> {
 }
 
 /**
- * Poll a predicate on the real event loop. Signing goes through the platform
- * crypto thread, so the number of turns is not deterministic: we wait for the
- * observable result instead of guessing. Never used to wait for a sound or a
- * network call — only for a promise the app already started.
- */
-/**
  * Real monotonic clock. `Date.now()` is faked by `vi.useFakeTimers()`, and a
  * deadline read from a frozen clock never expires: `performance.now()` is left
  * alone by the default fake-timer set, so it is the only safe bound here.
