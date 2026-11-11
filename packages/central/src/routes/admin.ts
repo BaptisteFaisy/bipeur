@@ -21,8 +21,16 @@ export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
     const auth = authenticateStation(ctx, stationLimiter, c);
     if (!auth.ok) return auth.response;
     const limit = Number.parseInt(c.req.query('limit') ?? '100', 10);
+    const offset = Number.parseInt(c.req.query('offset') ?? '0', 10);
     const type = (c.req.query('type') ?? null) as AuditEventType | null;
-    return json({ events: ctx.audit.list({ limit: Number.isFinite(limit) ? limit : 100, type }) });
+    return json({
+      events: ctx.audit.list({
+        limit: Number.isFinite(limit) ? limit : 100,
+        type,
+        sourceId: c.req.query('source') ?? null,
+        offset: Number.isFinite(offset) ? offset : 0,
+      }),
+    });
   });
 
   app.get('/v1/metrics', (c) => {
