@@ -1,0 +1,21 @@
+{
+  "name": "@bipeur/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "bip-site: assembles the GitHub Pages showcase — landing, pager PWA and rendered docs — into one static tree.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "bip-site": "./dist/build.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "marked": "^18.2.0"
+  }
+}

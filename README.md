@@ -116,9 +116,12 @@ Open the pager in a second tab or scan the QR code with your phone.
 
 **Two addresses, both live:**
 
-- **<https://baptistefaisy.github.io/bipeur/>** — the pager served by **GitHub
-  Pages**, straight from the repository: the code, the site and the demo at the
-  same address. It talks to the Central below.
+- **<https://baptistefaisy.github.io/bipeur/>** — the whole product on **GitHub
+  Pages**, straight from the repository: the showcase lists every feature, the
+  pager itself lives at [/bipeur/app/](https://baptistefaisy.github.io/bipeur/app/),
+  the rendered documentation at [/bipeur/docs/](https://baptistefaisy.github.io/bipeur/docs/),
+  and the demo is one click away ([/bipeur/app/?screen=demo](https://baptistefaisy.github.io/bipeur/app/?screen=demo)).
+  It talks to the Central below.
 - <https://r630-debian.tail3a8bdf.ts.net/> — the Central itself (demo mode on by
   default, no account, an isolated space per visitor wiped after 24 h), which
   also serves the pager on the same origin. The operator dashboard lives at

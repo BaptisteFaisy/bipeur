@@ -227,16 +227,21 @@ Central — via `.env` for Docker/bare Node, via a Modal Secret for Modal.
 Without them the push sender is a no-op and the pager falls back to the
 WebSocket stream, which is enough for the whole demo.
 
-## 4. GitHub Pages — the pager, served from the repository
+## 4. GitHub Pages — the whole product, served from the repository
 
 ```
-https://baptistefaisy.github.io/bipeur/
+https://baptistefaisy.github.io/bipeur/        the showcase (landing)
+https://baptistefaisy.github.io/bipeur/app/    the pager PWA
+https://baptistefaisy.github.io/bipeur/docs/   the documentation, rendered
 ```
 
-The pager is a static build, so it can live on GitHub Pages — free, permanent,
-attached to the repository, and deployed by a workflow on every merge
-(`.github/workflows/pages.yml`). The Central stays a server; the browser calls it
-directly, which needs two things:
+Everything static can live on GitHub Pages — free, permanent, attached to the
+repository, and deployed by a workflow on every merge
+(`.github/workflows/pages.yml`). The `@bipeur/site` package assembles the tree:
+a landing that lists every feature (app, demo, dashboard, docs, integrations),
+the pager's own vite build copied under `app/`, and the markdown of `docs/`
+rendered to HTML. The Central stays a server; the browser calls it directly,
+which needs two things:
 
 - **CORS on the Central** for the Pages origin. `BIPEUR_CORS_ORIGINS` lists the
   allowed origins (default: `https://baptistefaisy.github.io`). It is an explicit
@@ -247,9 +252,12 @@ directly, which needs two things:
   the build (`PAGER_CENTRAL_URL`), then same origin — which is the case when the
   Central serves the pager itself.
 
-Everything absolute in the build follows the base path (`PAGER_BASE`, `/bipeur/`
-on Pages): the assets, the manifest's `start_url`, the service worker and the
-notification layer.
+Everything absolute in each build follows its own base path: `PAGER_BASE` is
+`/bipeur/app/` on Pages (the Central serving the pager keeps `/`), and the
+landing and the docs are generated with `SITE_BASE=/bipeur/`, so the assets, the
+manifest's `start_url`, the service worker and the notification layer all resolve
+under the right prefix. A deep link `?screen=demo` (or `memory`, `settings`,
+`pairing`) opens the pager straight on that screen.
 
 **One caveat, stated rather than hidden.** On `github.io` every repository page
 shares the same origin, hence the same `localStorage`: another Pages site of the
