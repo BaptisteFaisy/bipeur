@@ -83,7 +83,7 @@ export function PagerProvider(props: PagerProviderProps): React.JSX.Element {
   useServiceWorkerActions(actions, stateRef);
   useOpenRequest(actions, dispatch, stateRef);
   useBoot(actions, dispatch, stateRef, keysRef);
-  useAutoPair(actions, stateRef);
+  useAutoPair(actions, stateRef, keysRef);
 
   const api = useMemo<PagerApi>(
     () => buildApi(state, deps, actions, dispatch, stateRef),
@@ -162,20 +162,26 @@ function useBoot(
 /**
  * The Central's QR opens `/?pair=<id>&code=<code>`: the boot consumes it once,
  * through the very same `pair` action the Pairing screen uses, then clears the
- * single-use code from the address bar. A device hydrated from storage wins —
- * an already paired pager never re-pairs from a stale link. The ref is what
- * keeps StrictMode's double effect (and any re-run) to a single attempt.
+ * single-use code from the address bar. A device hydrated from storage wins
+ * only while it can still sign — the private key lives in memory, so a
+ * reloaded tab holds a device it cannot use ("Pair again"): the deep link then
+ * re-pairs instead of stranding the pager. The ref is what keeps StrictMode's
+ * double effect (and any re-run) to a single attempt.
  */
-function useAutoPair(actions: PagerActions, stateRef: { current: PagerState }): void {
+function useAutoPair(
+  actions: PagerActions,
+  stateRef: { current: PagerState },
+  keysRef: { current: DeviceKeys | null },
+): void {
   const attempted = useRef(false);
   useEffect(() => {
     if (attempted.current) return;
     attempted.current = true;
-    if (stateRef.current.device) return;
+    if (stateRef.current.device && keysRef.current) return;
     const request = resolveAutoPair();
     if (!request) return;
     void actions.pair(request.code).finally(clearAutoPairFromLocation);
-  }, [actions, stateRef]);
+  }, [actions, stateRef, keysRef]);
 }
 
 export type { StoragePort, CentralClient, CryptoPort, PushPort };
