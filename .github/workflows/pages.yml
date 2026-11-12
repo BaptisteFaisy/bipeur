@@ -1,0 +1,91 @@
+name: pages
+
+# The pager is a static PWA: it can live on GitHub Pages, next to the code it
+# comes from, at an address that belongs to the repository and costs nothing.
+#
+#   https://baptistefaisy.github.io/bipeur/
+#
+# The Central stays a server (API, WebSocket, SQLite); the browser asks it
+# directly, which is why the Central answers CORS for this origin and why the
+# pager takes the Central's URL from the build, from `?central=`, or from the
+# setting it remembers.
+#
+# This build is a native one, so it runs outside the pull-request CI (the PR
+# verdict stays inside five minutes).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      central_url:
+        description: 'Central the pager talks to (empty = same origin)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    runs-on: [self-hosted, bipeur-fast]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prepare the Pages site
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Build the pager
+        env:
+          # The repository page lives under /bipeur/; every absolute path in the
+          # build follows it (the service worker, the manifest, the icons).
+          PAGER_BASE: ${{ steps.pages.outputs.base_path }}
+          PAGER_CENTRAL_URL: ${{ inputs.central_url || 'https://r630-debian.tail3a8bdf.ts.net' }}
+        run: |
+          pnpm install --frozen-lockfile --prefer-offline
+          pnpm --filter @bipeur/core build
+          pnpm --filter @bipeur/pager build
+          echo "base: $PAGER_BASE"
+          echo "central: $PAGER_CENTRAL_URL"
+          test -f packages/pager/dist/index.html
+          test -f packages/pager/dist/sw.js
+
+      - name: Upload the artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/pager/dist
+
+  deploy:
+    name: deploy
+    runs-on: [self-hosted, bipeur-fast]
+    timeout-minutes: 5
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

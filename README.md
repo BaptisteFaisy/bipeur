@@ -114,12 +114,20 @@ requests — a `git push`, a destructive `rm -rf`, a design question, a budget
 warning, a stuck agent — in a space isolated per visitor and wiped after 24 h.
 Open the pager in a second tab or scan the QR code with your phone.
 
-**Hosted demo — live: <https://r630-debian.tail3a8bdf.ts.net/>** (demo mode on by
-default, no account, an isolated space per visitor wiped after 24 h). Click
-**Start demo**, then **Open pager** in a second tab or on your phone. The
-operator dashboard lives at
-<https://r630-debian.tail3a8bdf.ts.net/dashboard> — it needs a station token,
-which the Central prints once at boot.
+**Two addresses, both live:**
+
+- **<https://baptistefaisy.github.io/bipeur/>** — the pager served by **GitHub
+  Pages**, straight from the repository: the code, the site and the demo at the
+  same address. It talks to the Central below.
+- <https://r630-debian.tail3a8bdf.ts.net/> — the Central itself (demo mode on by
+  default, no account, an isolated space per visitor wiped after 24 h), which
+  also serves the pager on the same origin. The operator dashboard lives at
+  <https://r630-debian.tail3a8bdf.ts.net/dashboard> — it needs a station token,
+  which the Central prints once at boot.
+
+Click **Start demo**, then **Open pager** in a second tab or on your phone. The
+Pages build can point at any Central: `?central=https://…` in the URL wins, then
+the address it remembers, then the one baked into the build.
 
 It runs as a systemd service on a host of ours, behind Tailscale Funnel: HTTPS
 is terminated at the edge and the process binds to the loopback only, so nothing

@@ -54,6 +54,7 @@ export function benchConfig(dir: string, clock: Clock, overrides: Partial<Config
     budgetPerHour: 6,
     retentionDays: 30,
     vapid: null,
+    corsOrigins: ['https://baptistefaisy.github.io'],
     demo: false,
     bootstrapToken: 'test-station-token',
     stationAlias: 'main',

@@ -5,6 +5,7 @@
  */
 import { MINUTE } from '@bipeur/core';
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import type { CentralContext } from './context.js';
 import { registerDashboardUi } from './dashboard/index.js';
 import { json } from './http-json.js';
@@ -26,6 +27,18 @@ export interface ApiDeps {
 export function createApi(deps: ApiDeps): Hono {
   const { ctx, simulator } = deps;
   const app = new Hono();
+  // A static deployment of the pager (GitHub Pages) calls this API from another
+  // origin: the browser then asks for a preflight before the first call. The
+  // list is explicit — `*` would let any site use a stolen token.
+  app.use(
+    '*',
+    cors({
+      origin: (origin) => (ctx.config.corsOrigins.includes(origin) ? origin : null),
+      allowHeaders: ['Content-Type', 'Authorization'],
+      allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      maxAge: 600,
+    }),
+  );
   const perMinute = ctx.config.rateLimitPerMinute;
   const stationLimiter = new RateLimiter(perMinute, MINUTE, ctx.clock);
   const deviceLimiter = new RateLimiter(perMinute, MINUTE, ctx.clock);

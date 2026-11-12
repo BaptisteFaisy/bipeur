@@ -35,6 +35,13 @@ export interface Config {
    * (Tailscale Funnel, nginx, Caddy).
    */
   trustProxy?: boolean;
+  /**
+   * Browser origins allowed to call the API from another origin. The pager is
+   * normally served BY the Central (same origin, no CORS needed); a static
+   * deployment — GitHub Pages — puts it on another origin, and then the browser
+   * asks for a preflight before the first call.
+   */
+  corsOrigins: string[];
   sweepIntervalMs: number;
   /** Injected clock: the domain logic never reads the wall clock itself. */
   now: () => number;
@@ -54,6 +61,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     stationAlias: env.BIPEUR_STATION_ALIAS?.trim() || 'main',
     rateLimitPerMinute: intFrom(env.BIPEUR_RATE_LIMIT_PER_MINUTE, 240, 1, 1_000_000),
     trustProxy: flagFrom(env.BIPEUR_TRUST_PROXY),
+    corsOrigins: listFrom(env.BIPEUR_CORS_ORIGINS, ['https://baptistefaisy.github.io']),
     sweepIntervalMs: intFrom(env.BIPEUR_SWEEP_INTERVAL_MS, 1000, 0, 60_000),
     now: () => Date.now(),
   };
@@ -68,6 +76,15 @@ function intFrom(raw: string | undefined, fallback: number, min: number, max: nu
 function flagFrom(raw: string | undefined): boolean {
   const value = (raw ?? '').trim().toLowerCase();
   return value === '1' || value === 'true' || value === 'yes' || value === 'on';
+}
+
+/** Comma-separated list, with a default. Empty string means "the default". */
+function listFrom(raw: string | undefined, fallback: string[]): string[] {
+  const values = (raw ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  return values.length > 0 ? values : fallback;
 }
 
 function readVapid(env: NodeJS.ProcessEnv): VapidConfig | null {
