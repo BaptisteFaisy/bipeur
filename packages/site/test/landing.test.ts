@@ -46,7 +46,7 @@ describe('renderLanding', () => {
   });
 
   it('names every integration', () => {
-    for (const name of ['Kiro hook', 'MCP server', 'SNPP gateway', 'Crew app', 'CLI']) {
+    for (const name of ['Kiro hook', 'MCP server', 'SNPP gateway', 'Crew app', 'CLI', 'Pager emulator']) {
       expect(html).toContain(name);
     }
     expect(html).toContain('page_human');

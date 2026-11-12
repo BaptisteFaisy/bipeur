@@ -106,7 +106,7 @@ section that defines it; the gateway invents none of them.
 | `501` | `Syntax Error in Command or Argument` | 4.2.5 |
 | `502` | `Error! Would Duplicate Previously Entered MCResponse` | 4.6.7 |
 | `503` | `Bad Sequence of Commands`, `ERROR, Message Already Entered`, `Error, Pager ID or Message Incomplete`, `Already Selected PAGEr` | 4.2.6 |
-| `550` | `Illegal Reply Type`, `Invalid MCResponse Code`, `ERROR, Invalid Message`, `Unknown or Illegal Message_Tag or Pass_Code`, `Error, Invalid LoginID or Password` | 4.3.2, 4.5.1, 4.6.6, 4.6.10 |
+| `550` | `Illegal Reply Type`, `Invalid MCResponse Code`, `ERROR, Invalid Message`, `Unknown or Illegal Message_Tag or Pass_Code`, `Error, Invalid LoginID or Password`, `ERROR, Invalid Pager ID`, `ERROR, Unit Already Registered`, `ERROR, No Message Awaiting Reply` | 4.3.2, 4.5.1, 4.6.6, 4.6.8, 4.6.9, 4.6.10 |
 | `552` | `Too Many MCResponses Entered` | 4.2.8 |
 | `780` | `MESSAGE EXPIRED Before Delivery!` | 4.6.10 |
 | `850` | `Two-Way Unit Online and Available; Transaction Accepted` | 4.6.8 |
@@ -143,6 +143,58 @@ client ◀──888 <seq> <date> <code>──┘
 - A page the Central refuses, or a decision that never comes, expires: `780`,
   and a page that expires is a refusal, never an approval (fail closed).
 
+## The unit channel — the half of RFC 1861 that receives
+
+Until now the gateway only spoke to *terminals*: the ones that send pages. A
+**unit** is the other side — a real pager that receives them. It connects on
+the same port, registers itself with its capcode, and the gateway pushes the
+delivery to it; when the human answers on the pager, the answer travels back
+as an `MCR` and the terminal that fired the page reads `888`.
+
+```
+U: UNIT lea
+G: 250 OK, Unit Registered
+G: PAGE pg_7f3a9c 3f786a68…(64 hex)
+G: MESS 310 fw PUSH main>origin 3 commits +120-14 #07c2
+G: MCRE 0001 Approve
+G: MCRE 0002 Deny
+G: SEND 4821 7730
+U: MCR 0002
+G: 250 OK, Response Accepted
+```
+
+| Command | Effect | Reply |
+|---|---|---|
+| `UNIT <capcode>` | registers the connection as the unit of a capcode (1 to 20 characters of `[A-Za-z0-9._-]`) | `250 OK, Unit Registered` |
+| `MCR <code>` | the unit answers the message it displays (`0001`…`0004`) | `250 OK, Response Accepted` |
+| `QUIT` | closes the session, as for a terminal | `221 OK, Goodbye` |
+
+The frames the gateway pushes, in this order:
+
+| Frame | What it carries |
+|---|---|
+| `PAGE <page_id> [<fingerprint>]` | the page of the Central, once it has accepted it: the unit signs its decision against that id |
+| `MESS <line>` | the page line, 80 printable characters at most |
+| `MCRE <code> <label>` | one seeded reply, the label 20 characters at most |
+| `SEND <tag> <secret>` | the tag and the pass code of the transaction |
+| `780 MESSAGE EXPIRED Before Delivery!` | the message expired before anybody answered |
+
+- The capcode is a pager id: one connection carries one, and a capcode held by
+  another connection is refused (`550 ERROR, Unit Already Registered`), as is
+  a malformed one (`550 ERROR, Invalid Pager ID`).
+- The delivery happens at `SEND`: the page is still created on the Central, so
+  the PWA sees it too and may answer it. The unit only changes *how* the
+  answer comes back.
+- The `MCR` concludes the tag: the seeded code of the choice (`0001`→**A**,
+  `0002`→**B**, `0003`→**C**, `0004`→**D**) is the code `MSTAtus` reports with
+  `888 MCR Reply Received`.
+- With no unit registered under the capcode, nothing changes: the page goes to
+  the Central and the answer comes from the decision the Central holds.
+- A registered unit speaks the unit vocabulary only: a terminal command on
+  that connection answers `503 Bad Sequence of Commands`.
+- The unit channel is exempt from `LOGIn`: a pager that cannot authenticate
+  would never receive a page, and the gateway is loopback-only anyway.
+
 ## What is deliberately not implemented
 
 Level 1 and level 2 of the RFC are out of scope: `TAP`/`IXO`/`TME` delivery,
@@ -171,4 +223,5 @@ gateway logs tags and errors only.
 | `test/parser.test.ts` | the four-letter prefix, case-insensitive, and the typed error |
 | `test/transaction.test.ts` | out-of-sequence → `503`; `RESEt`/`QUIT` release the tags; two sessions never share one |
 | `test/gateway.test.ts` | the transcript above, replayed over a real socket on an ephemeral loopback port, with an in-memory Central |
+| `test/unit.test.ts` | the unit channel: registration, the delivery frames in order, the `MCR` that concludes the tag, the expiry |
 | `test/config.test.ts` | `LOGIn` required off the loopback (configuration only, no listen) |

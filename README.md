@@ -28,6 +28,7 @@ Built for [Kiroween 2026](https://kiroween.devpost.com/) — **Resurrection** tr
 | **Kiro hook** | `bip-hook` plugs into Kiro's `PreToolUse`: it applies local rules first, otherwise it creates a page, blocks the tool and resumes it on approval (exit `0`) or refuses it with a reason (exit `2`). |
 | **MCP server** | `page_human`, `page_wait`, `page_cancel` — any MCP client can ask the human, without changing the agent. |
 | **SNPP gateway** | A real RFC 1861 two-way transaction over TCP (`2WAY`, `PAGEr`, `MESSage`, `RTYPe`, `MCREsponse`, `ACKRead`, `EXPTag`, `SEND`, `MSTAtus`, `KTAG`). |
+| **Pager emulator** | `bip-pager`: the *unit* side of RFC 1861. It registers with `UNIT <capcode>`, receives the page over TCP, shows it on a 4 × 20 LCD in the terminal and answers `MCR 0001` — a pager, in a terminal, on the wire. |
 | **Crew app** | Relays Kiro Crew approval events to the pager and resolves them from a signed decision. |
 | **Dashboard** | \`/dashboard\` on the Central: active stations (with one-click revocation), the pending queue and *why* a page is held, the filterable audit history, the metrics of A.3, and a rules bench that shows the line a command would produce **without** paging anyone. |
 

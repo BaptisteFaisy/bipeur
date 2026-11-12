@@ -63,6 +63,45 @@ export function commandFor(prefix: string): CommandSpec | undefined {
 /** Length of the prefix the RFC matches on: `MESS`, `MSTA`, `RESE`, `LOGI`. */
 export const COMMAND_PREFIX_LENGTH = 4;
 
+/**
+ * The unit channel: the other half of RFC 1861. A *unit* is the device the
+ * page is delivered to — a real pager on the other side of the TCP port. It
+ * registers itself with `UNIT <capcode>` and answers `MCR <code>`.
+ */
+export type UnitCommandId = 'UNIT' | 'MCR';
+
+export interface UnitCommandSpec {
+  id: UnitCommandId;
+  /** Prefix a unit sends, matched case-insensitively, as the RFC does. */
+  prefix: string;
+  usage: string;
+  summary: string;
+}
+
+export const UNIT_COMMANDS: readonly UnitCommandSpec[] = [
+  {
+    id: 'UNIT',
+    prefix: 'UNIT',
+    usage: 'UNIT <capcode>',
+    summary: 'register this connection as the unit of a capcode',
+  },
+  {
+    id: 'MCR',
+    prefix: 'MCR',
+    usage: 'MCR <code>',
+    summary: 'answer the delivered message with one of the seeded codes',
+  },
+] as const;
+
+const UNIT_BY_PREFIX: ReadonlyMap<string, UnitCommandId> = new Map(
+  UNIT_COMMANDS.map((spec) => [spec.prefix, spec.id] as const),
+);
+
+/** The unit command whose prefix is `prefix`, or undefined. */
+export function unitCommandFor(prefix: string): UnitCommandId | undefined {
+  return UNIT_BY_PREFIX.get(prefix);
+}
+
 export interface ReplyCode {
   code: number;
   /** Exact text, as written by the RFC (or by the A.9 transcript). */
@@ -108,6 +147,13 @@ export const REPLIES = {
   STATUS_READ: { code: 870, text: 'Delivered, Read, Awaiting Reply (MCR)', section: '4.6.10' },
   STATUS_REPLY: { code: 888, text: 'MCR Reply Received', section: '4.6.10' },
   STATUS_EXPIRED: { code: 780, text: 'MESSAGE EXPIRED Before Delivery!', section: '4.6.10' },
+  // The unit channel: a pager that receives (RFC 4.6.8, §4.6.9). Only the
+  // codes 250 and 550 of the RFC are used, never an invented one.
+  UNIT_OK: { code: 250, text: 'OK, Unit Registered', section: '4.6.8' },
+  UNIT_INVALID: { code: 550, text: 'ERROR, Invalid Pager ID', section: '4.6.8' },
+  UNIT_BUSY: { code: 550, text: 'ERROR, Unit Already Registered', section: '4.6.8' },
+  MCR_ACCEPTED: { code: 250, text: 'OK, Response Accepted', section: '4.6.9' },
+  MCR_NO_MESSAGE: { code: 550, text: 'ERROR, No Message Awaiting Reply', section: '4.6.9' },
   UNKNOWN_TAG: { code: 550, text: 'Unknown or Illegal Message_Tag or Pass_Code', section: '4.6.10' },
   BAD_SEQUENCE: { code: 503, text: 'Bad Sequence of Commands', section: '4.2.6' },
   INCOMPLETE: { code: 503, text: 'Error, Pager ID or Message Incomplete', section: '4.3.4' },

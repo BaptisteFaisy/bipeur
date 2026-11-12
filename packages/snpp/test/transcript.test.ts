@@ -6,59 +6,27 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createGateway, type SnppGateway } from '../src/gateway.js';
 import {
   DEMO_NOW,
-  DEMO_OFFSET_HOURS,
-  DEMO_SECRET,
-  DEMO_TAG,
   DEMO_TRANSCRIPT,
   transcriptLines,
 } from '../src/transcript.js';
 import { FakeCentral } from './fake-central.js';
-import { connectTo, type TestClient } from './tcp-client.js';
-
-const gateways: SnppGateway[] = [];
-const clients: TestClient[] = [];
+import { cleanup, connectClient, startGateway, untilAsked } from './harness.js';
+import type { TestClient } from './tcp-client.js';
 
 afterEach(async () => {
-  for (const client of clients.splice(0)) await client.close();
-  for (const gateway of gateways.splice(0)) await gateway.close();
+  await cleanup();
 });
 
-async function start(central: FakeCentral): Promise<number> {
-  const gateway = createGateway({
-    client: central,
-    now: () => DEMO_NOW,
-    utcOffsetHours: () => DEMO_OFFSET_HOURS,
-    newTag: () => DEMO_TAG,
-    newSecret: () => DEMO_SECRET,
-    decisionWaitSeconds: 1,
-    idleTimeoutMs: 5_000,
-  });
-  gateways.push(gateway);
-  const { port } = await gateway.listen('127.0.0.1', 0);
-  return port;
-}
-
 async function session(central: FakeCentral): Promise<TestClient> {
-  const client = await connectTo(await start(central));
-  clients.push(client);
-  return client;
+  const { port } = await startGateway(central);
+  return connectClient(port);
 }
 
 /** The client lines of the transcript, up to and including SEND. */
 function beforeStatus(): { from: 'C' | 'S'; text: string }[] {
   return DEMO_TRANSCRIPT.filter((line) => line.from === 'C' && line.text !== 'MSTA 4821 7730');
-}
-
-/** Wait until the gateway has actually asked the Central for a decision. */
-async function untilAsked(central: FakeCentral): Promise<void> {
-  for (let i = 0; i < 200; i += 1) {
-    if (central.waits.length > 0) return;
-    await new Promise((done) => setTimeout(done, 10));
-  }
-  throw new Error('the gateway never waited for a decision');
 }
 
 describe('A.9 — the documented transcript, replayed end to end', () => {
@@ -160,10 +128,9 @@ describe('the gateway over TCP — sequences, tags and isolation', () => {
 
   it('two sessions never see each other’s tags', async () => {
     const central = new FakeCentral();
-    const port = await start(central);
-    const first = await connectTo(port);
-    const second = await connectTo(port);
-    clients.push(first, second);
+    const { port } = await startGateway(central);
+    const first = await connectClient(port);
+    const second = await connectClient(port);
     await first.read();
     await second.read();
 
@@ -182,20 +149,9 @@ describe('the gateway over TCP — sequences, tags and isolation', () => {
 
   it('answers 780 when nobody answers before the deadline', async () => {
     const central = new FakeCentral();
-    let clock = DEMO_NOW;
-    const gateway = createGateway({
-      client: central,
-      now: () => clock,
-      utcOffsetHours: () => DEMO_OFFSET_HOURS,
-      newTag: () => DEMO_TAG,
-      newSecret: () => DEMO_SECRET,
-      defaultTtlHours: 0.25,
-      decisionWaitSeconds: 1,
-    });
-    gateways.push(gateway);
-    const { port } = await gateway.listen('127.0.0.1', 0);
-    const client = await connectTo(port);
-    clients.push(client);
+    const clock = { now: DEMO_NOW };
+    const { port } = await startGateway(central, { clock });
+    const client = await connectClient(port);
     await client.read();
     for (const line of ['2WAY', 'PAGE lea', 'MESS hello', 'SEND']) {
       client.send(line);
@@ -203,7 +159,7 @@ describe('the gateway over TCP — sequences, tags and isolation', () => {
     }
     await untilAsked(central);
     // The human never answers: the fake Central keeps saying pending.
-    clock = DEMO_NOW + 30 * 60 * 1000;
+    clock.now = DEMO_NOW + 30 * 60 * 1000;
     central.decide({ status: 'pending' });
     await new Promise((done) => setTimeout(done, 100));
     client.send('MSTA 4821 7730');
@@ -212,15 +168,10 @@ describe('the gateway over TCP — sequences, tags and isolation', () => {
   });
 
   it('answers 421 and closes when LOGIn is required and not sent', async () => {
-    const gateway = createGateway({
-      client: new FakeCentral(),
+    const { port } = await startGateway(new FakeCentral(), {
       credentials: { id: 'admin', password: 'secret' },
-      now: () => DEMO_NOW,
     });
-    gateways.push(gateway);
-    const { port } = await gateway.listen('127.0.0.1', 0);
-    const client = await connectTo(port);
-    clients.push(client);
+    const client = await connectClient(port);
     await client.read();
     client.send('2WAY');
     expect(await client.read()).toBe('421 Illegal Access Attempt, LOGIn Required');
@@ -228,15 +179,10 @@ describe('the gateway over TCP — sequences, tags and isolation', () => {
   });
 
   it('accepts the session after a successful LOGIn', async () => {
-    const gateway = createGateway({
-      client: new FakeCentral(),
+    const { port } = await startGateway(new FakeCentral(), {
       credentials: { id: 'admin', password: 'secret' },
-      now: () => DEMO_NOW,
     });
-    gateways.push(gateway);
-    const { port } = await gateway.listen('127.0.0.1', 0);
-    const client = await connectTo(port);
-    clients.push(client);
+    const client = await connectClient(port);
     await client.read();
     client.send('LOGIn admin secret');
     expect(await client.read()).toBe('250 Login Accepted');
