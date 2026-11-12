@@ -13,6 +13,7 @@ import { json } from './http-json.js';
 import { RateLimiter } from './rate-limit.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
+import { registerDelegationRoutes } from './routes/delegations.js';
 import { registerDemoRoutes } from './routes/demo.js';
 import { registerDeviceRoutes } from './routes/devices.js';
 import { registerPushConfigRoute } from './push.js';
@@ -74,6 +75,7 @@ export function createApi(deps: ApiDeps): Hono {
   // Public on purpose: a VAPID public key is what a browser needs to subscribe.
   registerPushConfigRoute(app, ctx.config.vapid);
   registerDashboardRoutes(app, { ctx, stationLimiter });
+  registerDelegationRoutes(app, { ctx, stationLimiter });
   registerDemoRoutes(app, { ctx, simulator, limiter: pairLimiter });
 
   // BIP-F-30: the dashboard lives on /dashboard only — / keeps serving the pager.

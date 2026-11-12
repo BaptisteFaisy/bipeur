@@ -12,6 +12,7 @@ import type {
 } from '@bipeur/core';
 import type {
   DecisionRow,
+  DelegationRow,
   DeviceRow,
   NoticeRow,
   PageRow,
@@ -158,4 +159,17 @@ export function toPairingRow(row: SqlRow): PairingRow {
 
 export function toVisitorRow(row: SqlRow): VisitorRow {
   return { id: text(row, 'id'), created_at: num(row, 'created_at') };
+}
+
+export function toDelegationRow(row: SqlRow): DelegationRow {
+  return {
+    id: text(row, 'id'),
+    source_id: text(row, 'source_id'),
+    pattern: text(row, 'pattern'),
+    kind: text(row, 'kind'),
+    remaining: num(row, 'remaining'),
+    created_at: num(row, 'created_at'),
+    expires_at: num(row, 'expires_at'),
+    revoked_at: numOrNull(row, 'revoked_at'),
+  };
 }

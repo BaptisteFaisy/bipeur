@@ -11,6 +11,7 @@ import {
   num,
   text,
   toDecisionRow,
+  toDelegationRow,
   toDeviceRow,
   toEvent,
   toJson,
@@ -21,6 +22,7 @@ import {
   type SqlRow,
 } from './rows.js';
 import type {
+  DelegationRow,
   DeviceRow,
   DecisionRow,
   DeliveryMark,
@@ -458,6 +460,54 @@ export class SqliteStore implements Store {
       this.db.prepare('DELETE FROM sources WHERE visitor_id = ?').run(visitorId);
       this.db.prepare('DELETE FROM visitors WHERE id = ?').run(visitorId);
     });
+  }
+
+  // --- delegations --------------------------------------------------------
+
+  insertDelegation(delegation: DelegationRow): void {
+    this.db
+      .prepare(
+        'INSERT INTO delegations (id, source_id, pattern, kind, remaining, created_at, expires_at, revoked_at) VALUES (?,?,?,?,?,?,?,?)',
+      )
+      .run(
+        delegation.id,
+        delegation.source_id,
+        delegation.pattern,
+        delegation.kind,
+        delegation.remaining,
+        delegation.created_at,
+        delegation.expires_at,
+        delegation.revoked_at,
+      );
+  }
+
+  delegationById(id: string): DelegationRow | null {
+    const row = this.db.prepare('SELECT * FROM delegations WHERE id = ?').get(id) as SqlRow | undefined;
+    return row ? toDelegationRow(row) : null;
+  }
+
+  listDelegations(sourceId: string | null): DelegationRow[] {
+    const rows = sourceId
+      ? (this.db.prepare('SELECT * FROM delegations WHERE source_id = ? ORDER BY created_at DESC').all(sourceId) as SqlRow[])
+      : (this.db.prepare('SELECT * FROM delegations ORDER BY created_at DESC').all() as SqlRow[]);
+    return rows.map(toDelegationRow);
+  }
+
+  consumeDelegation(id: string, now: number): boolean {
+    const delegation = this.delegationById(id);
+    if (!delegation || delegation.revoked_at !== null) return false;
+    if (delegation.remaining <= 0 || delegation.expires_at <= now) return false;
+    this.db
+      .prepare('UPDATE delegations SET remaining = remaining - 1 WHERE id = ? AND remaining > 0')
+      .run(id);
+    return (this.db.prepare('SELECT changes() AS value').get() as SqlRow).value === 1;
+  }
+
+  revokeDelegation(id: string, at: number): boolean {
+    const before = this.delegationById(id);
+    if (!before || before.revoked_at !== null) return false;
+    this.db.prepare('UPDATE delegations SET revoked_at = ? WHERE id = ?').run(at, id);
+    return true;
   }
 
   // --- dashboard ----------------------------------------------------------
