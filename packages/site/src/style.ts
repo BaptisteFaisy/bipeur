@@ -68,6 +68,12 @@ pre.line { background: var(--panel); border: 1px solid var(--line); border-radiu
 
 footer { margin-top: 4rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; }
 
+/* ---------- dashboard (framed Central) ---------- */
+
+.dashboard-main { display: flex; flex-direction: column; height: calc(100vh - 6.5rem); height: calc(100dvh - 6.5rem); }
+.dashboard-frame { flex: 1; width: 100%; border: 0; background: var(--bg); }
+.dashboard-note { margin: 0.7rem auto 1rem; color: var(--muted); font-size: 0.85rem; }
+
 /* ---------- docs ---------- */
 
 .docs-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 1.5rem; padding: 1.2rem 0; border-bottom: 1px solid var(--line); }

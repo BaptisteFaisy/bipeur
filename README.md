@@ -120,7 +120,9 @@ Open the pager in a second tab or scan the QR code with your phone.
   Pages**, straight from the repository: the showcase lists every feature, the
   pager itself lives at [/bipeur/app/](https://baptistefaisy.github.io/bipeur/app/),
   the rendered documentation at [/bipeur/docs/](https://baptistefaisy.github.io/bipeur/docs/),
-  and the demo is one click away ([/bipeur/app/?screen=demo](https://baptistefaisy.github.io/bipeur/app/?screen=demo)).
+  the Central's dashboard is framed at [/bipeur/dashboard/](https://baptistefaisy.github.io/bipeur/dashboard/)
+  (nothing leaves the site), and the demo is one click away
+  ([/bipeur/app/?screen=demo](https://baptistefaisy.github.io/bipeur/app/?screen=demo)).
   It talks to the Central below.
 - <https://r630-debian.tail3a8bdf.ts.net/> — the Central itself (demo mode on by
   default, no account, an isolated space per visitor wiped after 24 h), which

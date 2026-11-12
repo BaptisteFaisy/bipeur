@@ -42,6 +42,7 @@ describe('buildSite', () => {
     expect(existsSync(join(outDir, 'docs', 'index.html'))).toBe(true);
     expect(existsSync(join(outDir, 'docs', 'guide.html'))).toBe(true);
     expect(existsSync(join(outDir, 'docs', 'notes.html'))).toBe(true);
+    expect(existsSync(join(outDir, 'dashboard', 'index.html'))).toBe(true);
   });
 
   it('copies the pager build verbatim and promotes the icon', async () => {
@@ -62,8 +63,12 @@ describe('buildSite', () => {
     const landing = readFileSync(join(outDir, 'index.html'), 'utf8');
     expect(landing).toContain('href="app/"');
     expect(landing).toContain('href="app/?screen=demo"');
-    expect(landing).toContain('href="https://central.example/dashboard"');
+    expect(landing).toContain('href="dashboard/"');
     expect(landing).toContain('href="docs/"');
+    expect(landing).not.toContain('https://central.example/dashboard');
+
+    const dashboard = readFileSync(join(outDir, 'dashboard', 'index.html'), 'utf8');
+    expect(dashboard).toContain('src="https://central.example/dashboard"');
 
     const doc = readFileSync(join(outDir, 'docs', 'guide.html'), 'utf8');
     expect(doc).toContain('<title>User guide — Beeper</title>');

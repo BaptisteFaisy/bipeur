@@ -10,6 +10,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readEnvConfig, type SiteConfig } from './config.js';
+import { renderDashboard } from './dashboard.js';
 import { collectDocs, renderDocPage, renderDocsIndex } from './docs.js';
 import { renderLanding } from './landing.js';
 import { siteCss } from './style.js';
@@ -25,6 +26,9 @@ export async function buildSite(config: SiteConfig): Promise<string[]> {
   written.push(await write(join(config.outDir, 'site.css'), siteCss));
   written.push(
     await write(join(config.outDir, 'index.html'), renderLanding(config)),
+  );
+  written.push(
+    await write(join(config.outDir, 'dashboard', 'index.html'), renderDashboard(config)),
   );
   written.push(...(await writeDocs(docsDir, config.outDir)));
   return written;

@@ -33,7 +33,12 @@ export function readEnvConfig(env: Env = process.env): SiteConfig {
   };
 }
 
-/** Where the dashboard link points: absolute when a Central is configured. */
+/**
+ * Where the dashboard lives: the Central's address when it is a usable http(s)
+ * URL — anything else (a `javascript:` value, garbage) falls back to the same
+ * origin, the Central serving the site itself.
+ */
 export function dashboardUrl(config: SiteConfig): string {
-  return `${config.centralUrl}/dashboard`;
+  const base = /^https?:\/\//i.test(config.centralUrl) ? config.centralUrl : '';
+  return `${base}/dashboard`;
 }

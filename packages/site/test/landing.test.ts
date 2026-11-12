@@ -37,8 +37,12 @@ describe('renderLanding', () => {
   it('links the pager, the demo deep-link, the dashboard and the docs', () => {
     expect(html).toContain('href="app/"');
     expect(html).toContain('href="app/?screen=demo"');
-    expect(html).toContain(`href="${CENTRAL}/dashboard"`);
+    expect(html).toContain('href="dashboard/"');
     expect(html).toContain('href="docs/"');
+  });
+
+  it('keeps the dashboard on the site: no link leaves for the Central', () => {
+    expect(html).not.toContain(`${CENTRAL}/dashboard`);
   });
 
   it('names every integration', () => {
