@@ -8,14 +8,6 @@
  * registers with its capcode, receives the page, shows it on a 4 × 20 LCD, and
  * answers `MCR 0001` when the human presses `a`.
  *
- * What it proves, in order:
- *   1. the terminal opens a two-way transaction (`2WAY`, `PAGE lea`);
- *   2. it writes the page line and seeds two replies (`MESS`, `RTYP`, `MCRE`);
- *   3. it fires (`SEND`) and reads `861 Delivered, Awaiting Reply (MCR)`;
- *   4. the pager lights up — the LCD shows the line, the keys A and B;
- *   5. the human answers: this script presses `a` on the pager;
- *   6. the terminal reads `888 … MCR Reply Received` — a code, not a paragraph.
- *
  * Requirements: a gateway on the port (`bipeur-snpp`) and `bip-pager` on the
  * PATH (or `BIP_PAGER=/path/to/bip-pager`).
  */
@@ -32,41 +24,50 @@ const wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
 /** The pager: a unit, connected, waiting for its page. */
 const pager = spawn(pagerBin, ['--host', host, '--port', String(port), '--capcode', capcode], {
-  stdio: ['pipe', 'pipe', 'inherit'],
+  stdio: ['pipe', 'pipe', 'pipe'],
 });
 const pagerLines = [];
-pager.stdout.on('data', (chunk) => {
-  pagerLines.push(chunk.toString());
-});
+pager.stdout.on('data', (chunk) => pagerLines.push(chunk.toString()));
 
-/** The terminal: the sender of 1995. */
+/** Resolves once `marker` shows up on the pager's wire transcript (stderr). */
+function waitForMarker(marker, timeoutMs, label) {
+  return new Promise((done, fail) => {
+    const timer = setTimeout(() => fail(new Error(label)), timeoutMs);
+    let transit = '';
+    pager.stderr.on('data', (chunk) => {
+      transit += chunk.toString();
+      if (transit.includes(marker)) {
+        clearTimeout(timer);
+        done();
+      }
+    });
+  });
+}
+
+// The pager must hold its capcode before the terminal fires: `PAGE lea`
+// answering `850` is what proves the unit is really on the channel.
+const registered = waitForMarker('Unit Registered', 10_000, 'the pager did not register');
+// The human answers only once the page is on the LCD: `SEND` is the last frame.
+const delivered = waitForMarker('S: SEND', 15_000, 'the pager never received the page');
+
+/** The terminal: the sender of 1995, with its lines buffered as they arrive. */
 const socket = connect(port, host);
-const terminalLines = [];
-let buffer = '';
-const waiting = [];
-
+const queue = [];
+const pending = [];
 socket.on('data', (chunk) => {
-  buffer += chunk.toString();
-  let index = buffer.indexOf('\r\n');
-  while (index >= 0) {
-    const line = buffer.slice(0, index);
-    buffer = buffer.slice(index + 2);
-    terminalLines.push(line);
-    const next = waiting.shift();
+  for (const line of chunk.toString().split('\r\n')) {
+    if (line.length === 0) continue;
+    const next = pending.shift();
     if (next) next(line);
-    index = buffer.indexOf('\r\n');
+    else queue.push(line);
   }
 });
 
-function send(line) {
-  socket.write(`${line}\r\n`);
-}
-
-/** The next reply line of the terminal (waits for it). */
 function reply(timeoutMs = 5000) {
+  if (queue.length > 0) return Promise.resolve(queue.shift());
   return new Promise((done, fail) => {
     const timer = setTimeout(() => fail(new Error('no reply from the gateway')), timeoutMs);
-    waiting.push((line) => {
+    pending.push((line) => {
       clearTimeout(timer);
       done(line);
     });
@@ -75,18 +76,20 @@ function reply(timeoutMs = 5000) {
 
 /** Send a command and wait for its answer. */
 async function expect(command) {
-  send(command);
+  socket.write(`${command}\r\n`);
   return reply();
 }
 
 try {
-  await new Promise((done, fail) => {
-    socket.once('connect', done);
-    socket.once('error', fail);
-  });
+  await registered;
 
   console.log('=== the terminal of 1995 (SNPP) ===');
   console.log(await reply());
+  const credentials = process.env.BIPEUR_SNPP_LOGIN;
+  if (credentials) {
+    const [id, ...rest] = credentials.split(':');
+    console.log(await expect(`LOGIN ${id} ${rest.join(':')}`));
+  }
   console.log(await expect('2WAY'));
   console.log(await expect(`PAGE ${capcode}`));
   console.log(await expect(`MESS ${pageLine}`));
@@ -96,8 +99,8 @@ try {
   const sent = await expect('SEND');
   console.log(sent);
 
-  // The human answers on the pager: `a` is A, the first reply.
-  await wait(1200);
+  await delivered;
+  await wait(300);
   pager.stdin.write('a');
   await wait(1500);
 
