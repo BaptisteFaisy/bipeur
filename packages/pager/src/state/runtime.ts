@@ -1,6 +1,7 @@
 /** Wiring of the pager's dependencies: everything is injectable, nothing global. */
 import type { PageRecord, Verdict } from '@bipeur/core';
 import { resolveCentralUrl } from '../api/central-url.js';
+import { resolveInitialScreen } from './initial-screen.js';
 import { createCentralClient, type CentralClient } from '../api/client.js';
 import { createBrowserPush, type PushPort } from '../api/push.js';
 import { browserCrypto, type CryptoPort } from '../crypto/device-key.js';
@@ -76,7 +77,9 @@ export function hydrateState(
   overrides: StateOverrides | undefined,
   storage: StoragePort,
 ): PagerState {
-  const base = initialState();
+  // Boot screen: `?screen=demo` (or any known screen) wins over the default;
+  // an explicit override (tests) still wins over the deep-link.
+  const base: PagerState = { ...initialState(), screen: resolveInitialScreen() };
   const { settings, ...rest } = overrides ?? {};
   const storedSettings = readJson<Partial<Settings>>(storage, STORAGE_KEYS.settings, {});
   const memory = rest.memory ?? readJson<MemoryEntry[]>(storage, STORAGE_KEYS.memory, []);
