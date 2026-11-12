@@ -17,6 +17,7 @@ import { supportsDeviceKeys, type CryptoPort, type DeviceKeys } from '../crypto/
 import type { CentralClient } from '../api/client.js';
 import type { PushPort } from '../api/push.js';
 import { createActions, type PagerActions } from './actions.js';
+import { clearAutoPairFromLocation, resolveAutoPair } from './auto-pair.js';
 import { reducer } from './reducer.js';
 import { createDeps, hydrateState, type Deps, type RuntimeInput, type StateOverrides } from './runtime.js';
 import { handleStream } from './stream.js';
@@ -82,6 +83,7 @@ export function PagerProvider(props: PagerProviderProps): React.JSX.Element {
   useServiceWorkerActions(actions, stateRef);
   useOpenRequest(actions, dispatch, stateRef);
   useBoot(actions, dispatch, stateRef, keysRef);
+  useAutoPair(actions, stateRef);
 
   const api = useMemo<PagerApi>(
     () => buildApi(state, deps, actions, dispatch, stateRef),
@@ -155,6 +157,25 @@ function useBoot(
       notice: translate(snapshot.settings.lang, 'pairing.keyLost'),
     });
   }, [actions, dispatch, stateRef, keysRef]);
+}
+
+/**
+ * The Central's QR opens `/?pair=<id>&code=<code>`: the boot consumes it once,
+ * through the very same `pair` action the Pairing screen uses, then clears the
+ * single-use code from the address bar. A device hydrated from storage wins —
+ * an already paired pager never re-pairs from a stale link. The ref is what
+ * keeps StrictMode's double effect (and any re-run) to a single attempt.
+ */
+function useAutoPair(actions: PagerActions, stateRef: { current: PagerState }): void {
+  const attempted = useRef(false);
+  useEffect(() => {
+    if (attempted.current) return;
+    attempted.current = true;
+    if (stateRef.current.device) return;
+    const request = resolveAutoPair();
+    if (!request) return;
+    void actions.pair(request.code).finally(clearAutoPairFromLocation);
+  }, [actions, stateRef]);
 }
 
 export type { StoragePort, CentralClient, CryptoPort, PushPort };
