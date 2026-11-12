@@ -7,11 +7,11 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { AuditEvent, AuditEventType, Metrics } from '@bipeur/core';
 import { openDatabase } from './schema.js';
 import { computeMetrics } from './metrics.js';
+import * as delegationSql from './delegations.js';
 import {
   num,
   text,
   toDecisionRow,
-  toDelegationRow,
   toDeviceRow,
   toEvent,
   toJson,
@@ -147,34 +147,7 @@ export class SqliteStore implements Store {
   }
 
   sourceActivity(sourceId: string, now: number): SourceActivity {
-    const count = (sql: string, ...params: (string | number)[]): number => {
-      const row = this.db.prepare(sql).get(...params) as SqlRow | undefined;
-      return row ? num(row, 'value') : 0;
-    };
-    return {
-      created: count('SELECT COUNT(*) AS value FROM pages WHERE source_id = ?', sourceId),
-      delivered: count(
-        'SELECT COUNT(*) AS value FROM pages WHERE source_id = ? AND delivered_at IS NOT NULL',
-        sourceId,
-      ),
-      approved: count(
-        "SELECT COUNT(*) AS value FROM decisions d JOIN pages p ON p.id = d.page_id WHERE p.source_id = ? AND d.verdict = 'approve'",
-        sourceId,
-      ),
-      denied: count(
-        "SELECT COUNT(*) AS value FROM decisions d JOIN pages p ON p.id = d.page_id WHERE p.source_id = ? AND d.verdict = 'deny'",
-        sourceId,
-      ),
-      cancelled: count(
-        "SELECT COUNT(*) AS value FROM pages WHERE source_id = ? AND state = 'cancelled'",
-        sourceId,
-      ),
-      createdLastHour: count(
-        'SELECT COUNT(*) AS value FROM pages WHERE source_id = ? AND created_at >= ?',
-        sourceId,
-        now - 3_600_000,
-      ),
-    };
+    return delegationSql.sourceActivity(this.db, sourceId, now);
   }
 
   // --- devices ------------------------------------------------------------
@@ -465,49 +438,23 @@ export class SqliteStore implements Store {
   // --- delegations --------------------------------------------------------
 
   insertDelegation(delegation: DelegationRow): void {
-    this.db
-      .prepare(
-        'INSERT INTO delegations (id, source_id, pattern, kind, remaining, created_at, expires_at, revoked_at) VALUES (?,?,?,?,?,?,?,?)',
-      )
-      .run(
-        delegation.id,
-        delegation.source_id,
-        delegation.pattern,
-        delegation.kind,
-        delegation.remaining,
-        delegation.created_at,
-        delegation.expires_at,
-        delegation.revoked_at,
-      );
+    delegationSql.insertDelegation(this.db, delegation);
   }
 
   delegationById(id: string): DelegationRow | null {
-    const row = this.db.prepare('SELECT * FROM delegations WHERE id = ?').get(id) as SqlRow | undefined;
-    return row ? toDelegationRow(row) : null;
+    return delegationSql.delegationById(this.db, id);
   }
 
   listDelegations(sourceId: string | null): DelegationRow[] {
-    const rows = sourceId
-      ? (this.db.prepare('SELECT * FROM delegations WHERE source_id = ? ORDER BY created_at DESC').all(sourceId) as SqlRow[])
-      : (this.db.prepare('SELECT * FROM delegations ORDER BY created_at DESC').all() as SqlRow[]);
-    return rows.map(toDelegationRow);
+    return delegationSql.listDelegations(this.db, sourceId);
   }
 
   consumeDelegation(id: string, now: number): boolean {
-    const delegation = this.delegationById(id);
-    if (!delegation || delegation.revoked_at !== null) return false;
-    if (delegation.remaining <= 0 || delegation.expires_at <= now) return false;
-    this.db
-      .prepare('UPDATE delegations SET remaining = remaining - 1 WHERE id = ? AND remaining > 0')
-      .run(id);
-    return (this.db.prepare('SELECT changes() AS value').get() as SqlRow).value === 1;
+    return delegationSql.consumeDelegation(this.db, id, now);
   }
 
   revokeDelegation(id: string, at: number): boolean {
-    const before = this.delegationById(id);
-    if (!before || before.revoked_at !== null) return false;
-    this.db.prepare('UPDATE delegations SET revoked_at = ? WHERE id = ?').run(at, id);
-    return true;
+    return delegationSql.revokeDelegation(this.db, id, at);
   }
 
   // --- dashboard ----------------------------------------------------------

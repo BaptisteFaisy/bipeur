@@ -5,12 +5,16 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseRules } from '@bipeur/core';
 import { describe, expect, it, vi } from 'vitest';
+import type { Verdict } from '../src/ask.js';
 import { claudeToolOf, evaluateClaude } from '../src/claude-hook.js';
 
 const RULES_PATH = fileURLToPath(new URL('../../../.bipeur/rules.yaml', import.meta.url));
 const rules = parseRules(readFileSync(RULES_PATH, 'utf8'));
 
-const deps = (ask = async () => 'approved' as const, log = () => {}) => ({ rules, ask, log });
+const deps = (
+  ask: (question: string) => Promise<Verdict> = async () => 'approved',
+  log: (line: string) => void = () => {},
+) => ({ rules, ask, log });
 
 describe('claudeToolOf', () => {
   it('maps the PreToolUse payload onto the gate input', () => {
