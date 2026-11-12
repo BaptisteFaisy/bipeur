@@ -4,6 +4,7 @@ import { App } from '../../src/App.js';
 import type { Lang } from '../../src/i18n/index.js';
 import { memoryStorage, type StoragePort } from '../../src/state/storage.js';
 import type { Settings } from '../../src/state/types.js';
+import type { SpeechPort } from '../../src/api/speech.js';
 import { createFakeClient, type FakeClient } from './fake-client.js';
 import type { CryptoPort, DeviceKeys } from '../../src/crypto/device-key.js';
 import { TEST_DEVICE, testKeys } from './keys.js';
@@ -32,6 +33,8 @@ export interface MountOptions {
   storage?: StoragePort;
   /** `null` simulates a browser without the WebCrypto we need. */
   crypto?: CryptoPort | null;
+  /** A speech double that records `speak()`; defaults to the no-op port. */
+  speech?: SpeechPort;
 }
 
 export async function mountPager(options: MountOptions = {}): Promise<PagerHarness> {
@@ -48,6 +51,7 @@ export async function mountPager(options: MountOptions = {}): Promise<PagerHarne
       client={client}
       storage={options.storage ?? memoryStorage()}
       crypto={options.crypto}
+      speech={options.speech}
       deviceKeys={options.withKeys === false ? null : keys}
       now={() => options.now ?? TEST_NOW}
       initialState={{

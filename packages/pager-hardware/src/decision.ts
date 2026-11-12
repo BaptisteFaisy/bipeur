@@ -36,7 +36,10 @@ export interface DecisionInput {
 
 /** A decision the pager refuses to sign: the Central would refuse it too. */
 export class DecisionRefused extends Error {
-  override name = 'DecisionRefused';
+  constructor(readonly reason: string) {
+    super(reason);
+    this.name = 'DecisionRefused';
+  }
 }
 
 /**

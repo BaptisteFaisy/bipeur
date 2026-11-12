@@ -4,6 +4,7 @@ import { resolveCentralUrl } from '../api/central-url.js';
 import { resolveInitialScreen } from './initial-screen.js';
 import { createCentralClient, type CentralClient } from '../api/client.js';
 import { createBrowserPush, type PushPort } from '../api/push.js';
+import { browserSpeech, type SpeechPort } from '../api/speech.js';
 import { browserCrypto, type CryptoPort } from '../crypto/device-key.js';
 import { initialState } from './reducer.js';
 import { browserStorage, readJson, STORAGE_KEYS, type StoragePort } from './storage.js';
@@ -21,6 +22,7 @@ export interface Deps {
   client: CentralClient;
   crypto: CryptoPort | null;
   push: PushPort;
+  speech: SpeechPort;
   storage: StoragePort;
   now: () => number;
   /**
@@ -37,6 +39,7 @@ export interface RuntimeInput {
   centralUrl?: string;
   crypto?: CryptoPort | null;
   push?: PushPort;
+  speech?: SpeechPort;
   storage?: StoragePort;
   now?: () => number;
   deviceToken?: { current: string | null };
@@ -57,6 +60,7 @@ export function createDeps(input: RuntimeInput): Deps {
       }),
     crypto: input.crypto === undefined ? browserCrypto() : input.crypto,
     push: input.push ?? createBrowserPush({ baseUrl: centralUrl }),
+    speech: input.speech ?? browserSpeech,
     storage,
     now: input.now ?? (() => Date.now()),
     deviceToken,

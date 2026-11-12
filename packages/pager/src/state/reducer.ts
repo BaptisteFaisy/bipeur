@@ -17,6 +17,7 @@ import {
 export const DEFAULT_SETTINGS: Settings = {
   sound: false,
   vibration: false,
+  speech: false,
   quietHours: { enabled: false, from: '22:00', to: '07:00' },
   budgetPerHour: 6,
   hideDetailWhenLocked: false,

@@ -16,6 +16,7 @@ import { translate, type MessageKey } from '../i18n/index.js';
 import { supportsDeviceKeys, type CryptoPort, type DeviceKeys } from '../crypto/device-key.js';
 import type { CentralClient } from '../api/client.js';
 import type { PushPort } from '../api/push.js';
+import type { SpeechPort } from '../api/speech.js';
 import { createActions, type PagerActions } from './actions.js';
 import { clearAutoPairFromLocation, resolveAutoPair } from './auto-pair.js';
 import { reducer } from './reducer.js';
@@ -35,6 +36,8 @@ export interface PagerApi {
   t(key: MessageKey, vars?: Readonly<Record<string, string | number>>): string;
   go(screen: Screen): void;
   nextDetail(): void;
+  /** Read the passed line aloud, gated by the `speech` setting (BIP-N-07). */
+  speak(text: string): void;
   updateSettings(patch: Partial<Settings>): void;
   decide(verdict: Verdict, choice?: string | null): Promise<void>;
   retry(): Promise<void>;
@@ -184,7 +187,7 @@ function useAutoPair(
   }, [actions, stateRef, keysRef]);
 }
 
-export type { StoragePort, CentralClient, CryptoPort, PushPort };
+export type { StoragePort, CentralClient, CryptoPort, PushPort, SpeechPort };
 
 /**
  * BIP-F-19 — a notification action, when the pager is open, is decided here.
@@ -244,6 +247,9 @@ function buildApi(
     t: (key, vars) => translate(state.settings.lang, key, vars),
     go: (screen) => dispatch({ type: 'screen', screen }),
     nextDetail: () => dispatch({ type: 'detail.next' }),
+    speak: (text) => {
+      if (state.settings.speech) deps.speech.speak(text);
+    },
     updateSettings: (patch) => {
       writeJson(deps.storage, STORAGE_KEYS.settings, { ...stateRef.current.settings, ...patch });
       dispatch({ type: 'settings', patch });
