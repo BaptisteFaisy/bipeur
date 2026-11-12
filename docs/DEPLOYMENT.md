@@ -230,10 +230,10 @@ WebSocket stream, which is enough for the whole demo.
 ## 4. GitHub Pages — the whole product, served from the repository
 
 ```
-https://baptistefaisy.github.io/bipeur/             the showcase (landing)
-https://baptistefaisy.github.io/bipeur/app/         the pager PWA
-https://baptistefaisy.github.io/bipeur/docs/        the documentation, rendered
-https://baptistefaisy.github.io/bipeur/dashboard/   the Central's dashboard, framed
+https://tradoooo.github.io/bipeur/             the showcase (landing)
+https://tradoooo.github.io/bipeur/app/         the pager PWA
+https://tradoooo.github.io/bipeur/docs/        the documentation, rendered
+https://tradoooo.github.io/bipeur/dashboard/   the Central's dashboard, framed
 ```
 
 Everything static can live on GitHub Pages — free, permanent, attached to the
@@ -247,7 +247,9 @@ and the data live on its origin). The Central stays a server; the browser calls
 it directly, which needs two things:
 
 - **CORS on the Central** for the Pages origin. `BIPEUR_CORS_ORIGINS` lists the
-  allowed origins (default: `https://baptistefaisy.github.io`). It is an explicit
+  allowed origins (default: `https://tradoooo.github.io` — the old
+  `https://baptistefaisy.github.io` is still accepted while the installed PWAs
+  live on it). It is an explicit
   list: `*` would let any site on the internet use a token it stole.
 - **Chrome's Private Network Access.** For a browser on the tailnet, the
   Central's funnel name resolves to a `100.64/10` address — a "private" space —

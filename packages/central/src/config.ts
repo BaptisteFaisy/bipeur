@@ -61,7 +61,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     stationAlias: env.BIPEUR_STATION_ALIAS?.trim() || 'main',
     rateLimitPerMinute: intFrom(env.BIPEUR_RATE_LIMIT_PER_MINUTE, 240, 1, 1_000_000),
     trustProxy: flagFrom(env.BIPEUR_TRUST_PROXY),
-    corsOrigins: listFrom(env.BIPEUR_CORS_ORIGINS, ['https://baptistefaisy.github.io']),
+    corsOrigins: listFrom(env.BIPEUR_CORS_ORIGINS, ['https://tradoooo.github.io', 'https://baptistefaisy.github.io']),
     sweepIntervalMs: intFrom(env.BIPEUR_SWEEP_INTERVAL_MS, 1000, 0, 60_000),
     now: () => Date.now(),
   };

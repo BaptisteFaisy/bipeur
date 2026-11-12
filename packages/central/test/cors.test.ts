@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { Bench } from './helpers.js';
 import { startBench } from './helpers.js';
 
-const PAGES_ORIGIN = 'https://baptistefaisy.github.io';
+const PAGES_ORIGIN = 'https://tradoooo.github.io';
 
 describe('CORS for a static deployment of the pager', () => {
   let bench: Bench;

@@ -3,9 +3,9 @@ name: pages
 # The pager is a static PWA: it can live on GitHub Pages, next to the code it
 # comes from, at an address that belongs to the repository and costs nothing.
 #
-#   https://baptistefaisy.github.io/bipeur/       the showcase (landing)
-#   https://baptistefaisy.github.io/bipeur/app/   the pager PWA
-#   https://baptistefaisy.github.io/bipeur/docs/  the documentation, rendered
+#   https://tradoooo.github.io/bipeur/       the showcase (landing)
+#   https://tradoooo.github.io/bipeur/app/   the pager PWA
+#   https://tradoooo.github.io/bipeur/docs/  the documentation, rendered
 #
 # The landing and the docs are assembled by @bipeur/site around the pager's
 # own vite build; the whole tree is one Pages artifact.
