@@ -230,18 +230,21 @@ WebSocket stream, which is enough for the whole demo.
 ## 4. GitHub Pages — the whole product, served from the repository
 
 ```
-https://baptistefaisy.github.io/bipeur/        the showcase (landing)
-https://baptistefaisy.github.io/bipeur/app/    the pager PWA
-https://baptistefaisy.github.io/bipeur/docs/   the documentation, rendered
+https://baptistefaisy.github.io/bipeur/             the showcase (landing)
+https://baptistefaisy.github.io/bipeur/app/         the pager PWA
+https://baptistefaisy.github.io/bipeur/docs/        the documentation, rendered
+https://baptistefaisy.github.io/bipeur/dashboard/   the Central's dashboard, framed
 ```
 
 Everything static can live on GitHub Pages — free, permanent, attached to the
 repository, and deployed by a workflow on every merge
 (`.github/workflows/pages.yml`). The `@bipeur/site` package assembles the tree:
 a landing that lists every feature (app, demo, dashboard, docs, integrations),
-the pager's own vite build copied under `app/`, and the markdown of `docs/`
-rendered to HTML. The Central stays a server; the browser calls it directly,
-which needs two things:
+the pager's own vite build copied under `app/`, the markdown of `docs/`
+rendered to HTML, and the dashboard framed under `dashboard/` so the operator
+never leaves the site (the frame's source stays the Central — the token entry
+and the data live on its origin). The Central stays a server; the browser calls
+it directly, which needs two things:
 
 - **CORS on the Central** for the Pages origin. `BIPEUR_CORS_ORIGINS` lists the
   allowed origins (default: `https://baptistefaisy.github.io`). It is an explicit

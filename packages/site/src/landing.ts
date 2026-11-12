@@ -3,7 +3,7 @@
  * function, every internal link relative (the site lives under a prefix).
  * Style: the sober "Central" direction — dark #12100e, system monospace.
  */
-import { dashboardUrl, type SiteConfig } from './config.js';
+import type { SiteConfig } from './config.js';
 import { escapeHtml, renderPage } from './html.js';
 
 const GITHUB_URL = 'https://github.com/BaptisteFaisy/bipeur';
@@ -13,7 +13,7 @@ const PAGE_LINE = '310 a PUSH main>origin 3 commits +120-14 #07c2';
 export function renderLanding(config: SiteConfig): string {
   const body = [
     heroSection(),
-    featuresSection(config),
+    featuresSection(),
     integrationsSection(),
     riskSection(),
     pageLineSection(),
@@ -50,17 +50,17 @@ interface Feature {
   href: string;
 }
 
-function features(config: SiteConfig): Feature[] {
+function features(): Feature[] {
   return [
     { title: 'Open the pager', text: 'The installable PWA: 4 rows × 20 columns, three keys, a risk lamp.', cta: 'Launch →', href: 'app/' },
     { title: 'Live demo', text: 'The Central simulator plays three fictional agents: an isolated space per visitor, no account, wiped after 24 h.', cta: 'Try it →', href: 'app/?screen=demo' },
-    { title: 'Dashboard', text: 'Stations, queue, audit, metrics and the rules bench, on the Central.', cta: 'Open →', href: dashboardUrl(config) },
+    { title: 'Dashboard', text: 'Stations, queue with hold reasons, audit, metrics and the rules bench — the live Central, framed inside this site.', cta: 'Open →', href: 'dashboard/' },
     { title: 'Documentation', text: 'Architecture, deployment, SNPP, threat model, operations.', cta: 'Read →', href: 'docs/' },
   ];
 }
 
-function featuresSection(config: SiteConfig): string {
-  const cards = features(config)
+function featuresSection(): string {
+  const cards = features()
     .map((feature) => cardHtml(feature.title, feature.text, feature.cta, feature.href))
     .join('\n');
   return `      <section>
