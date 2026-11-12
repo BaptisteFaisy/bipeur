@@ -249,6 +249,11 @@ it directly, which needs two things:
 - **CORS on the Central** for the Pages origin. `BIPEUR_CORS_ORIGINS` lists the
   allowed origins (default: `https://baptistefaisy.github.io`). It is an explicit
   list: `*` would let any site on the internet use a token it stole.
+- **Chrome's Private Network Access.** For a browser on the tailnet, the
+  Central's funnel name resolves to a `100.64/10` address — a "private" space —
+  and a public page calling it is blocked unless the preflight answers
+  `Access-Control-Allow-Private-Network: true`. The Central sends it, for the
+  allowed origins only.
 - **The Central's address in the pager**, resolved in this order (see
   `packages/pager/src/api/central-url.ts`): `?central=https://…` in the page URL,
   then the address the pager remembers in `localStorage`, then the one baked into

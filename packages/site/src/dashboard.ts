@@ -27,7 +27,8 @@ export function renderDashboard(config: SiteConfig): string {
       ></iframe>
       <p class="dashboard-note wrap">The dashboard asks for a station token —
       the Central prints it once at boot. It runs on the Central&rsquo;s own
-      origin; this site stores nothing.</p>
+      origin; this site stores nothing. Frame blocked by the browser?
+      <a href="${escapeHtml(dashboardUrl(config))}" rel="noopener">Open it in a new tab</a>.</p>
     </main>`;
   return renderPage({
     title: 'Dashboard — Beeper',

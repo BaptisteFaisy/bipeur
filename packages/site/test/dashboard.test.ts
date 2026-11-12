@@ -41,4 +41,9 @@ describe('renderDashboard', () => {
     expect(html).toContain('href="../site.css"');
     expect(html).not.toContain('@font-face');
   });
+
+  it('offers a new-tab fallback for browsers that block the frame', () => {
+    expect(html).toContain('Open it in a new tab');
+    expect(html).toContain('href="https://central.example/dashboard" rel="noopener"');
+  });
 });

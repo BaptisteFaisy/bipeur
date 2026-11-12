@@ -57,4 +57,35 @@ describe('CORS for a static deployment of the pager', () => {
     const response = await bench.central.app.request('/healthz');
     expect(response.status).toBe(200);
   });
+
+  it('authorises the private network for an allowed origin (Chrome PNA)', async () => {
+    // From a tailnet member's browser the Central resolves to a 100.64/10
+    // address: Chrome marks the preflight and blocks without this answer.
+    bench = await startBench({ corsOrigins: [PAGES_ORIGIN] });
+    const response = await bench.central.app.request('/v1/pages', {
+      method: 'OPTIONS',
+      headers: {
+        origin: PAGES_ORIGIN,
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'authorization',
+        'access-control-request-private-network': 'true',
+      },
+    });
+    expect(response.status).toBe(204);
+    expect(response.headers.get('access-control-allow-private-network')).toBe('true');
+  });
+
+  it('does not open the private network to an origin that is not on the list', async () => {
+    bench = await startBench({ corsOrigins: [PAGES_ORIGIN] });
+    const response = await bench.central.app.request('/v1/pages', {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'https://example.invalid',
+        'access-control-request-method': 'POST',
+        'access-control-request-private-network': 'true',
+      },
+    });
+    expect(response.headers.get('access-control-allow-origin')).toBeNull();
+    expect(response.headers.get('access-control-allow-private-network')).toBeNull();
+  });
 });
