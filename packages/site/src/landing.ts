@@ -7,7 +7,7 @@ import type { SiteConfig } from './config.js';
 import { escapeHtml, renderPage } from './html.js';
 
 const GITHUB_URL = 'https://github.com/BaptisteFaisy/bipeur';
-const PAGES_ORIGIN = 'https://baptistefaisy.github.io';
+const PAGES_ORIGIN = 'https://tradoooo.github.io';
 const PAGE_LINE = '310 a PUSH main>origin 3 commits +120-14 #07c2';
 
 export function renderLanding(config: SiteConfig): string {
