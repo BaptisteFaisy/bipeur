@@ -7,6 +7,7 @@
 import type { Hono } from 'hono';
 import { authenticateStation } from '../api-auth.js';
 import type { CentralContext } from '../context.js';
+import { isChatty, isStuck, reputationOf } from '../governance.js';
 import { json } from '../http-json.js';
 import type { RateLimiter } from '../rate-limit.js';
 import type { PageRow, PageStateFilter } from '../store/types.js';
@@ -23,16 +24,24 @@ export function registerDashboardRoutes(app: Hono, deps: DashboardRouteDeps): vo
   app.get('/v1/sources', (c) => {
     const auth = authenticateStation(ctx, stationLimiter, c);
     if (!auth.ok) return auth.response;
+    const now = ctx.clock();
     const counts = ctx.store.pageCountBySource();
     return json({
-      sources: ctx.store.listSources().map((source) => ({
-        source_id: source.id,
-        alias: source.alias,
-        kind: source.kind,
-        last_seen_at: source.last_seen_at,
-        revoked_at: source.revoked_at,
-        pages_created: counts[source.id] ?? 0,
-      })),
+      sources: ctx.store.listSources().map((source) => {
+        const activity = ctx.store.sourceActivity(source.id, now);
+        return {
+          source_id: source.id,
+          alias: source.alias,
+          kind: source.kind,
+          last_seen_at: source.last_seen_at,
+          revoked_at: source.revoked_at,
+          pages_created: counts[source.id] ?? 0,
+          pages_per_hour: activity.createdLastHour,
+          reputation: reputationOf(activity),
+          chatty: isChatty(activity),
+          stuck: isStuck(source.last_seen_at, now),
+        };
+      }),
     });
   });
 

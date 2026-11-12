@@ -26,6 +26,16 @@ export interface SourceRow {
   revoked_at: number | null;
 }
 
+/** Counts of one station, derived from the pages and the decisions. */
+export interface SourceActivity {
+  created: number;
+  delivered: number;
+  approved: number;
+  denied: number;
+  cancelled: number;
+  createdLastHour: number;
+}
+
 export interface DeviceRow {
   id: string;
   name: string;
@@ -140,6 +150,8 @@ export interface Store {
   revokeSource(id: string, at: number): boolean;
   /** Page counts per station, for the dashboard (BIP-F-30). */
   pageCountBySource(): Record<string, number>;
+  /** Activity of one station, for reputation and chattiness. */
+  sourceActivity(sourceId: string, now: number): SourceActivity;
 
   insertDevice(device: DeviceRow): void;
   deviceById(id: string): DeviceRow | null;

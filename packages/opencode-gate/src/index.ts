@@ -9,3 +9,4 @@
 export * from './gate.js';
 export * from './ask.js';
 export * from './plugin.js';
+export * from './claude-hook.js';

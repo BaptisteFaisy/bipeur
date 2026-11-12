@@ -30,6 +30,7 @@ import type {
   PagePatch,
   PageRow,
   PairingRow,
+  SourceActivity,
   SourceRow,
   Store,
   VisitorRow,
@@ -141,6 +142,37 @@ export class SqliteStore implements Store {
     const counts: Record<string, number> = {};
     for (const row of rows) counts[text(row, 'source_id')] = num(row, 'value');
     return counts;
+  }
+
+  sourceActivity(sourceId: string, now: number): SourceActivity {
+    const count = (sql: string, ...params: (string | number)[]): number => {
+      const row = this.db.prepare(sql).get(...params) as SqlRow | undefined;
+      return row ? num(row, 'value') : 0;
+    };
+    return {
+      created: count('SELECT COUNT(*) AS value FROM pages WHERE source_id = ?', sourceId),
+      delivered: count(
+        'SELECT COUNT(*) AS value FROM pages WHERE source_id = ? AND delivered_at IS NOT NULL',
+        sourceId,
+      ),
+      approved: count(
+        "SELECT COUNT(*) AS value FROM decisions d JOIN pages p ON p.id = d.page_id WHERE p.source_id = ? AND d.verdict = 'approve'",
+        sourceId,
+      ),
+      denied: count(
+        "SELECT COUNT(*) AS value FROM decisions d JOIN pages p ON p.id = d.page_id WHERE p.source_id = ? AND d.verdict = 'deny'",
+        sourceId,
+      ),
+      cancelled: count(
+        "SELECT COUNT(*) AS value FROM pages WHERE source_id = ? AND state = 'cancelled'",
+        sourceId,
+      ),
+      createdLastHour: count(
+        'SELECT COUNT(*) AS value FROM pages WHERE source_id = ? AND created_at >= ?',
+        sourceId,
+        now - 3_600_000,
+      ),
+    };
   }
 
   // --- devices ------------------------------------------------------------

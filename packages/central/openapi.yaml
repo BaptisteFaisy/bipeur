@@ -1,0 +1,98 @@
+# The public surface of the Beeper Central, in OpenAPI 3.0.
+#
+# This is documentation AND contract: `POST /page` is the simplest way to ask
+# a human, and every other endpoint is the full product behind it. The pager
+# talks the WebSocket stream (`/v1/stream`, not described here, RFC 1861 over
+# TCP is documented in docs/SNPP.md).
+openapi: 3.0.3
+info:
+  title: Beeper Central
+  version: 0.1.0
+  description: >
+    One line, one code, one tap. Beeper pages a human when a coding agent
+    cannot go on alone: the Central classifies the request by rules, composes
+    the line, holds the queue, and records every decision in an append-only
+    audit log.
+servers:
+  - url: https://r630-debian.tail3a8bdf.ts.net
+    description: the live demo Central
+paths:
+  /healthz:
+    get:
+      summary: liveness
+      responses:
+        '200':
+          description: alive, with the version
+  /page:
+    post:
+      summary: ask a human — the minimal contract
+      security:
+        - station: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  maxLength: 80
+                  description: the single line, as it appears on the pager
+                priority:
+                  type: string
+                  enum: [low, normal, critical]
+                  default: normal
+                ttl_seconds:
+                  type: integer
+                  minimum: 30
+                  maximum: 86400
+                  default: 900
+      responses:
+        '201':
+          description: the page was created and handed to the queue
+        '401':
+          description: missing or unknown station token
+  /v1/pages:
+    post:
+      summary: create a page (the full request shape)
+      security:
+        - station: []
+    get:
+      summary: list pages (state filter: pending)
+      security:
+        - station: []
+  /v1/pairings:
+    post:
+      summary: mint a six-character pairing code (single use, five minutes)
+      security:
+        - station: []
+  /v1/devices:
+    post:
+      summary: register a device against a pairing code
+    get:
+      summary: list the paired devices
+      security:
+        - station: []
+  /v1/sources:
+    get:
+      summary: the stations, with their reputation, chattiness and stuck flag
+      security:
+        - station: []
+  /v1/audit:
+    get:
+      summary: the append-only audit log
+      security:
+        - station: []
+  /v1/metrics:
+    get:
+      summary: the metrics of A.3
+      security:
+        - station: []
+components:
+  securitySchemes:
+    station:
+      type: http
+      scheme: bearer
+      description: a station token, printed once by the Central at first boot
