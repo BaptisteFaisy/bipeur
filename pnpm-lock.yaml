@@ -155,6 +155,16 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
 
+  packages/opencode-gate:
+    dependencies:
+      '@bipeur/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+
   packages/pager:
     dependencies:
       '@bipeur/core':
