@@ -97,4 +97,17 @@ describe('?pair=&code= — the automatic pairing at boot', () => {
     expect(ui.client.pairs).toHaveLength(0);
     await ui.unmount();
   });
+
+  it('re-pairs when the stored device lost its key (a reloaded tab)', async () => {
+    // The private key only lives in memory: after a reload the device in
+    // storage cannot sign anything, and the deep link is exactly the tool to
+    // re-pair without typing — it must not be skipped.
+    setSearch('?pair=pr_qr4&code=a1b2c3');
+    const ui = await mountPager({ pages: [], withKeys: false });
+    await waitFor(() => ui.client.pairs.length === 1);
+    expect(ui.client.pairs[0]!.code).toBe('A1B2C3');
+    expect(ui.client.pairs[0]!.pairingId).toBe('pr_qr4');
+    await waitFor(() => window.location.search === '');
+    await ui.unmount();
+  });
 });
