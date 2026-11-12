@@ -15,5 +15,6 @@ export * from './client.js';
 export * from './gateway.js';
 export * from './config.js';
 export * from './transcript.js';
+export * from './unit.js';
 
 export const PACKAGE_NAME = '@bipeur/snpp';

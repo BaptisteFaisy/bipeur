@@ -56,6 +56,6 @@ export async function buildSignedDecision(
     hasOptions: page.options.length > 0,
   });
   if (problem) throw new DecisionRefused(`${problem.code}: ${problem.detail}`);
-  const signature = await signClaims(deps.crypto, deps.keys, decisionSigningString(claims));
+  const signature = await signClaims(deps.keys, decisionSigningString(claims));
   return { ...claims, signature };
 }

@@ -29,8 +29,8 @@ Total 3:00. The clock in the left column is what the final cut must show.
 
 | Time | On screen | Voice |
 |---|---|---|
-| 1:40 | Two windows: `nc 127.0.0.1 4440` on the left, the pager on the right. Type `2WAY`, `PAGE`, `MESS`, `RTYP MULTICHOICE`, `MCRE`, `SEND`. | "This protocol is from 1995. It already had multiple-choice replies seeded by the sender, a read acknowledgement and an expiry." |
-| 1:55 | The pager lights up from the raw TCP session. Tap ✔. Type `MSTA 4821 7730`. | "`861` delivered, `888` reply received with its code. No chat, no paragraph: a code." |
+| 1:40 | Two windows: `nc 127.0.0.1 4440` on the left, `bip-pager --capcode lea` on the right — a real pager of 1995, in a terminal. Type `2WAY`, `PAGE lea`, `MESS`, `RTYP MULTICHOICE`, `MCRE`, `SEND`. | "This protocol is from 1995. It already had multiple-choice replies seeded by the sender, a read acknowledgement and an expiry." |
+| 1:55 | The pager lights up from the raw TCP session: the 4 × 20 LCD shows the line, the keys A and B appear. Press `a`. Type `MSTA 4821 7730`. | "`861` delivered, `888` reply received with its code. No chat, no paragraph: a code." |
 | 2:05 | `KTAG`, `QUIT`, `421` closing. | "Simple Network Paging Protocol, level 3. RFC 1861." |
 
 Follow `docs/SNPP.md` for the exact keystrokes.

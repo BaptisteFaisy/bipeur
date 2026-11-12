@@ -394,6 +394,45 @@ the limit, and demo visitors must not share one budget (fixed separately).
   is the point (no account for the judges), each space is isolated and wiped
   after 24 h, and the audit log keeps 30 days.
 
+## 5. The SNPP gateway and the pager emulator
+
+The gateway is a second process: `bipeur-snpp`, RFC 1861 on TCP 4440.
+
+```bash
+BIPEUR_SNPP_HOST=127.0.0.1 BIPEUR_SNPP_PORT=4440 \
+BIPEUR_URL=http://127.0.0.1:8787 BIPEUR_TOKEN=bip_… \
+pnpm --filter @bipeur/snpp build && node packages/snpp/dist/bin.js
+```
+
+| Variable | Meaning |
+|---|---|
+| `BIPEUR_SNPP_HOST` | the address to listen on — the loopback by default; anything else **requires** `BIPEUR_SNPP_LOGIN=id:password`, because a plaintext protocol on a network is a plaintext protocol |
+| `BIPEUR_SNPP_PORT` | 4440 by default (444 is privileged, 4440 is the historical paging port) |
+| `BIPEUR_URL`, `BIPEUR_TOKEN` | the Central the gateway pages, and the station token it pages with |
+
+On the demo host it runs as a systemd **user** unit (`bipeur-snpp.service`),
+bound to the tailnet address only, with the credentials in
+`~/.config/bipeur/snpp.env` (mode 600).
+
+**The other half — the pager.** `bip-pager` is a *unit* of the channel: it
+registers with its capcode, receives the page over TCP, shows it on a 4 × 20
+LCD in the terminal, and answers `MCR 0001` when the human presses `a`.
+
+```bash
+bip-pager --host 127.0.0.1 --port 4440 --capcode lea \
+          --central http://127.0.0.1:8787 --code ABC123
+```
+
+`--code` is the six-character pairing code of the Central: with it, the
+emulator signs its decision with its ECDSA P-256 device key, so the page is
+decided at the Central (the audit trail, the attention budget and the web PWA
+all see it). Without it, the emulator still receives and answers — nothing is
+signed, and it says so on screen.
+
+The wire format is specified in
+[`.kiro/steering/rfc1861.md`](../.kiro/steering/rfc1861.md); the shooting
+script is in [`docs/SNPP.md`](SNPP.md).
+
 ## Choosing
 
 - **Judges / public demo**: the live Funnel URL above. Modal remains the cleaner

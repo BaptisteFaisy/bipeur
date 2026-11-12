@@ -82,6 +82,7 @@ const INTEGRATIONS: readonly Integration[] = [
   { name: 'SNPP gateway', text: 'A real RFC 1861 two-way transaction over TCP: <code>2WAY</code>, <code>MESSage</code>, <code>MCREsponse</code>, <code>ACKRead</code>, <code>EXPTag</code>, <code>KTAG</code>.' },
   { name: 'Crew app', text: 'Relays Kiro Crew approval events to the pager and resolves them from a signed decision.' },
   { name: 'CLI', text: '<code>bip</code>: ask a human from a shell script. Exit 0 = yes, 1 = no, 3 = expired.' },
+  { name: 'Pager emulator', text: '<code>bip-pager</code> — the unit side of RFC 1861: it registers with <code>UNIT &lt;capcode&gt;</code>, receives the page over TCP, shows it on a 4 × 20 LCD in the terminal and answers <code>MCR 0001</code>.' },
 ];
 
 function integrationsSection(): string {

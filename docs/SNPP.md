@@ -45,6 +45,55 @@ and the jury needs to read the reply codes.
 
 Close with `KTAG 4821 7730` then `QUIT`, and let the `421` closing line land.
 
+## The unit side — a pager of 1995, in a terminal
+
+`bip-pager` is the other half of RFC 1861: a **unit**, the device that
+*receives*. It connects on the same TCP port as the terminals, registers itself
+with its capcode, and draws what it receives on a 4 × 20 LCD in the terminal.
+The keys answer; the answer travels back as an `MCResponse`.
+
+Two windows, side by side — the terminal of 1995 on the left, the pager on the
+right:
+
+```bash
+# left — the terminal
+nc 127.0.0.1 4440
+
+# right — the pager
+bip-pager --host 127.0.0.1 --port 4440 --capcode lea \
+          --central http://127.0.0.1:8787 --code ABC123
+```
+
+The terminal types `2WAY`, `PAGE lea`, `MESS …`, `RTYP MULTICHOICE`,
+`MCRE 0001 Approve`, `MCRE 0002 Deny`, `SEND` — and the pager lights up:
+
+```
+U: UNIT lea
+G: 250 OK, Unit Registered
+G: PAGE pg_7f3a9c 3f786a68…
+G: MESS 310 fw PUSH main>origin 3 commits +120-14 #07c2
+G: MCRE 0001 Approve
+G: MCRE 0002 Deny
+G: SEND 4821 7730
+```
+
+The human presses `a` (or `b`) on the pager: the answer goes back as
+`MCR 0001`, and the terminal reads `888 … MCR Reply Received`. The pager also
+**signs** the decision at the Central with its ECDSA P-256 device key, so the
+audit trail, the attention budget and the web PWA all see the same verdict.
+
+| Key | Effect |
+|---|---|
+| `a` `b` `c` `d` (or `1`…`4`) | answer A, B, C, D → `MCR 0001`…`MCR 0004` |
+| `q` | hang up → `QUIT` |
+
+Without `--code` the emulator still receives and answers; it simply cannot
+sign a decision at the Central, and says so on screen.
+
+The wire format of the channel — the commands, the frames and the rules — is
+written down in [`.kiro/steering/rfc1861.md`](../.kiro/steering/rfc1861.md)
+and in [`packages/snpp/docs/SNPP.md`](../packages/snpp/docs/SNPP.md).
+
 ## Why this is the strongest 25 seconds of the video
 
 Every notification product today sends a paragraph and expects a conversation.

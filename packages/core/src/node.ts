@@ -12,6 +12,7 @@ import {
 } from 'node:crypto';
 import { canonicalize } from './canonical.js';
 import { decisionSigningString, type DecisionClaims } from './decision.js';
+import { browserCrypto, newNonce as deviceNonce } from './device-key.js';
 
 /** SHA-256 of the canonical form of a payload: the fingerprint of a page. */
 export function fingerprint(payload: unknown): string {
@@ -39,8 +40,16 @@ export function newToken(): string {
   return `bip_${randomBytes(24).toString('base64url')}`;
 }
 
+/**
+ * A single-use nonce: 16 random bytes, hex encoded (32 characters).
+ *
+ * The very generator of the device key (`@bipeur/core`), so the Central and
+ * the pagers never disagree on the format of a nonce.
+ */
 export function newNonce(): string {
-  return randomBytes(16).toString('base64url');
+  const port = browserCrypto();
+  if (!port) throw new Error('WebCrypto is not available in this runtime');
+  return deviceNonce(port);
 }
 
 export interface VerifyInput {
