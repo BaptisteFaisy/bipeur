@@ -66,6 +66,12 @@ export interface BrowserPushOptions {
   fetchImpl?: (input: string, init?: RequestInit) => Promise<Response>;
 }
 
+/** The generated worker sits under the build's base path, never at `/sw.js`. */
+export function swUrl(): string {
+  const base = (import.meta.env?.BASE_URL as string | undefined) ?? '/';
+  return `${base.replace(/\/$/, '')}/sw.js`;
+}
+
 export function createBrowserPush(options: BrowserPushOptions = {}): PushPort {
   const baseUrl = options.baseUrl ?? '';
   const fetchImpl = options.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
@@ -80,7 +86,7 @@ export function createBrowserPush(options: BrowserPushOptions = {}): PushPort {
         const applicationServerKey = decodeVapidKey(config.vapid_public_key);
         if (!applicationServerKey) return null;
 
-        const registration = await container.register('/sw.js');
+        const registration = await container.register(swUrl());
         const manager = (registration as { pushManager?: PushManager }).pushManager;
         if (!manager) return null;
         const permission = await requestPermission();

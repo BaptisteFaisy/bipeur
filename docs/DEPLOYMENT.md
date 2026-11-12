@@ -227,7 +227,37 @@ Central — via `.env` for Docker/bare Node, via a Modal Secret for Modal.
 Without them the push sender is a no-op and the pager falls back to the
 WebSocket stream, which is enough for the whole demo.
 
-## 4. Tailscale Funnel — the live public instance
+## 4. GitHub Pages — the pager, served from the repository
+
+```
+https://baptistefaisy.github.io/bipeur/
+```
+
+The pager is a static build, so it can live on GitHub Pages — free, permanent,
+attached to the repository, and deployed by a workflow on every merge
+(`.github/workflows/pages.yml`). The Central stays a server; the browser calls it
+directly, which needs two things:
+
+- **CORS on the Central** for the Pages origin. `BIPEUR_CORS_ORIGINS` lists the
+  allowed origins (default: `https://baptistefaisy.github.io`). It is an explicit
+  list: `*` would let any site on the internet use a token it stole.
+- **The Central's address in the pager**, resolved in this order (see
+  `packages/pager/src/api/central-url.ts`): `?central=https://…` in the page URL,
+  then the address the pager remembers in `localStorage`, then the one baked into
+  the build (`PAGER_CENTRAL_URL`), then same origin — which is the case when the
+  Central serves the pager itself.
+
+Everything absolute in the build follows the base path (`PAGER_BASE`, `/bipeur/`
+on Pages): the assets, the manifest's `start_url`, the service worker and the
+notification layer.
+
+**One caveat, stated rather than hidden.** On `github.io` every repository page
+shares the same origin, hence the same `localStorage`: another Pages site of the
+same account could read what the pager stored there (the device token, not the
+private key — that one is non-extractable and never leaves the page). The
+same-origin deployment, where the Central serves the pager, has no such exposure.
+
+### 4b. Tailscale Funnel — the Central, also public
 
 ```
 https://r630-debian.tail3a8bdf.ts.net/

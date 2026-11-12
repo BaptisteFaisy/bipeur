@@ -1,7 +1,8 @@
 /** Wiring of the pager's dependencies: everything is injectable, nothing global. */
 import type { PageRecord, Verdict } from '@bipeur/core';
+import { resolveCentralUrl } from '../api/central-url.js';
 import { createCentralClient, type CentralClient } from '../api/client.js';
-import { browserPush, type PushPort } from '../api/push.js';
+import { createBrowserPush, type PushPort } from '../api/push.js';
 import { browserCrypto, type CryptoPort } from '../crypto/device-key.js';
 import { initialState } from './reducer.js';
 import { browserStorage, readJson, STORAGE_KEYS, type StoragePort } from './storage.js';
@@ -31,6 +32,8 @@ export interface Deps {
 
 export interface RuntimeInput {
   client?: CentralClient;
+  /** Override for tests; by default it is resolved from the page and storage. */
+  centralUrl?: string;
   crypto?: CryptoPort | null;
   push?: PushPort;
   storage?: StoragePort;
@@ -41,12 +44,18 @@ export interface RuntimeInput {
 export function createDeps(input: RuntimeInput): Deps {
   const storage = input.storage ?? browserStorage();
   const deviceToken = input.deviceToken ?? { current: storedToken(storage) };
+  // The Central is same-origin when it serves the pager; elsewhere (GitHub
+  // Pages) the URL comes from ?central=, the stored setting, or the build.
+  const centralUrl = input.centralUrl ?? resolveCentralUrl();
   return {
     client:
       input.client ??
-      createCentralClient({ getDeviceToken: () => deviceToken.current }),
+      createCentralClient({
+        baseUrl: centralUrl,
+        getDeviceToken: () => deviceToken.current,
+      }),
     crypto: input.crypto === undefined ? browserCrypto() : input.crypto,
-    push: input.push ?? browserPush,
+    push: input.push ?? createBrowserPush({ baseUrl: centralUrl }),
     storage,
     now: input.now ?? (() => Date.now()),
     deviceToken,
