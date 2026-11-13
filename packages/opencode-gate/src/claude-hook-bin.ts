@@ -2,55 +2,21 @@
 /**
  * `bipeur-claude-gate` — the Claude Code `PreToolUse` hook.
  *
- * Configure it once in `.claude/settings.json`:
+ * Claude Code runs this file on every tool call: the event JSON arrives on
+ * stdin, the answer JSON leaves on stdout, and every diagnostic goes to
+ * stderr so the JSON answer stays clean.
  *
- *   "hooks": { "PreToolUse": [
- *     { "matcher": "Bash|Edit|Write", "hooks": [
- *         { "type": "command", "command": "node /…/packages/opencode-gate/dist/claude-hook.js" }
- *     ]}
- *   ]}
- *
- * The hook reads the tool event from stdin and answers on stdout — logs go to
- * stderr so the JSON stays clean.
+ * The same hook is reachable by path — `node …/dist/claude-hook.js` — which is
+ * what `claude/settings.hook.json` points at.
  */
-import { DEFAULT_RULES, parseRules } from '@bipeur/core';
-import { readFileSync } from 'node:fs';
-import { askHuman } from './ask.js';
-import { evaluateClaude } from './claude-hook.js';
+import { main } from './claude-hook.js';
 
-function loadRules(): ReturnType<typeof parseRules> {
-  const explicit = process.env.BIPEUR_RULES;
-  if (explicit) {
-    try {
-      return parseRules(readFileSync(explicit, 'utf8'));
-    } catch {
-      // a broken rules file must not open the gate
-    }
-  }
-  return DEFAULT_RULES;
-}
-
-async function main(): Promise<void> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
-  const payload: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
-  const decision = await evaluateClaude(payload, {
-    rules: loadRules(),
-    ask: (question) => askHuman({ question }),
-    log: (line) => process.stderr.write(`${line}\n`),
+main()
+  .then((code) => {
+    process.exitCode = code;
+  })
+  .catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`bipeur: the hook failed — ${message}\n`);
+    process.exitCode = 2;
   });
-  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', ...decision } }));
-}
-
-main().catch((error: unknown) => {
-  process.stderr.write(`bipeur-claude-gate: ${error instanceof Error ? error.message : String(error)}\n`);
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: 'PreToolUse',
-        permissionDecision: 'allow',
-      },
-    }),
-  );
-  process.exitCode = 1;
-});

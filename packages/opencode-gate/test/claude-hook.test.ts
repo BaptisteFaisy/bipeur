@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parseRules } from '@bipeur/core';
 import { describe, expect, it, vi } from 'vitest';
 import type { Verdict } from '../src/ask.js';
-import { claudeToolOf, evaluateClaude } from '../src/claude-hook.js';
+import { claudeRequestOf, evaluateClaude } from '../src/claude-hook.js';
 
 const RULES_PATH = fileURLToPath(new URL('../../../.bipeur/rules.yaml', import.meta.url));
 const rules = parseRules(readFileSync(RULES_PATH, 'utf8'));
@@ -16,10 +16,25 @@ const deps = (
   log: (line: string) => void = () => {},
 ) => ({ rules, ask, log });
 
-describe('claudeToolOf', () => {
+describe('claudeRequestOf', () => {
   it('maps the PreToolUse payload onto the gate input', () => {
     const payload = { tool_name: 'Bash', tool_input: { command: 'git push origin main' } };
-    expect(claudeToolOf(payload)).toEqual({ tool: 'Bash', command: 'git push origin main', path: undefined });
+    expect(claudeRequestOf(payload)).toEqual({ tool: 'Bash', command: 'git push origin main' });
+  });
+
+  it('reads the path of a file tool', () => {
+    const payload = { tool_name: 'Write', tool_input: { file_path: '/tmp/x.txt' } };
+    expect(claudeRequestOf(payload)).toEqual({ tool: 'Write', path: '/tmp/x.txt' });
+  });
+
+  it('names an MCP call the way the rules know it', () => {
+    const payload = { tool_name: 'mcp__github__create_issue', tool_input: {} };
+    expect(claudeRequestOf(payload)).toEqual({ tool: '@mcp' });
+  });
+
+  it('has no opinion when the event carries nothing to classify', () => {
+    expect(claudeRequestOf({ tool_name: 'Read', tool_input: {} })).toBeUndefined();
+    expect(claudeRequestOf({})).toBeUndefined();
   });
 });
 
@@ -28,7 +43,7 @@ describe('evaluateClaude', () => {
     const ask = vi.fn(async () => 'approved' as const);
     const payload = { tool_name: 'Bash', tool_input: { command: 'pnpm test' } };
     const decision = await evaluateClaude(payload, deps(ask));
-    expect(decision.permissionDecision).toBe('allow');
+    expect(decision?.permissionDecision).toBe('allow');
     expect(ask).not.toHaveBeenCalled();
   });
 
@@ -36,7 +51,7 @@ describe('evaluateClaude', () => {
     const ask = vi.fn(async () => 'approved' as const);
     const payload = { tool_name: 'Bash', tool_input: { command: 'rm -rf /' } };
     const decision = await evaluateClaude(payload, deps(ask));
-    expect(decision.permissionDecision).toBe('deny');
+    expect(decision?.permissionDecision).toBe('deny');
     expect(ask).not.toHaveBeenCalled();
   });
 
@@ -45,13 +60,20 @@ describe('evaluateClaude', () => {
       { tool_name: 'Bash', tool_input: { command: 'git push origin main' } },
       deps(async () => 'approved'),
     );
-    expect(allow.permissionDecision).toBe('allow');
+    expect(allow?.permissionDecision).toBe('allow');
 
     const deny = await evaluateClaude(
       { tool_name: 'Bash', tool_input: { command: 'git push origin main' } },
       deps(async () => 'refused'),
     );
-    expect(deny.permissionDecision).toBe('deny');
-    expect(deny.permissionDecisionReason).toContain('refused');
+    expect(deny?.permissionDecision).toBe('deny');
+    expect(deny?.permissionDecisionReason).toContain('refused');
+  });
+
+  it('says nothing when the event carries nothing to classify', async () => {
+    const ask = vi.fn(async () => 'approved' as const);
+    const decision = await evaluateClaude({ tool_name: 'Read', tool_input: {} }, deps(ask));
+    expect(decision).toBeNull();
+    expect(ask).not.toHaveBeenCalled();
   });
 });
