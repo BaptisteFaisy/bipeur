@@ -51,7 +51,7 @@ env:
 jobs:
   probe:
     name: probe the public URL
-    runs-on: [self-hosted, bipeur-fast]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout (shallow)

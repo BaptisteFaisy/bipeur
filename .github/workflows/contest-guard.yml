@@ -26,7 +26,7 @@ concurrency:
 jobs:
   contest-guard:
     name: contest-guard
-    runs-on: [self-hosted, bipeur-fast]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout

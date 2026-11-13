@@ -24,7 +24,7 @@ env:
 jobs:
   typecheck:
     name: typecheck
-    runs-on: [self-hosted, bipeur-fast]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout (shallow)
@@ -32,12 +32,21 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.34.9'
+      - name: Dépendances (pnpm install)
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
       - uses: ./.github/actions/setup
       - run: pnpm typecheck
 
   lint:
     name: lint
-    runs-on: [self-hosted, bipeur-fast]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout (shallow)
@@ -45,12 +54,21 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.34.9'
+      - name: Dépendances (pnpm install)
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
       - uses: ./.github/actions/setup
       - run: pnpm lint
 
   test:
     name: test
-    runs-on: [self-hosted, bipeur-fast]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout (shallow)
@@ -58,13 +76,22 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.34.9'
+      - name: Dépendances (pnpm install)
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
       - uses: ./.github/actions/setup
       - name: Unit tests and property tests (BIP-P-01 … BIP-P-12)
         run: pnpm test
 
   build:
     name: build
-    runs-on: [self-hosted, bipeur-fast]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout (shallow)
@@ -72,6 +99,15 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.34.9'
+      - name: Dépendances (pnpm install)
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
       - uses: ./.github/actions/setup
       - run: pnpm build
       - name: Smoke — the Central boots and answers

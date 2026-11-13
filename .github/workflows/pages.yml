@@ -40,7 +40,7 @@ concurrency:
 jobs:
   build:
     name: build
-    runs-on: [self-hosted, bipeur-fast]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout (shallow)
@@ -95,7 +95,7 @@ jobs:
 
   deploy:
     name: deploy
-    runs-on: [self-hosted, bipeur-fast]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: build
     environment:
