@@ -15,6 +15,7 @@ import { verifyDecisionSignature } from '@bipeur/core/node';
 import type { CentralContext } from './context.js';
 import { expirePage } from './pages.js';
 import { applyPageState, ensureDelivered, isPending } from './states.js';
+import { streamFilterFor } from './targeting.js';
 import type { DeviceRow, PageRow } from './store/types.js';
 
 export interface DecideOutcome {
@@ -89,7 +90,10 @@ function accept(
     fingerprint: page.payload_sha256,
     data: { verdict: claims.verdict, choice: claims.choice, latency_ms: latency },
   });
-  ctx.hub.broadcast({ type: 'page.decided', page_id: page.id, verdict: claims.verdict }, { visitorId: page.visitor_id });
+  ctx.hub.broadcast(
+    { type: 'page.decided', page_id: page.id, verdict: claims.verdict },
+    streamFilterFor(ctx, page),
+  );
   return {
     status: 200,
     body: { accepted: true, page_id: page.id, verdict: claims.verdict, choice: claims.choice, latency_ms: latency },

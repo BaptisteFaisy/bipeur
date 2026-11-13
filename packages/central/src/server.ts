@@ -12,6 +12,7 @@ import type { AuditLog } from './audit.js';
 import type { DeliveryGate } from './budget.js';
 import { CENTRAL_VERSION, type Config } from './config.js';
 import type { CentralContext } from './context.js';
+import type { EscalationSweeper } from './escalate.js';
 import { expireDue } from './pages.js';
 import type { ReminderSweeper } from './remind.js';
 import type { RulesProvider } from './rules.js';
@@ -30,6 +31,7 @@ export interface CentralServer {
   rules: RulesProvider;
   simulator: Simulator;
   reminders: ReminderSweeper;
+  escalation: EscalationSweeper;
   config: Config;
   /** Printed once by `bin.ts` when it was generated; null when supplied. */
   bootstrapToken: string | null;
@@ -42,7 +44,7 @@ export interface CentralServer {
 
 export async function createServer(config: Config): Promise<CentralServer> {
   const store = openStore(config);
-  const { ctx, audit, rules, hub, gate, reminders, simulator } = wire(config, store);
+  const { ctx, audit, rules, hub, gate, reminders, escalation, simulator } = wire(config, store);
   const app = createApi({ ctx, simulator });
   const bootstrapToken = ensureBootstrapSource(config, store);
   audit.append({
@@ -50,7 +52,7 @@ export async function createServer(config: Config): Promise<CentralServer> {
     data: { version: CENTRAL_VERSION, demo: config.demo, budget_per_hour: config.budgetPerHour },
   });
 
-  const lifecycle = newLifecycle({ config, ctx, app, hub, gate, reminders, simulator });
+  const lifecycle = newLifecycle({ config, ctx, app, hub, gate, reminders, escalation, simulator });
   const central: CentralServer = {
     app,
     store,
@@ -60,6 +62,7 @@ export async function createServer(config: Config): Promise<CentralServer> {
     rules,
     simulator,
     reminders,
+    escalation,
     config,
     bootstrapToken,
     url: lifecycle.url,
@@ -78,6 +81,7 @@ interface LifecycleDeps {
   hub: WsHub;
   gate: DeliveryGate;
   reminders: ReminderSweeper;
+  escalation: EscalationSweeper;
   simulator: Simulator;
 }
 
@@ -91,7 +95,7 @@ interface Lifecycle {
 
 /** Server handle, sweeper and shutdown: the moving parts of `createServer`. */
 function newLifecycle(deps: LifecycleDeps): Lifecycle {
-  const { config, ctx, app, hub, gate, reminders, simulator } = deps;
+  const { config, ctx, app, hub, gate, reminders, escalation, simulator } = deps;
   let server: Server | null = null;
   let timer: NodeJS.Timeout | null = null;
   let sweeps = 0;
@@ -108,7 +112,7 @@ function newLifecycle(deps: LifecycleDeps): Lifecycle {
 
   const sweep = (now: number = config.now()): void => {
     sweeps += 1;
-    sweepOnce(ctx, gate, reminders, now, sweeps % 60 === 0);
+    sweepOnce(ctx, gate, reminders, escalation, now, sweeps % 60 === 0);
   };
 
   const close = async (): Promise<void> => {
@@ -140,16 +144,18 @@ function baseUrl(server: Server | null, config: Config): string {
   return `http://${config.host}:${port}`;
 }
 
-/** One maintenance pass (BIP-F-07, F-08, F-09) plus the hourly retention. */
+/** One maintenance pass (BIP-F-07, F-08, F-09, F-37) plus the hourly retention. */
 function sweepOnce(
   ctx: CentralContext,
   gate: DeliveryGate,
   reminders: ReminderSweeper,
+  escalation: EscalationSweeper,
   now: number,
   retention: boolean,
 ): void {
   gate.release(now);
   expireDue(ctx, now);
+  escalation.sweep(now);
   reminders.sweep(now);
   if (!retention) return;
   ctx.store.purgeEventsBefore(now - ctx.config.retentionDays * DAY);

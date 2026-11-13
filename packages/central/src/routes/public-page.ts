@@ -46,6 +46,7 @@ export function registerPublicPageRoute(app: Hono, deps: PublicPageRouteDeps): v
     const priority = typeof body.priority === 'string' ? body.priority : 'normal';
     const level = PRECEDENCE[priority] ?? PRECEDENCE.normal!;
     const ttlSeconds = Number(body.ttl_seconds ?? 900);
+    const rota = typeof body.rota === 'string' ? body.rota : undefined;
 
     const outcome = createPage(ctx, auth.source, {
       kind: 'question',
@@ -53,6 +54,7 @@ export function registerPublicPageRoute(app: Hono, deps: PublicPageRouteDeps): v
       code: level.code,
       ...(level.risk ? { risk: level.risk } : {}),
       ttl_seconds: Number.isFinite(ttlSeconds) ? ttlSeconds : 900,
+      ...(rota ? { rota } : {}),
     });
     if (!outcome.ok) return json(outcome.body, outcome.status);
     return json(pageView(outcome.page), outcome.created ? 201 : 200);

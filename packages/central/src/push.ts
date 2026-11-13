@@ -13,6 +13,8 @@ const webpush = (webpushModule as unknown as { default?: typeof webpushModule })
 
 export interface PushOptions {
   reminder: boolean;
+  /** Only these devices (BIP-F-37); undefined means "the whole scope". */
+  deviceIds?: string[];
 }
 
 export interface PushSender {
@@ -75,6 +77,7 @@ export class WebPushSender implements PushSender {
   notify(page: PageRow, options: PushOptions): void {
     for (const device of this.store.listDevices()) {
       if (device.revoked_at !== null || device.push_subscription === null) continue;
+      if (options.deviceIds && !options.deviceIds.includes(device.id)) continue;
       if (page.visitor_id !== null && device.visitor_id !== page.visitor_id) continue;
       const subscription = device.push_subscription as StoredSubscription;
       if (!subscription.endpoint || !subscription.keys) continue;

@@ -63,6 +63,16 @@ export const DASHBOARD_HTML = `<!doctype html>
     <p id="sources-empty" data-testid="sources-empty" class="empty" hidden>No station has paired yet.</p>
   </section>
 
+  <section aria-labelledby="rota-h" data-testid="rota-panel" class="card">
+    <h2 id="rota-h">On-call rotas <span class="sub">(BIP-F-37)</span></h2>
+    <table class="list">
+      <thead><tr><th scope="col">Rota</th><th scope="col">On call</th>
+        <th scope="col">Escalates after</th><th scope="col">Shifts</th></tr></thead>
+      <tbody id="rota-list" data-testid="rota-list"></tbody>
+    </table>
+    <p id="rota-empty" data-testid="rota-empty" class="empty" hidden>No rota. Paging one person stays the default.</p>
+  </section>
+
   <section aria-labelledby="audit-h" data-testid="audit-panel" class="card wide">
     <h2 id="audit-h">Audit history</h2>
     <div class="filters">
@@ -74,6 +84,8 @@ export const DASHBOARD_HTML = `<!doctype html>
         <option value="page.decided">page.decided</option>
         <option value="page.expired">page.expired</option>
         <option value="page.cancelled">page.cancelled</option>
+        <option value="page.escalated">page.escalated</option>
+        <option value="rota.changed">rota.changed</option>
         <option value="decision.rejected">decision.rejected</option>
         <option value="beep.requested">beep.requested</option>
         <option value="budget.flushed">budget.flushed</option>

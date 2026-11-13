@@ -24,6 +24,7 @@ describe('BIP-F-30 — the dashboard lives on /dashboard, the pager stays on /',
     expect(page.type).toContain('text/html');
     for (const testid of [
       'dashboard', 'metrics-panel', 'queue-panel', 'sources-panel',
+      'rota-panel', 'rota-list', 'rota-empty',
       'audit-panel', 'dryrun-panel', 'token-input', 'queue-empty',
     ]) {
       expect(page.text).toContain(`data-testid="${testid}"`);

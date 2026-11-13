@@ -142,6 +142,8 @@ export type AuditEventType =
   | 'page.decided'
   | 'page.expired'
   | 'page.cancelled'
+  | 'page.escalated'
+  | 'rota.changed'
   | 'page.held'
   | 'decision.rejected'
   | 'beep.requested'

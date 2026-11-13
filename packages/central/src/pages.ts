@@ -13,7 +13,9 @@ import {
 import { newId } from '@bipeur/core/node';
 import { composeRequest, fingerprintOf, type Composed } from './compose.js';
 import type { CentralContext } from './context.js';
+import { onCall } from './rota.js';
 import { applyPageState, ensureDelivered, isPending } from './states.js';
+import { streamFilterFor } from './targeting.js';
 import type { DeviceRow, PageRow, SourceRow } from './store/types.js';
 
 export type CreateOutcome =
@@ -46,16 +48,20 @@ export function createPage(ctx: CentralContext, source: SourceRow, body: unknown
   if (problem) return { ok: false, status: 422, body: problem };
 
   const now = ctx.clock();
+  const rota = resolveRota(ctx, request.rota, now);
+  if (!rota.ok) return rota;
+
   const rules = ctx.rules.current();
   const payloadFingerprint = fingerprintOf(request);
-  const dedupeKey = request.dedupe_key ?? payloadFingerprint;
+  // The same line paged to two different rotas must not dedupe (BIP-F-37).
+  const dedupeKey = request.dedupe_key ?? (request.rota ? `${payloadFingerprint}::rota:${request.rota}` : payloadFingerprint);
   const existing = ctx.store.pendingPageByDedupe(source.id, dedupeKey, now);
   if (existing) return { ok: true, created: false, page: existing };
 
   const composed = composeRequest(request, source.alias, rules, payloadFingerprint);
   const ttl = request.ttl_seconds ? request.ttl_seconds * 1000 : parseDurationOr(rules.defaults.ttl, DEFAULT_TTL_MS);
-  const page = buildPageRow({ request, source, composed, ttl, dedupeKey, payloadFingerprint, now });
-  persistPage(ctx, page, composed.matched_by);
+  const page = buildPageRow({ request, source, composed, ttl, dedupeKey, payloadFingerprint, now, rotaId: rota.rotaId, rotaTarget: rota.target });
+  persistPage(ctx, page, composed.matched_by, rota.target);
   return { ok: true, created: true, page: ctx.gate.attempt(page, now) };
 }
 
@@ -67,11 +73,13 @@ interface BuildInput {
   dedupeKey: string;
   payloadFingerprint: string;
   now: number;
+  rotaId: string | null;
+  rotaTarget: string | null;
 }
 
 /** The record as it goes to SQLite: composed facts only, never agent prose. */
 function buildPageRow(input: BuildInput): PageRow {
-  const { request, source, composed, ttl, dedupeKey, payloadFingerprint, now } = input;
+  const { request, source, composed, ttl, dedupeKey, payloadFingerprint, now, rotaId } = input;
   return {
     id: newId('pg'),
     source_id: source.id,
@@ -93,12 +101,30 @@ function buildPageRow(input: BuildInput): PageRow {
     callback_url: request.callback_url ?? null,
     reminders_sent: 0,
     visitor_id: source.visitor_id,
+    rota_id: rotaId,
+    escalation_level: 0,
+    escalated_at: null,
   };
 }
 
-function persistPage(ctx: CentralContext, page: PageRow, matchedBy: string): void {
+/** Validates the rota of the request and returns the on-call to ring. */
+type RotaResolution =
+  | { ok: true; rotaId: string | null; target: string | null }
+  | { ok: false; status: number; body: Record<string, unknown> };
+
+function resolveRota(ctx: CentralContext, label: string | undefined, now: number): RotaResolution {
+  if (label === undefined || label === '') return { ok: true, rotaId: null, target: null };
+  const rota = ctx.store.rotaByLabel(label);
+  if (!rota) return { ok: false, status: 422, body: { error: 'unknown_rota', label } };
+  const current = onCall(rota, ctx.store.listShifts(rota.id), now);
+  if (!current) return { ok: false, status: 422, body: { error: 'rota_has_no_oncall', label } };
+  return { ok: true, rotaId: rota.id, target: current.target };
+}
+
+function persistPage(ctx: CentralContext, page: PageRow, matchedBy: string, target: string | null): void {
   ctx.store.transaction(() => {
     ctx.store.insertPage(page);
+    if (target) ctx.store.addPageTarget(page.id, target);
     ctx.audit.append({
       type: 'page.created',
       page_id: page.id,
@@ -110,6 +136,7 @@ function persistPage(ctx: CentralContext, page: PageRow, matchedBy: string): voi
         kind: page.kind,
         ttl_ms: page.expires_at - page.created_at,
         matched_by: matchedBy,
+        ...(page.rota_id ? { rota_id: page.rota_id, rota_target: target } : {}),
       },
     });
   });
@@ -153,7 +180,7 @@ export function cancelPage(ctx: CentralContext, source: SourceRow, id: string): 
     fingerprint: page.payload_sha256,
     data: { after_ms: now - page.created_at },
   });
-  ctx.hub.broadcast({ type: 'page.cancelled', page_id: page.id }, { visitorId: page.visitor_id });
+  ctx.hub.broadcast({ type: 'page.cancelled', page_id: page.id }, streamFilterFor(ctx, page));
   return { status: 200, body: { state: 'cancelled', page_id: page.id } };
 }
 
@@ -177,7 +204,7 @@ export function markRead(ctx: CentralContext, device: DeviceRow, id: string): { 
     fingerprint: page.payload_sha256,
     data: { after_ms: now - (page.delivered_at ?? page.created_at) },
   });
-  ctx.hub.broadcast({ type: 'page.read', page_id: page.id }, { visitorId: page.visitor_id });
+  ctx.hub.broadcast({ type: 'page.read', page_id: page.id }, streamFilterFor(ctx, page));
   return { status: 200, body: { ok: true, state: 'read' } };
 }
 
@@ -192,7 +219,7 @@ export function expirePage(ctx: CentralContext, page: PageRow, now: number): Pag
     fingerprint: page.payload_sha256,
     data: { after_ms: now - page.created_at, default: 'deny' },
   });
-  ctx.hub.broadcast({ type: 'page.expired', page_id: page.id }, { visitorId: page.visitor_id });
+  ctx.hub.broadcast({ type: 'page.expired', page_id: page.id }, streamFilterFor(ctx, page));
   return outcome.page;
 }
 

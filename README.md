@@ -30,6 +30,7 @@ Built for [Kiroween 2026](https://kiroween.devpost.com/) — **Resurrection** tr
 | **SNPP gateway** | A real RFC 1861 two-way transaction over TCP (`2WAY`, `PAGEr`, `MESSage`, `RTYPe`, `MCREsponse`, `ACKRead`, `EXPTag`, `SEND`, `MSTAtus`, `KTAG`). |
 | **Pager emulator** | `bip-pager`: the *unit* side of RFC 1861. It registers with `UNIT <capcode>`, receives the page over TCP, shows it on a 4 × 20 LCD in the terminal and answers `MCR 0001` — a pager, in a terminal, on the wire. |
 | **Agent gate** | The opencode plugin: every tool call passes through the rules of the Central, and the irreversible ones open a page and wait for you. A real agent cannot push without a human — see [`docs/AGENT-DEMO.md`](docs/AGENT-DEMO.md). |
+| **On-call rota** | Page a *rota* (`rota: "night"`) instead of one person: the on-call pager rings, and if nobody answers in time the page escalates to the next on-call, then expires as a refusal — never a silent maybe. See [`docs/ROTA.md`](docs/ROTA.md). |
 | **Crew app** | Relays Kiro Crew approval events to the pager and resolves them from a signed decision. |
 | **Dashboard** | \`/dashboard\` on the Central: active stations (with one-click revocation), the pending queue and *why* a page is held, the filterable audit history, the metrics of A.3, and a rules bench that shows the line a command would produce **without** paging anyone. |
 
@@ -294,7 +295,8 @@ Beeper itself; the audit log supplies the numbers quoted in the video.
 
 Architecture, threat model, art direction, the SNPP shooting script and the video
 script live in `docs/ARCHITECTURE.md`, `docs/THREAT-MODEL.md`,
-`docs/ART-DIRECTION.md`, `docs/SNPP.md` and `docs/DEMO-SCRIPT.md`.
+`docs/ART-DIRECTION.md`, `docs/SNPP.md` and `docs/DEMO-SCRIPT.md`; the on-call
+rota is in `docs/ROTA.md`.
 
 ## CI
 

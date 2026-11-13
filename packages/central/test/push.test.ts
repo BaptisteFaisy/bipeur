@@ -32,6 +32,9 @@ function pageRow(overrides: Partial<PageRow> = {}): PageRow {
     dedupe_key: '',
     callback_url: null,
     visitor_id: null,
+    rota_id: null,
+    escalation_level: 0,
+    escalated_at: null,
     reminders_sent: 0,
     ...overrides,
   };

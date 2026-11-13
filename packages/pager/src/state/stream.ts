@@ -22,6 +22,7 @@ export function handleStream(message: StreamMessage, context: StreamContext): vo
     case 'page.decided':
     case 'page.expired':
     case 'page.cancelled':
+    case 'page.escalated': // BIP-F-37: the page moved on, it is no longer ours
       context.dispatch({ type: 'page.closed', pageId: message.page_id });
       return;
     case 'hello':

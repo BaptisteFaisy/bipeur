@@ -8,6 +8,8 @@ import type { AuditEvent, AuditEventType, Metrics } from '@bipeur/core';
 import { openDatabase } from './schema.js';
 import { computeMetrics } from './metrics.js';
 import * as delegationSql from './delegations.js';
+import * as pageSql from './page-sql.js';
+import * as rotaSql from './rotas.js';
 import {
   num,
   text,
@@ -16,7 +18,6 @@ import {
   toEvent,
   toJson,
   toNoticeRow,
-  toPageRow,
   toPairingRow,
   toSourceRow,
   type SqlRow,
@@ -28,40 +29,20 @@ import type {
   DeliveryMark,
   EventFilter,
   NoticeRow,
+  OncallShiftRow,
   PageFilter,
   PagePatch,
   PageRow,
   PairingRow,
+  RotaRow,
   SourceActivity,
   SourceRow,
   Store,
   VisitorRow,
 } from './types.js';
 
-const PENDING_STATES = "('queued','delivered','read')";
-
 function isUniqueViolation(error: unknown): boolean {
   return error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
-}
-
-function pageWhere(filter: PageFilter): { clause: string; params: (string | number)[] } {
-  const clauses: string[] = [];
-  const params: (string | number)[] = [];
-  if (filter.state === 'pending') clauses.push(`state IN ${PENDING_STATES}`);
-  else if (filter.state) {
-    clauses.push('state = ?');
-    params.push(filter.state);
-  }
-  if (filter.sourceId) {
-    clauses.push('source_id = ?');
-    params.push(filter.sourceId);
-  }
-  if (filter.visitorId === null) clauses.push('visitor_id IS NULL');
-  else if (filter.visitorId) {
-    clauses.push('visitor_id = ?');
-    params.push(filter.visitorId);
-  }
-  return { clause: clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '', params };
 }
 
 type SqlParam = string | number | null;
@@ -192,82 +173,23 @@ export class SqliteStore implements Store {
   // --- pages --------------------------------------------------------------
 
   insertPage(page: PageRow): void {
-    this.db
-      .prepare(
-        `INSERT INTO pages (id, source_id, source_alias, kind, code, risk, line, detail, payload,
-           payload_sha256, options, state, created_at, delivered_at, read_at, expires_at, dedupe_key,
-           callback_url, reminders_sent, visitor_id)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      )
-      .run(
-        page.id,
-        page.source_id,
-        page.source_alias,
-        page.kind,
-        page.code,
-        page.risk,
-        page.line,
-        JSON.stringify(page.detail),
-        JSON.stringify(page.payload),
-        page.payload_sha256,
-        JSON.stringify(page.options),
-        page.state,
-        page.created_at,
-        page.delivered_at,
-        page.read_at,
-        page.expires_at,
-        page.dedupe_key,
-        page.callback_url,
-        page.reminders_sent,
-        page.visitor_id,
-      );
+    pageSql.insertPage(this.db, page);
   }
 
   pageById(id: string): PageRow | null {
-    return this.one('SELECT * FROM pages WHERE id = ?', id, toPageRow);
+    return pageSql.pageById(this.db, id);
   }
 
   pendingPageByDedupe(sourceId: string, dedupeKey: string, now: number): PageRow | null {
-    const row = this.db
-      .prepare(
-        `SELECT * FROM pages WHERE source_id = ? AND dedupe_key = ?
-           AND state IN ${PENDING_STATES} AND expires_at > ?
-         ORDER BY created_at DESC LIMIT 1`,
-      )
-      .get(sourceId, dedupeKey, now) as SqlRow | undefined;
-    return row ? toPageRow(row) : null;
+    return pageSql.pendingPageByDedupe(this.db, sourceId, dedupeKey, now);
   }
 
   listPages(filter: PageFilter): PageRow[] {
-    const { clause, params } = pageWhere(filter);
-    const limit = filter.limit ?? 50;
-    const rows = this.db
-      .prepare(`SELECT * FROM pages ${clause} ORDER BY created_at DESC LIMIT ?`)
-      .all(...params, limit) as SqlRow[];
-    return rows.map(toPageRow);
+    return pageSql.listPages(this.db, filter);
   }
 
   updatePage(id: string, patch: PagePatch): void {
-    const sets: string[] = [];
-    const params: (string | number)[] = [];
-    if (patch.state !== undefined) {
-      sets.push('state = ?');
-      params.push(patch.state);
-    }
-    if (patch.delivered_at !== undefined) {
-      sets.push('delivered_at = ?');
-      params.push(patch.delivered_at);
-    }
-    if (patch.read_at !== undefined) {
-      sets.push('read_at = ?');
-      params.push(patch.read_at);
-    }
-    if (patch.reminders_sent !== undefined) {
-      sets.push('reminders_sent = ?');
-      params.push(patch.reminders_sent);
-    }
-    if (sets.length === 0) return;
-    this.db.prepare(`UPDATE pages SET ${sets.join(', ')} WHERE id = ?`).run(...params, id);
+    pageSql.updatePage(this.db, id, patch);
   }
 
   // --- decisions ----------------------------------------------------------
@@ -455,6 +377,59 @@ export class SqliteStore implements Store {
 
   revokeDelegation(id: string, at: number): boolean {
     return delegationSql.revokeDelegation(this.db, id, at);
+  }
+
+  // --- rotas (BIP-F-37) ----------------------------------------------------
+
+  insertRota(rota: RotaRow): void {
+    rotaSql.insertRota(this.db, rota);
+  }
+
+  rotaById(id: string): RotaRow | null {
+    return rotaSql.rotaById(this.db, id);
+  }
+
+  rotaByLabel(label: string): RotaRow | null {
+    return rotaSql.rotaByLabel(this.db, label);
+  }
+
+  listRotas(): RotaRow[] {
+    return rotaSql.listRotas(this.db);
+  }
+
+  deleteRota(id: string): boolean {
+    const before = rotaSql.rotaById(this.db, id);
+    if (!before) return false;
+    rotaSql.deleteRota(this.db, id);
+    return true;
+  }
+
+  insertShift(shift: OncallShiftRow): void {
+    rotaSql.insertShift(this.db, shift);
+  }
+
+  shiftById(id: string): OncallShiftRow | null {
+    return rotaSql.shiftById(this.db, id);
+  }
+
+  listShifts(rotaId: string): OncallShiftRow[] {
+    return rotaSql.listShifts(this.db, rotaId);
+  }
+
+  deleteShift(id: string): boolean {
+    return rotaSql.deleteShift(this.db, id);
+  }
+
+  addPageTarget(pageId: string, deviceId: string): void {
+    rotaSql.addPageTarget(this.db, pageId, deviceId);
+  }
+
+  clearPageTargets(pageId: string): void {
+    rotaSql.clearPageTargets(this.db, pageId);
+  }
+
+  pageTargets(pageId: string): string[] {
+    return rotaSql.pageTargets(this.db, pageId);
   }
 
   // --- dashboard ----------------------------------------------------------
