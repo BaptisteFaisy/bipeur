@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DecisionClaims } from '@bipeur/core';
 import { initialState, reducer, type Action } from '../src/state/reducer.js';
+import { detailCount } from '../src/state/reducer.js';
 import { MEMORY_LIMIT, type MemoryEntry } from '../src/state/types.js';
 import { makePage } from './support/fixtures.js';
 
@@ -112,5 +113,19 @@ describe('BIP-F-16 — the queue and the detail index', () => {
     ]);
     expect(state.detailIndex).toBe(0);
     expect(state.queue).toHaveLength(0);
+  });
+
+  it('reaches every detail screen the page carries, not only the first three', () => {
+    // A long question brings more screens: the human must be able to walk
+    // through all of them (BIP-F-16), or the cut text is lost for good.
+    const detail = Array.from({ length: 7 }, (_, index) => `screen ${index} ${'x'.repeat(60)}`);
+    const page = makePage({ id: 'pg_1', detail });
+    let state = run(initialState(), [{ type: 'page.delivered', page }]);
+    for (let index = 1; index <= 7; index += 1) {
+      state = run(state, [{ type: 'detail.next' }]);
+      expect(state.detailIndex).toBe(index);
+    }
+    expect(state.detailIndex).toBe(7);
+    expect(detailCount(page)).toBe(8);
   });
 });

@@ -5,11 +5,11 @@
  * Properties covered here: BIP-P-01 and BIP-P-02.
  */
 import {
+  DETAIL_SCREENS_MAX,
   LINE_MAX,
   normalizeAlias,
   splitScreen,
   toLineText,
-  type DetailScreen,
 } from './ascii.js';
 import { defaultVerbForCode, isValidCode, verbMatchesCode } from './codes.js';
 import type { Verb } from './types.js';
@@ -36,17 +36,22 @@ export function fingerprintTag(fingerprint: string): string {
 /**
  * Truncate in the middle with `~`, never cutting the first word when it fits.
  * Always returns at most `max` characters.
+ *
+ * The marker is never optional: a subject that does not fit is cut *and said
+ * to be cut*. A silent cut looks like a complete line — the human decides on a
+ * line they believe is whole (BIP-F-03, read by a person and not by a test).
  */
 export function truncateSubject(subject: string, max: number): string {
   if (max <= 0) return '';
   if (subject.length <= max) return subject;
   const firstWord = subject.split(' ', 1)[0] ?? '';
-  if (firstWord.length >= max) return subject.slice(0, max);
+  // A single word longer than the budget: cut it, but mark the cut.
+  if (firstWord.length >= max) return `${subject.slice(0, max - 1)}~`;
 
   let headLength = Math.ceil((max - 1) / 2);
   if (headLength < firstWord.length) headLength = firstWord.length;
   const tailLength = max - 1 - headLength;
-  if (tailLength < 1) return subject.slice(0, max);
+  if (tailLength < 1) return `${subject.slice(0, max - 1)}~`;
 
   let head = subject.slice(0, headLength);
   const lastSpace = head.lastIndexOf(' ');
@@ -59,13 +64,28 @@ export function composeHead(code: number, station: string, verb: Verb): string {
   return `${code} ${normalizeAlias(station)} ${verb}`;
 }
 
+/** How many characters of the subject fit in the line, head and tag excluded. */
+export function subjectBudget(code: number, station: string, verb: Verb): number {
+  const head = composeHead(isValidCode(code) ? code : 100, station, verb);
+  return Math.max(0, LINE_MAX - head.length - TAG_LENGTH - 2);
+}
+
+export interface ComposedLine {
+  line: string;
+  /** True when the subject did not fit and was cut. */
+  truncated: boolean;
+}
+
 /**
  * Build the single line shown on the pager. Guarantees:
  * - length <= 80, printable ASCII only;
  * - the last five characters are `#` + the first four of the fingerprint;
  * - code, station and verb are never truncated.
+ *
+ * `composeLineDetailed` also says whether the subject was cut, so the caller
+ * can carry the full text on the detail screens instead of losing it.
  */
-export function composeLine(input: ComposeLineInput): string {
+export function composeLineDetailed(input: ComposeLineInput): ComposedLine {
   const code = isValidCode(input.code) ? input.code : 100;
   const verb = resolveVerb(input.verb, code);
   const head = composeHead(code, input.station, verb);
@@ -76,10 +96,15 @@ export function composeLine(input: ComposeLineInput): string {
   // slice then cut the fingerprint tag away — losing the very link between the
   // displayed line and the signed payload (found by BIP-P-15, seed 20261116,
   // counter-example: empty station, a 5000-character single-word subject).
-  const available = Math.max(0, LINE_MAX - head.length - tag.length - 2);
+  const available = subjectBudget(code, input.station, verb);
+  const truncated = subject.length > available;
   const body = truncateSubject(subject, available);
   const line = body.length > 0 ? `${head} ${body} ${tag}` : `${head} ${tag}`;
-  return line.slice(0, LINE_MAX);
+  return { line: line.slice(0, LINE_MAX), truncated };
+}
+
+export function composeLine(input: ComposeLineInput): string {
+  return composeLineDetailed(input).line;
 }
 
 function resolveVerb(verb: Verb | string | undefined, code: number): Verb {
@@ -93,20 +118,51 @@ export function lineRows(line: string): string[] {
 }
 
 /**
- * Detail screens 2..4 (A.6). Screen 4 is the only place where the agent's own
- * words appear, prefixed with `AGENT SAYS:` — the honesty rule.
+ * Detail screens 2..N (A.6). The last one is the only place where the agent's
+ * own words appear, prefixed with `AGENT SAYS:` — the honesty rule.
+ *
+ * A text longer than one screen CONTINUES on the next screens instead of being
+ * cut: the pager shows one screen at a time and the human walks through them.
+ * Nothing the human was asked to decide may disappear (BIP-F-16).
  */
 export function buildDetailScreens(detail: {
   full?: string;
   context?: string;
   agentSays?: string;
 }): string[] {
-  const screens: DetailScreen[] = [];
-  if (detail.full) screens.push({ label: null, text: detail.full });
-  if (detail.context) screens.push({ label: null, text: detail.context });
-  if (detail.agentSays) screens.push({ label: 'AGENT SAYS:', text: detail.agentSays });
-  return screens.slice(0, 3).map(({ label, text }) => {
-    const cleaned = toLineText(label ? `${label} ${text}` : text);
-    return cleaned.slice(0, LINE_MAX);
-  });
+  const parts: { label: string | null; text: string }[] = [];
+  if (detail.full) parts.push({ label: null, text: detail.full });
+  if (detail.context) parts.push({ label: null, text: detail.context });
+  if (detail.agentSays) parts.push({ label: 'AGENT SAYS:', text: detail.agentSays });
+
+  const screens: string[] = [];
+  for (const part of parts) {
+    for (const chunk of chunkText(part.text, part.label)) {
+      if (screens.length >= DETAIL_SCREENS_MAX) break;
+      screens.push(part.label === null ? chunk : `${part.label} ${chunk}`);
+    }
+  }
+  return screens;
+}
+
+/** Split a text into screens of at most 80 characters, at a word boundary. */
+function chunkText(text: string, label: string | null): string[] {
+  const clean = toLineText(text);
+  const max = LINE_MAX - (label === null ? 0 : label.length + 1);
+  if (max <= 0) return [clean.slice(0, LINE_MAX)];
+  const chunks: string[] = [];
+  let rest = clean;
+  while (rest.length > max) {
+    const cut = boundary(rest, max);
+    chunks.push(rest.slice(0, cut).trimEnd());
+    rest = rest.slice(cut).trimStart();
+  }
+  if (rest.length > 0) chunks.push(rest);
+  return chunks;
+}
+
+/** The last space before the limit; the limit itself when there is none. */
+function boundary(text: string, max: number): number {
+  const space = text.lastIndexOf(' ', max);
+  return space > 0 ? space : max;
 }

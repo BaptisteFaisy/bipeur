@@ -2,7 +2,7 @@
  * Pure reducer of the pager. No I/O, no clock: everything that depends on time
  * or the network is decided by the caller and passed in as an action.
  */
-import { DETAIL_SCREENS_MAX, type PageRecord } from '@bipeur/core';
+import { type PageRecord } from '@bipeur/core';
 import {
   MEMORY_LIMIT,
   type Connection,
@@ -62,10 +62,14 @@ export function currentPage(state: PagerState): PageRecord | null {
   return state.queue[0] ?? null;
 }
 
-/** 1 (the line) + the detail screens the page actually carries, three at most. */
+/**
+ * 1 (the line) + the detail screens the page actually carries. A page with a
+ * long command or a long question brings more than the usual three: the pager
+ * shows one screen at a time and the human walks through them (BIP-F-16).
+ */
 export function detailCount(page: PageRecord | null): number {
   if (!page) return 1;
-  return Math.min(page.detail.length, DETAIL_SCREENS_MAX) + 1;
+  return page.detail.length + 1;
 }
 
 export function isQueued(state: PagerState, pageId: string): boolean {

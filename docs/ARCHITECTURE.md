@@ -66,7 +66,7 @@ an old audit row still points at a device that exists.
 |---|---|
 | `id`, `source_id`, `kind` | `tool` or `question` — decides whether the line comes from the payload or from a written question |
 | `code`, `risk`, `line` | Computed once, at creation, and stored: what the human saw is what is audited |
-| `detail` (JSON) | Screens 2–4, 80 characters each, three maximum |
+| `detail` (JSON) | Screens 2…N, 80 characters each: three is what a page usually needs, and a long text continues on the extra screens instead of being cut |
 | `payload` (JSON), `payload_sha256` | The hook needs the payload back on resumption; the hash is the fingerprint used by the decision |
 | `options` (JSON) | Up to four pre-seeded replies (`A`–`D`) |
 | `state` | `queued`, `delivered`, `read`, `decided`, `expired`, `cancelled` |
