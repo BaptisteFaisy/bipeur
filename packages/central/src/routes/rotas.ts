@@ -24,6 +24,12 @@ export interface RotaRouteDeps {
 const ROTATION_MIN_MS = 60_000;
 
 export function registerRotaRoutes(app: Hono, deps: RotaRouteDeps): void {
+  registerRotaLifecycle(app, deps);
+  registerShiftRoutes(app, deps);
+}
+
+/** Create, list, read and delete a rota. */
+function registerRotaLifecycle(app: Hono, deps: RotaRouteDeps): void {
   const { ctx, stationLimiter } = deps;
 
   app.post('/v1/rotas', async (c) => {
@@ -56,6 +62,11 @@ export function registerRotaRoutes(app: Hono, deps: RotaRouteDeps): void {
     ctx.audit.append({ type: 'rota.changed', data: { action: 'deleted', rota_id: id } });
     return json({ ok: true });
   });
+}
+
+/** Add and remove the on-call shifts of a rota. */
+function registerShiftRoutes(app: Hono, deps: RotaRouteDeps): void {
+  const { ctx, stationLimiter } = deps;
 
   app.post('/v1/rotas/:id/shifts', async (c) => {
     const auth = authenticateStation(ctx, stationLimiter, c);
