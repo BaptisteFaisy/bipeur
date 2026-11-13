@@ -265,6 +265,27 @@ body {
   color: var(--focus);
 }
 
+.read-aloud {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  gap: 0.3rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 0.5rem;
+  border: 1px solid #3a352d;
+  background: #241f1a;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.read-aloud:hover,
+.read-aloud:focus-visible {
+  color: var(--ink);
+  border-color: #4a443a;
+}
+
 /* ---------- keys ---------- */
 
 .keypad {

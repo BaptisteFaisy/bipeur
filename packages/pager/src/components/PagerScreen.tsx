@@ -47,7 +47,7 @@ export function PagerScreen(): React.JSX.Element {
           <QueueCounter count={state.queue.length} />
         </div>
         <Lcd rows={rows} text={page ? source : ''} />
-        <PageFooter page={page} index={state.detailIndex} total={total} risk={risk} />
+        <PageFooter page={page} index={state.detailIndex} total={total} risk={risk} text={source} />
         <Keypad
           risk={risk ?? 'green'}
           options={options}
@@ -65,18 +65,22 @@ export function PagerScreen(): React.JSX.Element {
   );
 }
 
-/** What sits under the LCD: the detail bar, or the "no pages" line. */
+/** What sits under the LCD: the detail bar, the read-aloud, or "no pages". */
 function PageFooter(props: {
   page: ReturnType<typeof currentPage>;
   index: number;
   total: number;
   risk: Risk | null;
+  text: string;
 }): React.JSX.Element {
   const { t } = usePager();
   return (
     <>
       {props.page ? (
-        <DetailScreens page={props.page} index={props.index} total={props.total} />
+        <>
+          <DetailScreens page={props.page} index={props.index} total={props.total} />
+          <ReadAloudButton text={props.text} />
+        </>
       ) : (
         <p className="no-pages" data-testid="no-pages">
           {t('pager.noPages')}
@@ -88,6 +92,29 @@ function PageFooter(props: {
         </p>
       )}
     </>
+  );
+}
+
+/**
+ * BIP-N-07 — read the line aloud. A manual gesture, never automatic: only the
+ * `speak` action speaks, and it is gated by the `speech` setting, so nothing
+ * talks over a screen reader or a `prefers-reduced-motion` user at install.
+ */
+function ReadAloudButton({ text }: { text: string }): React.JSX.Element {
+  const { t, speak } = usePager();
+  return (
+    <button
+      type="button"
+      className="read-aloud"
+      data-testid="read-aloud"
+      aria-label={t('pager.readAloud')}
+      onClick={() => speak(text)}
+    >
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+        <path d="M3 9v6h4l5 5V4L7 9H3z" />
+        <path d="M15.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      </svg>
+    </button>
   );
 }
 

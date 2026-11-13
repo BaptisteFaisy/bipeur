@@ -16,6 +16,8 @@ export interface QuietHours {
 export interface Settings {
   sound: boolean;
   vibration: boolean;
+  /** BIP-N-07: read lines aloud from the pager. Off at install. */
+  speech: boolean;
   quietHours: QuietHours;
   budgetPerHour: number;
   hideDetailWhenLocked: boolean;

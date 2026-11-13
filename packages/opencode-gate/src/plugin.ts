@@ -47,19 +47,19 @@ export function pickCommand(...payloads: unknown[]): string | undefined {
   return undefined;
 }
 
-/** The path the agent wants to write, wherever opencode carries it. */
+/** The path the agent wants to write, wherever opencode or Claude carries it. */
 export function pickPath(...payloads: unknown[]): string | undefined {
   for (const payload of payloads) {
-    const found = findString(payload, ['filePath', 'path', 'file']);
+    const found = findString(payload, ['filePath', 'file_path', 'path', 'file']);
     if (found !== undefined) return found;
   }
   return undefined;
 }
 
-/** The name of the tool, wherever opencode carries it. */
+/** The name of the tool, wherever opencode or Claude Code carries it. */
 export function pickTool(...payloads: unknown[]): string | undefined {
   for (const payload of payloads) {
-    const found = findString(payload, ['tool', 'toolName', 'name']);
+    const found = findString(payload, ['tool', 'tool_name', 'toolName', 'name']);
     if (found !== undefined) return found;
   }
   return undefined;

@@ -46,3 +46,6 @@ __pycache__/
 # NOTE: `.kiro/` is intentionally NOT ignored — Kiroween requires the
 # folder to be tracked at the root of the repository. The `contest-guard`
 # workflow fails if any .gitignore line ever matches it.
+
+# Machine-local Claude Code hook settings (absolute worktree path)
+packages/opencode-gate/claude/settings.hook.json

@@ -1,0 +1,17 @@
+{
+  // Claude Code PreToolUse — the Beeper gate. Paste the "Bash|Edit|Write"
+  // matcher into the `hooks.PreToolUse` array of ~/.claude/settings.json, then
+  // point `command` at the built hook:
+  //
+  //   node packages/opencode-gate/dist/claude-hook.js
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "node /ABSOLUTE/PATH/packages/opencode-gate/dist/claude-hook.js" }
+        ]
+      }
+    ]
+  }
+}

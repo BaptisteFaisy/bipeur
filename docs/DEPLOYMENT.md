@@ -396,6 +396,69 @@ the limit, and demo visitors must not share one budget (fixed separately).
   is the point (no account for the judges), each space is isolated and wiped
   after 24 h, and the audit log keeps 30 days.
 
+### 4c. Public SNPP sandbox — port 4440
+
+The SNPP gateway (§ 5) is a *second* public surface: RFC 1861 over raw TCP, so
+a judge (or anyone) can `nc` the wire from outside the tailnet and see 1995
+speak. It stays on the loopback — `127.0.0.1:4440` — and a Funnel raw-TCP
+forwarder publishes it. The command is one line:
+
+```bash
+tailscale funnel --tcp=10000 tcp://127.0.0.1:4440
+```
+
+**The public port is 10000, not 4440, and this is deliberate.** Funnel's
+raw-TCP forwarder only accepts `443`, `8443` and `10000` as the *public* port —
+`tailscale funnel --tcp=4440 tcp://127.0.0.1:4440` is rejected by Tailscale.
+The gateway keeps listening on `:4440` (the historical paging port); the funnel
+rebinds it to `tcp://<node>.ts.net:10000` on the public side. The managed
+helper does exactly this and is idempotent:
+
+```bash
+tools/ops/snpp-funnel.sh            # apply (checks `tailscale funnel status` first)
+tools/ops/snpp-funnel.sh --off      # remove only the SNPP funnel
+tools/ops/snpp-funnel.sh --help     # ports and usage
+```
+
+Three guard-rails, in order of importance:
+
+1. **`BIPEUR_SNPP_LOGIN` is mandatory.** SNPP is plaintext — no TLS anywhere in
+   the wire format. The gateway normally binds the loopback and *may* skip
+   `LOGIn` there, but the Funnel makes that loopback reachable from the whole
+   internet, which silently voids that assumption. Setting
+   `BIPEUR_SNPP_LOGIN=id:password` (mode-600 env file, never the repository)
+   forces every session to send `LOGIN id password` before any transaction;
+   without a correct login the gateway answers `LOGIN REFUSED` and the session
+   ends. It is the difference between a sandbox and an open relay.
+2. **The attention budget is the noise ceiling.** Whatever the gateway pages, it
+   pages through the Central with one station token, so the same sliding budget
+   applies (6 pages/hour in demo mode). A public `MESS` spammer burns their own
+   allowance and stops; a red page still bypasses it by design (BIP-P-08), so
+   the gateway is not an amplification path, just a louder one — and the audit
+   log keeps every page for 30 days.
+3. **The demo transcript is replayable verifiably.** The canonical byte-for-byte
+   session is `packages/snpp/test/fixtures/session.txt`, replayed by
+   `packages/snpp/test/session.test.ts`. Against the live gateway, one command
+   replays the 25-second shooting script on the wire (it reads
+   `BIPEUR_SNPP_LOGIN` and sends `LOGIN` automatically):
+
+   ```bash
+   BIPEUR_SNPP_LOGIN=demo:sandbox \
+     node tools/demo/snpp-25-seconds.mjs <node>.ts.net 10000 lea
+   ```
+
+Verification, from outside the tailnet (an inside check proves nothing — see
+§ 4b):
+
+```bash
+printf 'LOGIN demo sandbox\r\nQUIT\r\n' | nc <node>.ts.net 10000
+# → 250 ... then 421 — login accepted, session closed
+```
+
+Take it down with `tools/ops/snpp-funnel.sh --off`; it removes only the raw-TCP
+forwarder. The helper, like the rest of this section, was **not** executed while
+writing these docs — no network change was made.
+
 ## 5. The SNPP gateway and the pager emulator
 
 The gateway is a second process: `bipeur-snpp`, RFC 1861 on TCP 4440.

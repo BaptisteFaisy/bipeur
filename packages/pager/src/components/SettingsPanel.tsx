@@ -13,20 +13,7 @@ export function SettingsPanel(): React.JSX.Element {
   return (
     <section className="panel" aria-labelledby="settings-title">
       <h2 id="settings-title">{t('settings.title')}</h2>
-      <Switch
-        id="setting-sound"
-        label={t('settings.sound')}
-        hint={t('settings.soundHint')}
-        checked={settings.sound}
-        onChange={(sound) => updateSettings({ sound })}
-      />
-      <Switch
-        id="setting-vibration"
-        label={t('settings.vibration')}
-        hint={t('settings.vibrationHint')}
-        checked={settings.vibration}
-        onChange={(vibration) => updateSettings({ vibration })}
-      />
+      <SafetyToggles />
       <Switch
         id="setting-quiet"
         label={t('settings.quietHours')}
@@ -50,6 +37,37 @@ export function SettingsPanel(): React.JSX.Element {
       <LanguageField value={settings.lang} onChange={(lang) => updateSettings({ lang })} />
       <DeviceRow onRevoke={revoke} />
     </section>
+  );
+}
+
+/** BIP-F-21 / BIP-N-07: the three safe-position switches — sound, speech, vibration. */
+function SafetyToggles(): React.JSX.Element {
+  const { state, t, updateSettings } = usePager();
+  const { settings } = state;
+  return (
+    <>
+      <Switch
+        id="setting-sound"
+        label={t('settings.sound')}
+        hint={t('settings.soundHint')}
+        checked={settings.sound}
+        onChange={(sound) => updateSettings({ sound })}
+      />
+      <Switch
+        id="setting-speech"
+        label={t('settings.speech')}
+        hint={t('settings.speechHint')}
+        checked={settings.speech}
+        onChange={(speech) => updateSettings({ speech })}
+      />
+      <Switch
+        id="setting-vibration"
+        label={t('settings.vibration')}
+        hint={t('settings.vibrationHint')}
+        checked={settings.vibration}
+        onChange={(vibration) => updateSettings({ vibration })}
+      />
+    </>
   );
 }
 

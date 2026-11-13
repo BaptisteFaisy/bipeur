@@ -25,6 +25,7 @@ export const en = {
   'pager.holdHint': 'Press and hold for one second',
   'pager.lockedDetail': 'Detail hidden while the screen is locked',
   'pager.screenLabel': 'Pager screen',
+  'pager.readAloud': 'Read the line aloud',
 
   'risk.green': 'Green',
   'risk.amber': 'Amber',
@@ -59,6 +60,8 @@ export const en = {
   'settings.title': 'Settings',
   'settings.sound': 'Sound',
   'settings.soundHint': 'Off at install. Turning it on only records a beep request in the audit log — the pager never plays a sound.',
+  'settings.speech': 'Read aloud',
+  'settings.speechHint': 'Off at install. Turning it on lets the read-aloud button pronounce the page line with speech synthesis.',
   'settings.vibration': 'Vibration',
   'settings.vibrationHint': 'Off at install. Used for a short pulse when a page arrives.',
   'settings.quietHours': 'Quiet hours',

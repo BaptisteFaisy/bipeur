@@ -1,0 +1,21 @@
+{
+  "name": "@bipeur/pager-hardware",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "bip-pager-hw: the software of a real hardware pager — a Raspberry Pi Zero 2 W, an HD44780 LCD, three buttons and a piezo buzzer.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "bip-pager-hw": "./dist/bin.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@bipeur/core": "workspace:*"
+  }
+}

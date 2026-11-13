@@ -113,6 +113,18 @@ CREATE TABLE IF NOT EXISTS visitors (
   id TEXT PRIMARY KEY,
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS delegations (
+  id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+  pattern TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  remaining INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  revoked_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS delegations_source ON delegations(source_id);
 `;
 
 export function openDatabase(path: string): DatabaseSync {

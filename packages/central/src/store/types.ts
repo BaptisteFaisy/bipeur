@@ -26,6 +26,16 @@ export interface SourceRow {
   revoked_at: number | null;
 }
 
+/** Counts of one station, derived from the pages and the decisions. */
+export interface SourceActivity {
+  created: number;
+  delivered: number;
+  approved: number;
+  denied: number;
+  cancelled: number;
+  createdLastHour: number;
+}
+
 export interface DeviceRow {
   id: string;
   name: string;
@@ -94,6 +104,18 @@ export interface VisitorRow {
   created_at: number;
 }
 
+/** A bounded pre-approval: this station may run matching commands, N times. */
+export interface DelegationRow {
+  id: string;
+  source_id: string;
+  pattern: string;
+  kind: string;
+  remaining: number;
+  created_at: number;
+  expires_at: number;
+  revoked_at: number | null;
+}
+
 /** Bounded window over the audit log: filters plus offset pagination. */
 export interface EventFilter {
   limit: number;
@@ -140,6 +162,8 @@ export interface Store {
   revokeSource(id: string, at: number): boolean;
   /** Page counts per station, for the dashboard (BIP-F-30). */
   pageCountBySource(): Record<string, number>;
+  /** Activity of one station, for reputation and chattiness. */
+  sourceActivity(sourceId: string, now: number): SourceActivity;
 
   insertDevice(device: DeviceRow): void;
   deviceById(id: string): DeviceRow | null;
@@ -177,6 +201,13 @@ export interface Store {
 
   insertVisitor(visitor: VisitorRow): void;
   purgeVisitorsBefore(cutoff: number): number;
+
+  insertDelegation(delegation: DelegationRow): void;
+  delegationById(id: string): DelegationRow | null;
+  listDelegations(sourceId: string | null): DelegationRow[];
+  /** Decrement a live delegation; returns whether it was consumed. */
+  consumeDelegation(id: string, now: number): boolean;
+  revokeDelegation(id: string, at: number): boolean;
 
   recentDeliveries(since: number): DeliveryMark[];
   metrics(): Metrics;

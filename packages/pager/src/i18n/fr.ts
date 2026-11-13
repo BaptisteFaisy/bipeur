@@ -23,6 +23,7 @@ export const fr: Dict = {
   'pager.holdHint': 'Maintenez appuyé une seconde',
   'pager.lockedDetail': "Détail masqué tant que l'écran est verrouillé",
   'pager.screenLabel': 'Écran du bipeur',
+  'pager.readAloud': 'Lire la ligne à voix haute',
 
   'risk.green': 'Vert',
   'risk.amber': 'Ambre',
@@ -57,6 +58,8 @@ export const fr: Dict = {
   'settings.title': 'Réglages',
   'settings.sound': 'Son',
   'settings.soundHint': "Désactivé à l'installation. L'activer ne fait qu'inscrire une demande de bip dans le journal — le bipeur ne joue jamais de son.",
+  'settings.speech': 'Lecture vocale',
+  'settings.speechHint': "Désactivée à l'installation. L'activer laisse le bouton lire à voix haute la ligne du bip par synthèse vocale.",
   'settings.vibration': 'Vibration',
   'settings.vibrationHint': "Désactivée à l'installation. Sert à une courte impulsion à l'arrivée d'un bip.",
   'settings.quietHours': 'Heures calmes',

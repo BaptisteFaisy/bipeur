@@ -7,6 +7,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { AuditEvent, AuditEventType, Metrics } from '@bipeur/core';
 import { openDatabase } from './schema.js';
 import { computeMetrics } from './metrics.js';
+import * as delegationSql from './delegations.js';
 import {
   num,
   text,
@@ -21,6 +22,7 @@ import {
   type SqlRow,
 } from './rows.js';
 import type {
+  DelegationRow,
   DeviceRow,
   DecisionRow,
   DeliveryMark,
@@ -30,6 +32,7 @@ import type {
   PagePatch,
   PageRow,
   PairingRow,
+  SourceActivity,
   SourceRow,
   Store,
   VisitorRow,
@@ -141,6 +144,10 @@ export class SqliteStore implements Store {
     const counts: Record<string, number> = {};
     for (const row of rows) counts[text(row, 'source_id')] = num(row, 'value');
     return counts;
+  }
+
+  sourceActivity(sourceId: string, now: number): SourceActivity {
+    return delegationSql.sourceActivity(this.db, sourceId, now);
   }
 
   // --- devices ------------------------------------------------------------
@@ -426,6 +433,28 @@ export class SqliteStore implements Store {
       this.db.prepare('DELETE FROM sources WHERE visitor_id = ?').run(visitorId);
       this.db.prepare('DELETE FROM visitors WHERE id = ?').run(visitorId);
     });
+  }
+
+  // --- delegations --------------------------------------------------------
+
+  insertDelegation(delegation: DelegationRow): void {
+    delegationSql.insertDelegation(this.db, delegation);
+  }
+
+  delegationById(id: string): DelegationRow | null {
+    return delegationSql.delegationById(this.db, id);
+  }
+
+  listDelegations(sourceId: string | null): DelegationRow[] {
+    return delegationSql.listDelegations(this.db, sourceId);
+  }
+
+  consumeDelegation(id: string, now: number): boolean {
+    return delegationSql.consumeDelegation(this.db, id, now);
+  }
+
+  revokeDelegation(id: string, at: number): boolean {
+    return delegationSql.revokeDelegation(this.db, id, at);
   }
 
   // --- dashboard ----------------------------------------------------------
