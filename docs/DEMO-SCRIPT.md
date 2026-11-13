@@ -35,6 +35,17 @@ Total 3:00. The clock in the left column is what the final cut must show.
 
 Follow `docs/SNPP.md` for the exact keystrokes.
 
+## Beat 3b — the same pager, with a real agent
+
+| Time | On screen | Voice |
+|---|---|---|
+| 2:10 | `tools/demo/agent-demo.sh`: a real opencode agent in a real repository. It bumps the version, commits, and reaches for `git push`. | "Same pager. This time the caller is an agent that cannot push without you." |
+| 2:20 | The pager rings: `310 oc PUSH git push origin main`. Press ✔. | "The gate is the tool-call boundary, not a prompt: the model cannot forget to ask." |
+| 2:30 | The push lands in the staging remote; the agent reports the release. | "One line, one code, one tap. The agent waited." |
+
+Follow [`docs/AGENT-DEMO.md`](AGENT-DEMO.md) — and refuse once, to show what
+happens when the human says no.
+
 ## Beat 4 — 2:10 → 3:00 · how Kiro built it, and the numbers
 
 | Time | On screen | Voice |
