@@ -5,6 +5,7 @@
  */
 import { REMINDER_OFFSETS_MS } from '@bipeur/core';
 import type { CentralContext } from './context.js';
+import { pushTargets, streamFilterFor } from './targeting.js';
 import { pageView } from './view.js';
 
 export class ReminderSweeper {
@@ -26,10 +27,10 @@ export class ReminderSweeper {
           fingerprint: page.payload_sha256,
           data: { reminder: page.reminders_sent, after_ms: now - page.delivered_at },
         });
-        this.ctx.push.notify(page, { reminder: true });
+        this.ctx.push.notify(page, { reminder: true, deviceIds: pushTargets(this.ctx, page) });
         this.ctx.hub.broadcast(
           { type: 'page.delivered', page: pageView(page) },
-          { visitorId: page.visitor_id },
+          streamFilterFor(this.ctx, page),
         );
         sent += 1;
       }

@@ -49,7 +49,10 @@ CREATE TABLE IF NOT EXISTS pages (
   dedupe_key TEXT NOT NULL,
   callback_url TEXT,
   reminders_sent INTEGER NOT NULL DEFAULT 0,
-  visitor_id TEXT
+  visitor_id TEXT,
+  rota_id TEXT,
+  escalation_level INTEGER NOT NULL DEFAULT 0,
+  escalated_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS pages_dedupe ON pages(source_id, dedupe_key, state);
 CREATE INDEX IF NOT EXISTS pages_state ON pages(state, expires_at);
@@ -125,6 +128,40 @@ CREATE TABLE IF NOT EXISTS delegations (
   revoked_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS delegations_source ON delegations(source_id);
+
+-- The on-call rota (BIP-F-37): who answers, in which order, and for how long
+-- the first one has before the page moves to the next.
+CREATE TABLE IF NOT EXISTS rotas (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL UNIQUE,
+  escalate_after_ms INTEGER NOT NULL,
+  rotation_ms INTEGER,
+  created_at INTEGER NOT NULL
+);
+
+-- One shift of a rota: the human, the pager that receives the page, and the
+-- window during which the shift holds. A null window means "always on call".
+CREATE TABLE IF NOT EXISTS oncall_shifts (
+  id TEXT PRIMARY KEY,
+  rota_id TEXT NOT NULL REFERENCES rotas(id) ON DELETE CASCADE,
+  alias TEXT NOT NULL,
+  target TEXT NOT NULL,
+  priority INTEGER NOT NULL,
+  starts_at INTEGER,
+  ends_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS oncall_shifts_rota ON oncall_shifts(rota_id, priority);
+
+-- The pagers a page is addressed to. A rota page is addressed to the on-call
+-- member; an escalation adds the next one. A page with no target keeps the
+-- historical delivery: the visitor scope of the station.
+CREATE TABLE IF NOT EXISTS page_targets (
+  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  PRIMARY KEY (page_id, device_id)
+);
+CREATE INDEX IF NOT EXISTS page_targets_device ON page_targets(device_id);
 `;
 
 export function openDatabase(path: string): DatabaseSync {
@@ -142,6 +179,9 @@ export function openDatabase(path: string): DatabaseSync {
 /** Additive migrations for databases created before a column existed. */
 function migrate(db: DatabaseSync): void {
   ensureColumn(db, 'sources', 'revoked_at', 'INTEGER');
+  ensureColumn(db, 'pages', 'rota_id', 'TEXT');
+  ensureColumn(db, 'pages', 'escalation_level', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(db, 'pages', 'escalated_at', 'INTEGER');
 }
 
 function ensureColumn(db: DatabaseSync, table: string, column: string, type: string): void {

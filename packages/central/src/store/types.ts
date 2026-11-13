@@ -68,6 +68,12 @@ export interface PageRow {
   callback_url: string | null;
   reminders_sent: number;
   visitor_id: string | null;
+  /** The rota that must answer this page (BIP-F-37); null for a normal page. */
+  rota_id: string | null;
+  /** How many times the page already moved to the next on-call. */
+  escalation_level: number;
+  /** When the page last moved to the next on-call. */
+  escalated_at: number | null;
 }
 
 export interface DecisionRow {
@@ -116,6 +122,27 @@ export interface DelegationRow {
   revoked_at: number | null;
 }
 
+/** An on-call rota (BIP-F-37): who answers, in which order, and how fast it escalates. */
+export interface RotaRow {
+  id: string;
+  label: string;
+  escalate_after_ms: number;
+  rotation_ms: number | null;
+  created_at: number;
+}
+
+/** One shift of a rota: the human (alias) and the pager that rings (target). */
+export interface OncallShiftRow {
+  id: string;
+  rota_id: string;
+  alias: string;
+  target: string;
+  priority: number;
+  starts_at: number | null;
+  ends_at: number | null;
+  created_at: number;
+}
+
 /** Bounded window over the audit log: filters plus offset pagination. */
 export interface EventFilter {
   limit: number;
@@ -129,6 +156,8 @@ export interface PagePatch {
   delivered_at?: number;
   read_at?: number;
   reminders_sent?: number;
+  escalation_level?: number;
+  escalated_at?: number | null;
 }
 
 /** `pending` is the union of the three non final states. */
@@ -138,6 +167,8 @@ export interface PageFilter {
   state?: PageStateFilter;
   sourceId?: string;
   visitorId?: string | null;
+  /** Only the pages addressed to this device (BIP-F-37: a rota page). */
+  deviceId?: string;
   limit?: number;
 }
 
@@ -208,6 +239,20 @@ export interface Store {
   /** Decrement a live delegation; returns whether it was consumed. */
   consumeDelegation(id: string, now: number): boolean;
   revokeDelegation(id: string, at: number): boolean;
+
+  insertRota(rota: RotaRow): void;
+  rotaById(id: string): RotaRow | null;
+  rotaByLabel(label: string): RotaRow | null;
+  listRotas(): RotaRow[];
+  deleteRota(id: string): boolean;
+  insertShift(shift: OncallShiftRow): void;
+  shiftById(id: string): OncallShiftRow | null;
+  listShifts(rotaId: string): OncallShiftRow[];
+  deleteShift(id: string): boolean;
+  /** The devices a page is currently addressed to (empty = visitor scope). */
+  addPageTarget(pageId: string, deviceId: string): void;
+  clearPageTargets(pageId: string): void;
+  pageTargets(pageId: string): string[];
 
   recentDeliveries(since: number): DeliveryMark[];
   metrics(): Metrics;

@@ -24,6 +24,7 @@ import { newId } from '@bipeur/core/node';
 import type { CentralContext } from './context.js';
 import { applyPageState } from './states.js';
 import type { PageRow } from './store/types.js';
+import { pushTargets, streamFilterFor } from './targeting.js';
 import { pageView } from './view.js';
 
 /** Scope key of the real operator: pages whose `visitor_id` is null. */
@@ -174,8 +175,11 @@ export class DeliveryGate {
       fingerprint: delivered.payload_sha256,
       data: { reminder: 0, risk: delivered.risk },
     });
-    this.ctx.hub.broadcast({ type: 'page.delivered', page: pageView(delivered) }, { visitorId: delivered.visitor_id });
-    this.ctx.push.notify(delivered, { reminder: false });
+    this.ctx.hub.broadcast(
+      { type: 'page.delivered', page: pageView(delivered) },
+      streamFilterFor(this.ctx, delivered),
+    );
+    this.ctx.push.notify(delivered, { reminder: false, deviceIds: pushTargets(this.ctx, delivered) });
     return delivered;
   }
 

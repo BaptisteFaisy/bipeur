@@ -25,6 +25,8 @@ const commonPageFields = {
   agent_says: z.string().max(2000).optional(),
   /** Idempotency key: the same key from the same station reuses the page (BIP-N-02). */
   dedupe_key: z.string().min(1).max(200).optional(),
+  /** The rota that must answer this page (BIP-F-37): the on-call, then the next. */
+  rota: z.string().min(1).max(64).optional(),
 };
 
 export const toolPageRequestSchema = z.object({
@@ -99,6 +101,7 @@ export const streamMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('page.decided'), page_id: z.string(), verdict: z.string() }),
   z.object({ type: z.literal('page.expired'), page_id: z.string() }),
   z.object({ type: z.literal('page.cancelled'), page_id: z.string() }),
+  z.object({ type: z.literal('page.escalated'), page_id: z.string() }),
   z.object({ type: z.literal('notice.logged'), notice: z.record(z.string(), z.unknown()) }),
   z.object({ type: z.literal('hello'), central: z.string(), budget: z.number() }),
 ]);

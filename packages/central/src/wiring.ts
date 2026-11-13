@@ -8,6 +8,7 @@ import { AuditLog } from './audit.js';
 import { DeliveryGate } from './budget.js';
 import type { Config } from './config.js';
 import type { CentralContext } from './context.js';
+import { EscalationSweeper } from './escalate.js';
 import { createPushSender } from './push.js';
 import { ReminderSweeper } from './remind.js';
 import { FileRules, type RulesProvider } from './rules.js';
@@ -22,6 +23,7 @@ export interface Wiring {
   hub: WsHub;
   gate: DeliveryGate;
   reminders: ReminderSweeper;
+  escalation: EscalationSweeper;
   simulator: Simulator;
 }
 
@@ -44,7 +46,16 @@ export function wire(config: Config, store: Store): Wiring {
   const policy: BudgetPolicy = { perHour: config.budgetPerHour, windowMs: HOUR };
   const gate = new DeliveryGate(ctx, policy, rules.current().quiet_hours ?? DEFAULT_QUIET_HOURS);
   ctx.gate = gate;
-  return { ctx, audit, rules, hub, gate, reminders: new ReminderSweeper(ctx), simulator: new Simulator(ctx) };
+  return {
+    ctx,
+    audit,
+    rules,
+    hub,
+    gate,
+    reminders: new ReminderSweeper(ctx),
+    escalation: new EscalationSweeper(ctx),
+    simulator: new Simulator(ctx),
+  };
 }
 
 /** The first station: created on boot, token printed once when generated. */

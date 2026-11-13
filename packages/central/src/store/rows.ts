@@ -15,8 +15,10 @@ import type {
   DelegationRow,
   DeviceRow,
   NoticeRow,
+  OncallShiftRow,
   PageRow,
   PairingRow,
+  RotaRow,
   SourceRow,
   VisitorRow,
 } from './types.js';
@@ -107,6 +109,9 @@ export function toPageRow(row: SqlRow): PageRow {
     callback_url: textOrNull(row, 'callback_url'),
     reminders_sent: num(row, 'reminders_sent'),
     visitor_id: textOrNull(row, 'visitor_id'),
+    rota_id: textOrNull(row, 'rota_id'),
+    escalation_level: num(row, 'escalation_level'),
+    escalated_at: numOrNull(row, 'escalated_at'),
   };
 }
 
@@ -171,5 +176,28 @@ export function toDelegationRow(row: SqlRow): DelegationRow {
     created_at: num(row, 'created_at'),
     expires_at: num(row, 'expires_at'),
     revoked_at: numOrNull(row, 'revoked_at'),
+  };
+}
+
+export function toRotaRow(row: SqlRow): RotaRow {
+  return {
+    id: text(row, 'id'),
+    label: text(row, 'label'),
+    escalate_after_ms: num(row, 'escalate_after_ms'),
+    rotation_ms: numOrNull(row, 'rotation_ms'),
+    created_at: num(row, 'created_at'),
+  };
+}
+
+export function toOncallShiftRow(row: SqlRow): OncallShiftRow {
+  return {
+    id: text(row, 'id'),
+    rota_id: text(row, 'rota_id'),
+    alias: text(row, 'alias'),
+    target: text(row, 'target'),
+    priority: num(row, 'priority'),
+    starts_at: numOrNull(row, 'starts_at'),
+    ends_at: numOrNull(row, 'ends_at'),
+    created_at: num(row, 'created_at'),
   };
 }

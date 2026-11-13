@@ -64,6 +64,24 @@ function revokeButton(source) {
   return button;
 }
 
+function renderRotas(rotas) {
+  var body = $('rota-list');
+  clearNode(body);
+  $('rota-empty').hidden = rotas.length > 0;
+  rotas.forEach(function (rota) { body.appendChild(rotaRow(rota)); });
+}
+
+function rotaRow(rota) {
+  var row = h('tr');
+  row.appendChild(h('td', 'mono', rota.label));
+  row.appendChild(h('td', null, rota.on_call || '\\u2014'));
+  var windowText = 'after ' + fmtMs(rota.escalate_after_ms);
+  if (rota.rotation_ms) windowText += ' \\u00b7 rotates ' + fmtMs(rota.rotation_ms);
+  row.appendChild(h('td', null, windowText));
+  row.appendChild(h('td', null, String(rota.shifts.length)));
+  return row;
+}
+
 function renderQueue(pages, now) {
   var list = $('queue-list');
   clearNode(list);

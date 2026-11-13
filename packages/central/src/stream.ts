@@ -14,6 +14,8 @@ import type { Store } from './store/types.js';
 
 export interface StreamFilter {
   visitorId?: string | null;
+  /** Only these devices (BIP-F-37): a page addressed to one on-call. */
+  deviceIds?: string[];
 }
 
 export interface StreamHub {
@@ -49,7 +51,11 @@ export class WsHub implements StreamHub {
     const payload = JSON.stringify(message);
     for (const [socket, client] of this.clients) {
       if (socket.readyState !== WebSocket.OPEN) continue;
-      if (filter.visitorId && client.visitorId !== filter.visitorId) continue;
+      if (filter.deviceIds) {
+        if (!filter.deviceIds.includes(client.deviceId)) continue;
+      } else if (filter.visitorId && client.visitorId !== filter.visitorId) {
+        continue;
+      }
       socket.send(payload);
     }
   }
