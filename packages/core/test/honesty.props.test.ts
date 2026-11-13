@@ -14,7 +14,7 @@
  */
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { LINE_MAX, isPrintableAscii } from '../src/ascii.js';
+import { DETAIL_SCREENS_MAX, LINE_MAX, isPrintableAscii } from '../src/ascii.js';
 import { buildDetailScreens, composeLine } from '../src/line.js';
 import { fingerprint } from '../src/node.js';
 
@@ -92,7 +92,9 @@ describe('BIP-P-13 — agent prose never reaches the line, and is labelled elsew
           context: fact.path,
           agentSays: prose.text,
         });
-        expect(screens.length).toBeLessThanOrEqual(3);
+        // A long text continues on the next screens instead of being cut: the
+        // pager shows one screen at a time and the human walks through them.
+        expect(screens.length).toBeLessThanOrEqual(DETAIL_SCREENS_MAX);
         for (const screen of screens) {
           expect(screen.length).toBeLessThanOrEqual(LINE_MAX);
           expect(isPrintableAscii(screen)).toBe(true);

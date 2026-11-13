@@ -6,7 +6,13 @@
 export const LINE_MAX = 80;
 export const LINE_COLS = 20;
 export const LINE_ROWS = 4;
-export const DETAIL_SCREENS_MAX = 3;
+/**
+ * How many detail screens a page may carry. The pager shows ONE screen at a
+ * time and the human walks through them; three is what a page usually needs
+ * (the command, the context, the agent's words), and a long text continues on
+ * the extra screens instead of being cut.
+ */
+export const DETAIL_SCREENS_MAX = 12;
 
 /** Alias of a station: 6 printable characters or less, no space. */
 export const ALIAS_MAX = 6;

@@ -52,6 +52,12 @@ are composed by the Central **from the payload alone** (the command, the path,
 the branch, the diff stats). The agent's own prose appears only on screen 4,
 labelled `AGENT SAYS:`. You decide on the fact, never on the narrative.
 
+**Nothing is lost, and the pager says so.** When the subject does not fit the
+80 characters, the line is cut with a visible `~` — and the **whole text** (the
+command, the question, the seeded replies) follows on the detail screens, which
+the pager walks through with `▼`. A shortened line is never the whole message,
+and it never pretends to be.
+
 ### Risk levels
 
 | Level | Meaning | Gesture |

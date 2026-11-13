@@ -6,7 +6,7 @@
 import {
   buildDetailScreens,
   classifyTool,
-  composeLine,
+  composeLineDetailed,
   defaultVerbForCode,
   familyOf,
   isValidCode,
@@ -32,6 +32,8 @@ export interface Composed {
   detail: string[];
   /** Which rule fired: `page:310`, `fallback`, `deny`, `allow` (BIP-F-32). */
   matched_by: string;
+  /** True when the line had to cut the subject (BIP-F-03). */
+  truncated: boolean;
 }
 
 /** The facts a page is judged on. Agent prose is deliberately excluded. */
@@ -64,17 +66,23 @@ export function composeRequest(
   const base = request.kind === 'tool' ? toolFacts(request, rules) : questionFacts(request);
   const risk = resolveRisk(base.risk, request.risk);
   const subject = request.kind === 'tool' ? toolSubject(request, base.verb) : questionSubject(request);
-  const line = composeLine({
+  const line = composeLineDetailed({
     code: base.code,
     station,
     verb: base.verb,
     subject,
     fingerprint: payloadFingerprint,
   });
-  return { ...base, risk, line, detail: detailOf(request) };
+  return {
+    ...base,
+    risk,
+    line: line.line,
+    detail: detailOf(request, subject, line.truncated),
+    truncated: line.truncated,
+  };
 }
 
-function toolFacts(request: Extract<CreatePageRequest, { kind: 'tool' }>, rules: RulesFile): Omit<Composed, 'line' | 'detail'> {
+function toolFacts(request: Extract<CreatePageRequest, { kind: 'tool' }>, rules: RulesFile): Omit<Composed, 'line' | 'detail' | 'truncated'> {
   const outcome = classifyTool(
     { tool_name: request.tool_name, command: request.command, path: request.path },
     rules,
@@ -99,7 +107,7 @@ function pickOutcome(outcome: Classified, rules: RulesFile): { code: number; ris
   };
 }
 
-function questionFacts(request: Extract<CreatePageRequest, { kind: 'question' }>): Omit<Composed, 'line' | 'detail'> {
+function questionFacts(request: Extract<CreatePageRequest, { kind: 'question' }>): Omit<Composed, 'line' | 'detail' | 'truncated'> {
   const code = request.code !== undefined && isValidCode(request.code) ? request.code : QUESTION_CODE;
   const declared = request.verb as Verb | undefined;
   const verb = declared && verbMatchesCode(declared, code) ? declared : defaultVerbForCode(code);
@@ -132,7 +140,7 @@ function questionSubject(request: Extract<CreatePageRequest, { kind: 'question' 
   return [question, ...missing].join(' ');
 }
 
-function detailOf(request: CreatePageRequest): string[] {
+function detailOf(request: CreatePageRequest, subject: string, truncated: boolean): string[] {
   if (request.kind === 'tool') {
     return buildDetailScreens({
       full: request.command ?? request.path ?? request.tool_name,
@@ -140,7 +148,13 @@ function detailOf(request: CreatePageRequest): string[] {
       agentSays: request.agent_says,
     });
   }
-  return buildDetailScreens({ full: request.detail, agentSays: request.agent_says });
+  // The question IS what the human is asked to decide. When the line had to
+  // cut it, the whole text follows on the detail screens: it must not vanish.
+  return buildDetailScreens({
+    full: truncated ? subject : request.detail,
+    context: truncated ? request.detail : undefined,
+    agentSays: request.agent_says,
+  });
 }
 
 function contextLine(request: Extract<CreatePageRequest, { kind: 'tool' }>): string | undefined {

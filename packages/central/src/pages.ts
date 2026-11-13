@@ -61,7 +61,7 @@ export function createPage(ctx: CentralContext, source: SourceRow, body: unknown
   const composed = composeRequest(request, source.alias, rules, payloadFingerprint);
   const ttl = request.ttl_seconds ? request.ttl_seconds * 1000 : parseDurationOr(rules.defaults.ttl, DEFAULT_TTL_MS);
   const page = buildPageRow({ request, source, composed, ttl, dedupeKey, payloadFingerprint, now, rotaId: rota.rotaId, rotaTarget: rota.target });
-  persistPage(ctx, page, composed.matched_by, rota.target);
+  persistPage(ctx, page, composed.matched_by, rota.target, composed.truncated);
   return { ok: true, created: true, page: ctx.gate.attempt(page, now) };
 }
 
@@ -121,7 +121,13 @@ function resolveRota(ctx: CentralContext, label: string | undefined, now: number
   return { ok: true, rotaId: rota.id, target: current.target };
 }
 
-function persistPage(ctx: CentralContext, page: PageRow, matchedBy: string, target: string | null): void {
+function persistPage(
+  ctx: CentralContext,
+  page: PageRow,
+  matchedBy: string,
+  target: string | null,
+  truncated: boolean,
+): void {
   ctx.store.transaction(() => {
     ctx.store.insertPage(page);
     if (target) ctx.store.addPageTarget(page.id, target);
@@ -136,6 +142,9 @@ function persistPage(ctx: CentralContext, page: PageRow, matchedBy: string, targ
         kind: page.kind,
         ttl_ms: page.expires_at - page.created_at,
         matched_by: matchedBy,
+        // BIP-F-03: the log says the line was cut, so nobody believes a
+        // shortened line is the whole message.
+        ...(truncated ? { truncated: true } : {}),
         ...(page.rota_id ? { rota_id: page.rota_id, rota_target: target } : {}),
       },
     });
