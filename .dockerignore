@@ -1,0 +1,15 @@
+# Build context for the Dockerfile: source only, never local artifacts.
+.git
+.github
+.kiro
+docs
+**/node_modules
+**/dist
+**/coverage
+packages/pager/dev-dist
+data
+**/*.sqlite
+**/*.sqlite-journal
+**/*.sqlite-wal
+**/*.sqlite-shm
+deploy/.scratch

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"],
+    "noEmit": false,
+    "baseUrl": ".",
+    // The workspace `paths` of tsconfig.base.json point at core's sources, which
+    // would drag them into this package's rootDir. The build resolves the
+    // published entry points of @bipeur/core instead (dist + package exports).
+    "paths": {}
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

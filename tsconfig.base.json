@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@bipeur/core": ["packages/core/src/index.ts"],
+      "@bipeur/core/node": ["packages/core/src/node.ts"],
+      "@bipeur/core/*": ["packages/core/src/*"],
+      "@bipeur/central": ["packages/central/src/index.ts"],
+      "@bipeur/central/*": ["packages/central/src/*"],
+      "@bipeur/snpp": ["packages/snpp/src/index.ts"],
+      "@bipeur/hook": ["packages/hook/src/index.ts"],
+      "@bipeur/cli": ["packages/cli/src/index.ts"],
+      "@bipeur/mcp-server": ["packages/mcp-server/src/index.ts"],
+      "@bipeur/crew-app": ["packages/crew-app/src/index.ts"]
+    }
+  }
+}

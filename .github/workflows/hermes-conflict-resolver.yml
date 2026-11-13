@@ -1,0 +1,85 @@
+name: hermes-conflict-resolver
+
+# Résolveur de conflits Hermes : rebase la branche d'une PR, résout les conflits
+# (IA InferHub d'abord, repli déterministe ensuite), VALIDE le résultat avec la
+# toolchain du dépôt, pousse en `--force-with-lease` sur la branche de la PR et
+# rapporte. S'il ne peut pas prouver que le résultat est bon : rebase annulé,
+# label `hermes/conflit`, commentaire avec la raison exacte, sortie non nulle.
+#
+# Déclenchement : `workflow_dispatch` uniquement. Le gate `hermes-lite` le
+# dispatche quand il détecte un VRAI conflit (mode `apply`, ou `dry-run` quand
+# la variable `HERMES_LITE_DRY_RUN` est posée).
+#
+# Budget : 5 minutes, comme tous les jobs du dépôt. Ce n'est pas un job de PR —
+# aucun verdict de PR n'en dépend et Mergify ne l'attend pas — mais
+# `.github/ci-budget/check_timeouts.py` n'a aucune notion de déclencheur et
+# refuse tout job au-delà de 5 min : on garde donc 5, et `resolver.py` s'arrête
+# de lui-même à 270 s (`HERMES_BUDGET_SECONDS`) pour escalader AVANT d'être tué
+# par le timeout. Mesuré sur ce dépôt : install 5 s + typecheck 10 s + lint 2 s
+# + test 2 s + build 16 s ≈ 35 s à chaud, ~2 min à froid. Si cela ne suffisait
+# plus un jour : découper le job, jamais allonger le timeout (règle user
+# 2026-10-24).
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Numéro de la PR à rebaser et à résoudre'
+        required: true
+        type: string
+      mode:
+        description: 'dry-run = rebase + résolution + validation sans push ; apply = pousse sur la branche de la PR'
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - apply
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# Une PR à la fois : deux résolveurs sur la même branche se marcheraient dessus.
+concurrency:
+  group: hermes-resolver-${{ inputs.pr_number }}
+  cancel-in-progress: false
+
+env:
+  NODE_OPTIONS: --disable-warning=ExperimentalWarning
+  CI: true
+  # Jambe LLM directe = InferHub. `combo/cheap` est maintenant exactement le bon
+  # identifiant : c'est le meta-routeur InferHub (le modèle réel qui répond peut
+  # changer sous nous — d'où les garde-fous de `accept_llm_output` dans
+  # `resolve.py`, qui retombe sur la même valeur par défaut si cette variable
+  # est absente).
+  HERMES_LLM_MODEL: combo/cheap
+
+jobs:
+  resolve:
+    name: resolve
+    runs-on: [self-hosted, bipeur-fast]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (historique complet)
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth: 0 est exigé par le rebase (ancêtre commun + origin/<base>) :
+          # un clone superficiel ne sait pas rebaser. Les identifiants ne sont pas
+          # persistés, le push passe par HERMES_PUSH_TOKEN via GIT_ASKPASS.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Toolchain (node + pnpm du runner)
+        uses: ./.github/actions/toolchain
+
+      - name: Résoudre, valider, pousser
+        env:
+          GH_TOKEN: ${{ secrets.HERMES_LITE_TOKEN || github.token }}
+          # Noms seulement : aucune valeur de secret n'est affichée, copiée ni
+          # passée en argument de commande.
+          HERMES_PUSH_TOKEN: ${{ secrets.HERMES_PUSH_TOKEN }}
+          INFERHUB_API_KEY: ${{ secrets.INFERHUB_API_KEY }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          HERMES_MODE: ${{ inputs.mode }}
+        run: python3 .github/hermes/resolver.py

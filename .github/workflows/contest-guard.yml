@@ -1,0 +1,42 @@
+name: contest-guard
+
+# Kiroween 2026 rules that a human could forget and a machine must not:
+#   - `/.kiro` exists at the root and is tracked by Git (never ignored);
+#   - an OSI licence file is present and detected in the About panel;
+#   - README / KIRO_JOURNAL are present and written in English;
+#   - no secret material is committed;
+#   - the repository stays inside its own size rules (< 500 lines per file).
+#
+# The Kiro file triggers only fire on agent-made changes, so every guard is
+# duplicated here (see .kiro/hooks/).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contest-guard-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contest-guard:
+    name: contest-guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Kiroween requirements
+        run: python3 .github/checks/contest_guard.py
+
+      - name: Repository size rules (< 500 lines / < 50 lines per function)
+        run: python3 .github/checks/repo_rules.py

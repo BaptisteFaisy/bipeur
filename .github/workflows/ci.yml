@@ -1,0 +1,114 @@
+name: ci
+
+# Four checks, one per concern, all under the 5-minute budget
+# (~/Bureau/CI-BUDGET-5MIN.md, user rule 2026-10-24). E2E lives in e2e.yml and
+# never runs on a pull request: a browser suite has no place in a PR verdict.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_OPTIONS: --disable-warning=ExperimentalWarning
+  CI: true
+
+jobs:
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.34.9'
+      - name: Dépendances (pnpm install)
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: ./.github/actions/setup
+      - run: pnpm typecheck
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.34.9'
+      - name: Dépendances (pnpm install)
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: ./.github/actions/setup
+      - run: pnpm lint
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.34.9'
+      - name: Dépendances (pnpm install)
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: ./.github/actions/setup
+      - name: Unit tests and property tests (BIP-P-01 … BIP-P-12)
+        run: pnpm test
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.34.9'
+      - name: Dépendances (pnpm install)
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: ./.github/actions/setup
+      - run: pnpm build
+      - name: Smoke — the Central boots and answers
+        run: node tools/smoke-central.mjs

@@ -1,0 +1,99 @@
+name: e2e
+
+# Playwright scenarios P1…P7 against a real Central, a real pager build, a real
+# WebSocket and real ECDSA signatures.
+#
+# NEVER runs on a pull request: the verdict of a PR must stay inside five
+# minutes (~/Bureau/CI-BUDGET-5MIN.md, user rule 2026-10-24) and a browser suite
+# has no place in it. It runs on `main` after a merge and on demand.
+#
+# The suite is split into TWO parallel jobs of about one minute of scenarios
+# each (group-a: P1…P4 + P7, group-b: P5…P6 — the two real waits, P5's 30 s TTL
+# and P7's simulator, sit in opposite halves so the jobs weigh the same),
+# because the whole suite in a single job passed `timeout-minutes: 5` on a
+# loaded machine and was killed (measured 2026-11-11: job started 16:34:39,
+# killed 16:39:57 — three `cancelled` runs).
+# Each job derives every port from its own BIPEUR_E2E_PORT_BASE (9200 / 9300,
+# e2e/helpers/ports.ts), so the two jobs never collide on the same runner.
+
+on:
+  push:
+    branches: [main]
+  # A merge performed by the gate uses GITHUB_TOKEN, and GitHub does not fire
+  # `push` events for actions made with it (anti-recursion): the push trigger
+  # above therefore never runs on a merged PR. The nightly run is what actually
+  # proves main, until a PAT (HERMES_LITE_TOKEN) makes the merges attributable.
+  schedule:
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+    inputs:
+      grep:
+        description: 'Only run the scenarios matching this pattern (empty = all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  # Never cancel: on `main` two merges landing close together cancelled each
+  # other's run, so the suite never completed and main stayed unvalidated by
+  # P1…P7 (measured 2026-11-11: two consecutive `push` runs, both `cancelled`).
+  # Serialising costs a few minutes of runner time after a burst of merges and
+  # buys the guarantee that the last commit on main was actually played.
+  # Concurrency applies to the whole run, never to one job against the other:
+  # the two groups below always play together, side by side.
+  cancel-in-progress: false
+
+env:
+  NODE_OPTIONS: --disable-warning=ExperimentalWarning
+  CI: true
+
+jobs:
+  e2e:
+    name: e2e (${{ matrix.group }})
+    runs-on: [self-hosted, bipeur-fast]
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Disjoint port ranges: every port of a run is its base plus a fixed
+          # offset of at most 32 (e2e/helpers/ports.ts) — 100 apart is safe,
+          # and both bases stay clear of 8787 and the 8790-8810 dev Centrals.
+          - group: group-a
+            port-base: 9200
+          - group: group-b
+            port-base: 9300
+    env:
+      BIPEUR_E2E_PORT_BASE: ${{ matrix.port-base }}
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      - name: Browsers (cached in the runner's home)
+        run: pnpm --filter @bipeur/e2e exec playwright install chromium
+
+      - name: Scenarios of ${{ matrix.group }}
+        run: |
+          if [ -n "${{ github.event.inputs.grep }}" ]; then
+            pnpm --filter @bipeur/e2e exec playwright test --project ${{ matrix.group }} \
+              --grep "${{ github.event.inputs.grep }}" --pass-with-no-tests
+          else
+            pnpm --filter @bipeur/e2e exec playwright test --project ${{ matrix.group }}
+          fi
+
+      - name: Keep the report when a scenario fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.group }}
+          path: e2e/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore

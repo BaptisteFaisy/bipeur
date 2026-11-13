@@ -1,0 +1,18 @@
+{
+  "name": "@bipeur/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Playwright scenarios P1…P7. Runs OUTSIDE PR CI (workflow_dispatch / main only) to keep the 5-minute budget.",
+  "scripts": {
+    "build": "echo 'e2e: nothing to build'",
+    "test": "playwright test",
+    "install-browsers": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@bipeur/core": "workspace:*",
+    "@playwright/test": "^1.65.0",
+    "tsx": "^4.23.15"
+  }
+}

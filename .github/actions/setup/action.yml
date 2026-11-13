@@ -1,0 +1,17 @@
+name: 'Setup Node + pnpm (self-hosted)'
+description: 'Toolchain on PATH, then the workspace dependencies'
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: ./.github/actions/toolchain
+
+    - name: Show toolchain
+      shell: bash
+      run: |
+        node --version
+        pnpm --version
+
+    - name: Install workspace dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile --prefer-offline

@@ -1,0 +1,57 @@
+{
+  "name": "bipeur",
+  "version": "0.1.0",
+  "displayName": "Beeper",
+  "description": "Resurrects the pager as an attention protocol: relays Crew approval requests to a Beeper station and resolves each one from the human's signed decision, wherever the human is.",
+  "author": "Baptiste Faisy",
+  "license": "MIT",
+  "repo": "BaptisteFaisy/bipeur",
+  "minKiroCrewVersion": "0.1.0",
+  "tags": ["pager", "approvals", "attention", "snpp", "retro"],
+  "highlights": [
+    "Every pending tool approval becomes a page on a real pager screen",
+    "A signed decision on the pager resolves the Crew approval exactly once",
+    "Denials carry the human's reason back through the native decide form",
+    "Journal events reach the Beeper record and the Crew notification bus",
+    "Fails closed: an expired page resolves as a denial, never an approval"
+  ],
+  "ui": {
+    "entry": "ui/page.mjs",
+    "pages": [
+      {
+        "route": "/apps/bipeur",
+        "label": "Beeper",
+        "icon": "Radio",
+        "entryPoint": "ui/page.mjs",
+        "mountFunction": "mount"
+      }
+    ],
+    "sidebar": {
+      "section": "Apps",
+      "order": 10
+    }
+  },
+  "backend": {
+    "entryPoint": "dist/bin.js",
+    "type": "node"
+  },
+  "permissions": {
+    "api": ["/api/chat/slots", "/api/approvals"],
+    "events": ["slots:user", "notification:system", "task_complete", "task_update"],
+    "sessionApproval": true,
+    "network": true,
+    "storage": false,
+    "cron": false,
+    "memory": ""
+  },
+  "notifications": {
+    "channels": [
+      {
+        "id": "journal",
+        "name": "Beeper journal",
+        "icon": "Radio",
+        "defaultPriority": "passive"
+      }
+    ]
+  }
+}

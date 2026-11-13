@@ -1,0 +1,16 @@
+{
+  // The workspace `paths` of tsconfig.base.json map @bipeur/core to its
+  // sources, which pulls files outside this package's rootDir. The build
+  // resolves the package through node_modules instead (its dist/), so the
+  // emitted tree stays under dist/ — same as packages/opencode-gate.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"],
+    "noEmit": false,
+    "paths": {}
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

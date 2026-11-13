@@ -1,0 +1,44 @@
+{
+  "name": "@bipeur/central",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "The Central: HTTP API, WebSocket stream, SQLite store, audit log, attention budget, simulator.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    }
+  },
+  "bin": {
+    "bipeur-central": "./dist/bin.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "start": "node --enable-source-maps dist/bin.js",
+    "dev": "tsx watch src/bin.ts"
+  },
+  "dependencies": {
+    "@bipeur/core": "workspace:*",
+    "@hono/node-server": "^2.1.6",
+    "hono": "^4.13.17",
+    "web-push": "^4.0.0",
+    "ws": "^8.22.2",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/web-push": "^3.6.4",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15"
+  }
+}

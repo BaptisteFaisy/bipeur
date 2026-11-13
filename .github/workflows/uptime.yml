@@ -1,0 +1,130 @@
+name: uptime
+
+# External, measured supervision of the public instance.
+#
+#   https://r630-debian.tail3a8bdf.ts.net
+#
+# The watchdog that runs on the r630 (tools/ops/watchdog.sh + a systemd user
+# timer) can only see its own host: if the host dies, loses its network, or
+# Tailscale stops serving the Funnel, nothing local notices and the URL stays
+# dead in silence. This workflow is the outside eye. It probes the public URL
+# from a GitHub runner — over the internet, not over the tailnet — appends one
+# JSONL sample per probe to the history branch `ops/uptime-history`, and turns
+# the run red when the instance does not answer.
+#
+# Cadence: every 10 minutes. Short enough that an outage is detected within
+# roughly ten to twenty minutes and long enough to stay cheap (one run is a
+# shallow checkout plus four HTTP requests, ~20 s of runner time, so ~48 min of
+# runner time per day). GitHub delays scheduled runs under load and never
+# guarantees the minute, so this measures "at least 144 samples a day", not
+# "one sample every 600 s"; that is why availability is computed from the
+# recorded timestamps and never from the cron expression.
+#
+# Cost of the history: one line (~600 bytes) and one commit per probe, on a
+# dedicated branch that triggers no workflow — every trigger in this repository
+# is `pull_request` or `push: branches: [main]`, verified 2026-11-11. `main`
+# cannot receive these commits: it is protected (required status checks, linear
+# history, enforce_admins), so a cron probe could never write to it directly.
+#
+# Never restarts anything remotely: a runner has no SSH access to the host and
+# must not have one (that would be a hole far bigger than the outage).
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # append the sample to the ops/uptime-history branch only
+
+concurrency:
+  group: uptime-probe
+  # Serialise, never cancel: two probes in flight would race on the history
+  # branch, and cancelling a probe would silently drop a sample from the
+  # availability record.
+  cancel-in-progress: false
+
+env:
+  BIPEUR_PUBLIC_URL: https://r630-debian.tail3a8bdf.ts.net
+  HISTORY_BRANCH: ops/uptime-history
+
+jobs:
+  probe:
+    name: probe the public URL
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      # Fails (exit 1) when the public path does not answer, which makes the
+      # whole run red. The steps below run anyway (`if: always()`) so a failed
+      # probe is still recorded: a sample that says "down" is the point.
+      - name: Probe /healthz and / through the Funnel edge
+        id: probe
+        run: |
+          python3 tools/ops/probe.py \
+            --url "$BIPEUR_PUBLIC_URL" \
+            --vantage "github-runner:${RUNNER_NAME}" \
+            --jsonl "$RUNNER_TEMP/sample.jsonl"
+
+      - name: Append the sample to the history branch
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/sample.jsonl" || { echo "no sample, nothing to record"; exit 0; }
+          work="$RUNNER_TEMP/history"
+          rm -rf "$work"; mkdir -p "$work"; cd "$work"
+          git init -q .
+          git remote add origin \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          if git fetch -q --depth 1 origin "$HISTORY_BRANCH"; then
+            git checkout -q -B "$HISTORY_BRANCH" FETCH_HEAD
+          else
+            echo "::warning::history branch $HISTORY_BRANCH not found, creating it"
+            git checkout -q --orphan "$HISTORY_BRANCH"
+          fi
+          touch uptime-history.jsonl
+          cat "$RUNNER_TEMP/sample.jsonl" >> uptime-history.jsonl
+          verdict=$(python3 -c 'import json,sys;print("up" if json.load(open(sys.argv[1])).get("healthy") else "down")' \
+            "$RUNNER_TEMP/sample.jsonl" 2>/dev/null || echo unknown)
+          ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          git add uptime-history.jsonl
+          git -c user.name='bipeur-uptime[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -q -m "chore(ops): uptime sample $ts ($verdict)"
+          git push -q origin "HEAD:$HISTORY_BRANCH"
+          echo "recorded $verdict on $HISTORY_BRANCH ($(wc -l < uptime-history.jsonl) samples)"
+
+      # The availability of the last 7 days, printed in the run log and on the
+      # run summary: a human opening the Actions tab sees the measured number
+      # without cloning anything.
+      - name: Report measured availability
+        if: always()
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/history"
+          test -s "$work/uptime-history.jsonl" || { echo "no history yet"; exit 0; }
+          python3 "$GITHUB_WORKSPACE/tools/ops/availability.py" \
+            --jsonl "$work/uptime-history.jsonl" --markdown | tee "$RUNNER_TEMP/status.md"
+          {
+            echo "## Public instance — measured availability"
+            echo
+            cat "$RUNNER_TEMP/status.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Exploitable trace when a probe fails, even if the history push did not
+      # work: the raw sample plus the last 200 lines of history, 30 days.
+      - name: Keep the raw sample when the probe failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uptime-failure-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/sample.jsonl
+            ${{ runner.temp }}/history/uptime-history.jsonl
+          retention-days: 30
+          if-no-files-found: ignore

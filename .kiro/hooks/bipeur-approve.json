@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Beeper: ask a human before a risky tool",
+      "trigger": "PreToolUse",
+      "matcher": "shell",
+      "timeout": 0,
+      "action": {
+        "type": "command",
+        "command": "npx bip-hook --rules .bipeur/rules.yaml"
+      }
+    }
+  ]
+}

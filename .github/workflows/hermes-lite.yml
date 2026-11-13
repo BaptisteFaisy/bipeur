@@ -1,0 +1,89 @@
+name: Hermes Lite (gate)
+
+# [HERMES-REFRESH] Gate « fraîcheur exigée au merge ».
+# La logique complète vit dans .github/hermes/gate.py (stdlib seule).
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  check_run:
+    types: [completed]
+  # Filet de sécurité : sur ce dépôt les événements `check_run` ne déclenchent
+  # jamais de run (constaté le 2026-11-11 : aucun run check_run dans
+  # l'historique, alors que la file attendait qu'un check finisse). Une
+  # ré-évaluation toutes les 5 minutes garantit que la file avance toujours.
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Numéro de PR spécifique (vide = toutes les PR ouvertes)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: write
+  # Requis par l'étape finale : dispatcher hermes-conflict-resolver.yml sur un
+  # vrai conflit (`gh workflow run`). Le gate lui-même n'écrit rien d'autre.
+  actions: write
+
+concurrency:
+  # The gate re-evaluates on every `check_run: completed` (that is how it
+  # merges once CI is green). Cancelling a running gate would swallow those
+  # events and leave the check permanently pending, so runs are serialised,
+  # never cancelled.
+  group: hermes-lite-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ secrets.HERMES_LITE_TOKEN || github.token }}
+  # IMPORTANT (runbook §3) : les contexts de statut requis avant merge,
+  # séparés par des virgules. La valeur vient de la variable de dépôt
+  # (HERMES_REQUIRED_CHECKS) : une constante vide ici masquerait la variable
+  # et le gate mergerait sans vérifier un seul check.
+  HERMES_REQUIRED_CHECKS: ${{ vars.HERMES_REQUIRED_CHECKS || '' }}
+  MERGE_METHOD: squash
+
+jobs:
+  gate:
+    name: Verdict
+    runs-on: [self-hosted, bipeur-fast]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Gate
+        id: gate
+        run: |
+          export INPUT_PR_NUMBER="${{ github.event.inputs.pr_number }}"
+          export HERMES_LITE_DRY_RUN="${{ vars.HERMES_LITE_DRY_RUN || '0' }}"
+          python3 .github/hermes/gate.py
+      # Seule addition de ce workflow : quand le gate a vu un VRAI conflit, on
+      # dispatche le résolveur (rebase + résolution + validation + push). Le
+      # comportement du gate est inchangé — il signale toujours le conflit, le
+      # résolveur n'est qu'un bras en plus, et il escalade s'il ne peut pas
+      # prouver son résultat.
+      - name: Dispatcher le résolveur Hermes (conflits)
+        if: steps.gate.outputs.conflict_prs != ''
+        env:
+          GH_TOKEN: ${{ secrets.HERMES_LITE_TOKEN || github.token }}
+          # Two independent switches, because the merge pilot and the conflict
+          # resolver are not the same role:
+          #   HERMES_RESOLVER_MODE  apply | dry-run   (default: apply)
+          #   HERMES_LITE_DRY_RUN   1 = the gate only evaluates, Mergify merges
+          # With Mergify as the merge pilot, the gate stays in dry-run while the
+          # resolver must still push its rebases — hence the separate variable.
+          MODE: ${{ vars.HERMES_RESOLVER_MODE || 'apply' }}
+          CONFLICT_PRS: ${{ steps.gate.outputs.conflict_prs }}
+        run: |
+          set -uo pipefail
+          for num in ${CONFLICT_PRS//,/ }; do
+            echo "::notice::#${num} en conflit — dispatch du résolveur (${MODE})"
+            gh workflow run hermes-conflict-resolver.yml \
+              --repo "$GITHUB_REPOSITORY" \
+              -f pr_number="$num" -f mode="$MODE" \
+              || echo "::warning::dispatch du résolveur refusé pour #${num}"
+          done
