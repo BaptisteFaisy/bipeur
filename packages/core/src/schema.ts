@@ -37,6 +37,10 @@ export const toolPageRequestSchema = z.object({
   cwd: z.string().max(2048).optional(),
   branch: z.string().max(256).optional(),
   stats: z.string().max(160).optional(),
+  /** The unified diff the proposal carries (BIP-F-40): facts, capped at 20 kB. */
+  diff: z.string().max(20000).optional(),
+  /** Pages of one group are one decision split in pieces (BIP-F-47). */
+  group: z.string().min(1).max(64).optional(),
   ...commonPageFields,
 });
 

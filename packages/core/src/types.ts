@@ -33,7 +33,8 @@ export type Verb =
   | 'PICK'
   | 'SPEND'
   | 'NEED'
-  | 'STUCK';
+  | 'STUCK'
+  | 'DONE';
 
 export const VERBS: readonly Verb[] = [
   'RUN',
@@ -48,6 +49,7 @@ export const VERBS: readonly Verb[] = [
   'SPEND',
   'NEED',
   'STUCK',
+  'DONE',
 ] as const;
 
 export type PageKind = 'tool' | 'question';
@@ -87,6 +89,17 @@ export interface ToolPayload {
   cwd?: string;
   branch?: string;
   stats?: string;
+  /**
+   * The unified diff the agent proposes to apply (BIP-F-40). It is a fact, not
+   * prose: it enters the fingerprint, so a decision signed on one diff can
+   * never be replayed on another.
+   */
+  diff?: string;
+  /**
+   * Pages of the same group are the same human decision split in pieces
+   * (BIP-F-47): the group key is part of the facts, like the diff.
+   */
+  group?: string;
   /** Free text from the agent. Only ever shown on detail screen 4 (A.6). */
   agent_says?: string;
   callback_url?: string;
@@ -153,7 +166,12 @@ export type AuditEventType =
   | 'source.registered'
   | 'budget.flushed'
   | 'quiet.suppressed'
-  | 'central.started';
+  | 'central.started'
+  | 'page.closed'
+  | 'closure.rejected'
+  | 'page.shadowed'
+  | 'page.canary'
+  | 'transparency.checkpoint';
 
 export interface AuditEvent {
   ts: number;

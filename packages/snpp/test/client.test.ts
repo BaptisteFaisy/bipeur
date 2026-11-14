@@ -36,11 +36,12 @@ describe('parsePageLine — the MESSage text is already a page line', () => {
   });
 
   it('drops a code that Beeper does not know, keeping the text', () => {
-    // 800 belongs to no family of A.6, so the whole message is a question.
-    const parsed = parsePageLine('800 fw RUN something');
+    // 080 is below the range of A.6 (codes start at 100), so the whole message
+    // is a question.
+    const parsed = parsePageLine('080 fw RUN something');
     expect(parsed.code).toBeUndefined();
     expect(parsed.station).toBe('snpp');
-    expect(parsed.subject).toBe('800 fw RUN something');
+    expect(parsed.subject).toBe('080 fw RUN something');
   });
 
   it('treats free text as a plain question', () => {

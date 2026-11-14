@@ -24,6 +24,12 @@ export const CODE_FAMILIES: readonly CodeFamily[] = [
   { family: 5, name: 'design choice', verbs: ['PICK'], defaultRisk: 'green' },
   { family: 6, name: 'budget', verbs: ['SPEND'], defaultRisk: 'amber' },
   { family: 7, name: 'missing access', verbs: ['NEED'], defaultRisk: 'amber' },
+  {
+    family: 8,
+    name: 'proof of execution',
+    verbs: ['DONE'],
+    defaultRisk: 'green',
+  },
   { family: 9, name: 'stuck or incident', verbs: ['STUCK'], defaultRisk: 'red' },
 ] as const;
 
