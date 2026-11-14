@@ -21,4 +21,5 @@ export * from './budget.js';
 export * from './rules.js';
 export * from './decision.js';
 export * from './schema.js';
+export * from './schema-closure.js';
 export * from './device-key.js';

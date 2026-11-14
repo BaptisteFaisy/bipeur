@@ -12,6 +12,7 @@ import { registerDashboardUi } from './dashboard/index.js';
 import { json } from './http-json.js';
 import { RateLimiter } from './rate-limit.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerClosureRoutes } from './routes/closures.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
 import { registerDelegationRoutes } from './routes/delegations.js';
 import { registerDemoRoutes } from './routes/demo.js';
@@ -50,6 +51,55 @@ function privateNetworkAccess(): MiddlewareHandler {
   };
 }
 
+/** The three rate limiters of the API, keyed by the injected clock. */
+interface Limiters {
+  station: RateLimiter;
+  device: RateLimiter;
+  pair: RateLimiter;
+}
+
+function buildLimiters(ctx: CentralContext): Limiters {
+  const perMinute = ctx.config.rateLimitPerMinute;
+  return {
+    station: new RateLimiter(perMinute, MINUTE, ctx.clock),
+    device: new RateLimiter(perMinute, MINUTE, ctx.clock),
+    pair: new RateLimiter(20, MINUTE, ctx.clock),
+  };
+}
+
+interface RouteDeps {
+  ctx: CentralContext;
+  simulator: Simulator;
+  limiters: Limiters;
+}
+
+/**
+ * Every route of the surface, in one place. Kept apart from `createApi` so the
+ * assembly reads as a list, not a wall — the file rule is under 500 lines and
+ * under 50 lines per function, and the honest answer is to SPLIT.
+ */
+function registerRoutes(app: Hono, deps: RouteDeps): void {
+  const { ctx, simulator, limiters } = deps;
+
+  registerPageRoutes(app, { ctx, stationLimiter: limiters.station, deviceLimiter: limiters.device });
+  registerClosureRoutes(app, { ctx, stationLimiter: limiters.station });
+  registerPublicPageRoute(app, { ctx, stationLimiter: limiters.station });
+  registerDeviceRoutes(app, { ctx, stationLimiter: limiters.station, deviceLimiter: limiters.device, pairLimiter: limiters.pair });
+  registerAdminRoutes(app, { ctx, stationLimiter: limiters.station });
+  registerHeartbeatRoute(app, { ctx, stationLimiter: limiters.station });
+  // Public on purpose: a VAPID public key is what a browser needs to subscribe.
+  registerPushConfigRoute(app, ctx.config.vapid);
+  registerDashboardRoutes(app, { ctx, stationLimiter: limiters.station });
+  registerDelegationRoutes(app, { ctx, stationLimiter: limiters.station });
+  registerRotaRoutes(app, { ctx, stationLimiter: limiters.station });
+  registerTransparencyRoutes(app, { ctx, stationLimiter: limiters.station });
+  registerDemoRoutes(app, { ctx, simulator, limiter: limiters.pair });
+
+  // BIP-F-30: the dashboard lives on /dashboard only — / keeps serving the pager.
+  registerDashboardUi(app);
+
+}
+
 export function createApi(deps: ApiDeps): Hono {
   const { ctx, simulator } = deps;
   const app = new Hono();
@@ -66,26 +116,8 @@ export function createApi(deps: ApiDeps): Hono {
       maxAge: 600,
     }),
   );
-  const perMinute = ctx.config.rateLimitPerMinute;
-  const stationLimiter = new RateLimiter(perMinute, MINUTE, ctx.clock);
-  const deviceLimiter = new RateLimiter(perMinute, MINUTE, ctx.clock);
-  const pairLimiter = new RateLimiter(20, MINUTE, ctx.clock);
-
-  registerPageRoutes(app, { ctx, stationLimiter, deviceLimiter });
-  registerPublicPageRoute(app, { ctx, stationLimiter });
-  registerDeviceRoutes(app, { ctx, stationLimiter, deviceLimiter, pairLimiter });
-  registerAdminRoutes(app, { ctx, stationLimiter });
-  registerHeartbeatRoute(app, { ctx, stationLimiter });
-  // Public on purpose: a VAPID public key is what a browser needs to subscribe.
-  registerPushConfigRoute(app, ctx.config.vapid);
-  registerDashboardRoutes(app, { ctx, stationLimiter });
-  registerDelegationRoutes(app, { ctx, stationLimiter });
-  registerRotaRoutes(app, { ctx, stationLimiter });
-  registerTransparencyRoutes(app, { ctx, stationLimiter });
-  registerDemoRoutes(app, { ctx, simulator, limiter: pairLimiter });
-
-  // BIP-F-30: the dashboard lives on /dashboard only — / keeps serving the pager.
-  registerDashboardUi(app);
+  const limiters = buildLimiters(ctx);
+  registerRoutes(app, { ctx, simulator, limiters });
 
   app.get('/', () => servePager('/') ?? fallbackPage());
   // Anything under /v1 is API territory: never answered by the static fallback.

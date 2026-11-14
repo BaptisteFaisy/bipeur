@@ -102,3 +102,39 @@ describe('BIP-P-08 — a red page or family 9 is never held', () => {
     expect(isInQuietRange(720, '23:00', '07:00')).toBe(false);
   });
 });
+
+describe('BIP-F-41 — a proof of execution never costs attention', () => {
+  it('lets a family-8 page through a saturated budget', () => {
+    const budget = new AttentionBudget(DEFAULT_BUDGET_POLICY, () => 0);
+    // Saturate: six green pages in the hour.
+    for (let i = 0; i < 6; i += 1) budget.record('green', 510, i * MINUTE);
+    expect(budget.tryAdmit('green', 510, 6 * MINUTE).admit).toBe(false);
+    // The receipt of a closed page is not a question: it goes through.
+    expect(bypassesAttention('green', 810)).toBe(true);
+    expect(budget.tryAdmit('green', 810, 6 * MINUTE).admit).toBe(true);
+  });
+
+  it('does not let an ordinary page borrow the exemption', () => {
+    expect(bypassesAttention('green', 510)).toBe(false);
+    expect(bypassesAttention('green', 110)).toBe(false);
+    // Every code of family 8 is exempt, whatever the risk: it is the family
+    // that asks nothing, not the risk. The Central refuses a source that
+    // declares it (`reserved_code_family`).
+    expect(bypassesAttention('amber', 820)).toBe(true);
+    expect(bypassesAttention('green', 899)).toBe(true);
+    // A red page is exempt for its own reason.
+    expect(bypassesAttention('red', 510)).toBe(true);
+    expect(bypassesAttention('green', 911)).toBe(true);
+  });
+
+  it('charges nothing when a receipt is recorded', () => {
+    const budget = new AttentionBudget(DEFAULT_BUDGET_POLICY, () => 0);
+    budget.record('green', 810, 0);
+    // Six ordinary pages still fit after a receipt was recorded: the receipt
+    // did not eat a slot.
+    for (let i = 1; i <= 6; i += 1) {
+      expect(budget.tryAdmit('green', 510, i * MINUTE).admit).toBe(true);
+      budget.record('green', 510, i * MINUTE);
+    }
+  });
+});
