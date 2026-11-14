@@ -12,6 +12,7 @@ import { registerDashboardUi } from './dashboard/index.js';
 import { json } from './http-json.js';
 import { RateLimiter } from './rate-limit.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerClosureRoutes } from './routes/closures.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
 import { registerDelegationRoutes } from './routes/delegations.js';
 import { registerDemoRoutes } from './routes/demo.js';
@@ -72,6 +73,7 @@ export function createApi(deps: ApiDeps): Hono {
   const pairLimiter = new RateLimiter(20, MINUTE, ctx.clock);
 
   registerPageRoutes(app, { ctx, stationLimiter, deviceLimiter });
+  registerClosureRoutes(app, { ctx, stationLimiter });
   registerPublicPageRoute(app, { ctx, stationLimiter });
   registerDeviceRoutes(app, { ctx, stationLimiter, deviceLimiter, pairLimiter });
   registerAdminRoutes(app, { ctx, stationLimiter });

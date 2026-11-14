@@ -8,6 +8,7 @@ import type { AttentionSample, AuditEvent, AuditEventType, Metrics } from '@bipe
 import { openDatabase } from './schema.js';
 import { computeMetrics } from './metrics.js';
 import * as attentionSql from './attention-sql.js';
+import * as closureSql from './closure-sql.js';
 import * as delegationSql from './delegations.js';
 import * as eventSql from './event-sql.js';
 import * as pageSql from './page-sql.js';
@@ -27,6 +28,7 @@ import {
 import type {
   DelegationRow,
   DeviceRow,
+  ClosureRow,
   DecisionRow,
   DeliveryMark,
   EventCount,
@@ -410,6 +412,18 @@ export class SqliteStore implements Store {
   }
 
   // --- rotas (BIP-F-37) ----------------------------------------------------
+
+  insertClosure(closure: ClosureRow): boolean {
+    return closureSql.insertClosure(this.db, closure);
+  }
+
+  closureByPage(pageId: string): ClosureRow | null {
+    return closureSql.closureByPage(this.db, pageId);
+  }
+
+  listClosures(sourceId: string | null, limit: number): ClosureRow[] {
+    return closureSql.listClosures(this.db, sourceId, limit);
+  }
 
   insertRota(rota: RotaRow): void {
     rotaSql.insertRota(this.db, rota);

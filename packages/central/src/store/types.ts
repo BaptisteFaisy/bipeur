@@ -127,6 +127,21 @@ export interface DelegationRow {
   revoked_at: number | null;
 }
 
+/** The proof of execution of one page (BIP-F-41). */
+export interface ClosureRow {
+  page_id: string;
+  /** The family-8 page the pager actually shows. */
+  closure_page_id: string;
+  source_id: string;
+  /** The agent's own words: labelled `AGENT SAYS:` on the closing page. */
+  summary: string;
+  /** The verifiable fact: a commit sha, a PR number, a file list. */
+  evidence: string | null;
+  /** The fingerprint of the page that was approved: the loop closes on it. */
+  origin_fingerprint: string;
+  created_at: number;
+}
+
 /** An on-call rota (BIP-F-37): who answers, in which order, and how fast it escalates. */
 export interface RotaRow {
   id: string;
@@ -284,6 +299,10 @@ export interface Store {
   /** Decrement a live delegation; returns whether it was consumed. */
   consumeDelegation(id: string, now: number): boolean;
   revokeDelegation(id: string, at: number): boolean;
+
+  insertClosure(closure: ClosureRow): boolean;
+  closureByPage(pageId: string): ClosureRow | null;
+  listClosures(sourceId: string | null, limit: number): ClosureRow[];
 
   insertRota(rota: RotaRow): void;
   rotaById(id: string): RotaRow | null;

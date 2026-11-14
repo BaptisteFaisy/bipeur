@@ -158,6 +158,20 @@ CREATE TABLE IF NOT EXISTS oncall_shifts (
 );
 CREATE INDEX IF NOT EXISTS oncall_shifts_rota ON oncall_shifts(rota_id, priority);
 
+-- The closure of a page (BIP-F-41): what the agent did with the decision.
+-- One page, one closure — the primary key is the proof, and a retry lands on
+-- the row that already exists instead of writing a second one.
+CREATE TABLE IF NOT EXISTS closures (
+  page_id TEXT PRIMARY KEY REFERENCES pages(id) ON DELETE CASCADE,
+  closure_page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+  summary TEXT NOT NULL,
+  evidence TEXT,
+  origin_fingerprint TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS closures_source ON closures(source_id, created_at);
+
 -- The pagers a page is addressed to. A rota page is addressed to the on-call
 -- member; an escalation adds the next one. A page with no target keeps the
 -- historical delivery: the visitor scope of the station.

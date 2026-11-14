@@ -48,6 +48,12 @@ export function createPage(ctx: CentralContext, source: SourceRow, body: unknown
   const request = parsed.data;
   const problem = checkQuestion(request);
   if (problem) return { ok: false, status: 422, body: problem };
+  // BIP-F-41: family 8 is the proof of execution, and it is exempt from the
+  // attention budget. A source must therefore never be able to claim it —
+  // otherwise a station buys itself unlimited interruptions by declaring a
+  // code. Only the closure path writes an 8xx page.
+  const reserved = checkReservedFamily(request.code);
+  if (reserved) return { ok: false, status: 422, body: reserved };
 
   const now = ctx.clock();
   const rota = resolveRota(ctx, request.rota, now);
@@ -177,6 +183,16 @@ function persistPage(
       },
     });
   });
+}
+
+/** The family of a proof of execution: reserved to the closure path. */
+const EXECUTION_FAMILY = 8;
+
+/** A declared code of family 8 is refused, whatever the kind of page. */
+function checkReservedFamily(code: number | undefined): { error: string; code?: number; reserved_family?: number } | null {
+  if (code === undefined) return null;
+  if (Math.floor(code / 100) !== EXECUTION_FAMILY) return null;
+  return { error: 'reserved_code_family', code, reserved_family: EXECUTION_FAMILY };
 }
 
 /** BIP-F-03: a question that cannot fit 80 characters is refused, with the count. */

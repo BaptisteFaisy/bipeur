@@ -4,7 +4,7 @@
  * Properties BIP-P-07 (a sliding hour never carries more green+amber pages
  * than the budget) and BIP-P-08 (a red page, or family 9, is never held).
  */
-import { isUrgentCode } from './codes.js';
+import { codeFamily, isUrgentCode } from './codes.js';
 import { HOUR, MINUTE } from './time.js';
 import type { Risk } from './types.js';
 
@@ -29,7 +29,12 @@ export interface Admission {
 
 /** Red pages and family 9 always get through (BIP-F-09, BIP-P-08). */
 export function bypassesAttention(risk: Risk, code: number): boolean {
-  return risk === 'red' || isUrgentCode(code);
+  // A red page bypasses the budget because it cannot wait; a family-9 page
+  // because it is an incident. A family-8 page bypasses it for a third reason:
+  // it asks nothing. It is the proof of what already happened, and charging
+  // the human's budget for it would make the closing of the loop the thing
+  // that gets held (BIP-F-41).
+  return risk === 'red' || isUrgentCode(code) || codeFamily(code) === 8;
 }
 
 /**
