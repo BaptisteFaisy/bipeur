@@ -8,6 +8,7 @@ import type { AuditEvent, AuditEventType, Metrics } from '@bipeur/core';
 import { openDatabase } from './schema.js';
 import { computeMetrics } from './metrics.js';
 import * as delegationSql from './delegations.js';
+import * as eventSql from './event-sql.js';
 import * as pageSql from './page-sql.js';
 import * as rotaSql from './rotas.js';
 import {
@@ -27,6 +28,8 @@ import type {
   DeviceRow,
   DecisionRow,
   DeliveryMark,
+  EventCount,
+  EventRecord,
   EventFilter,
   NoticeRow,
   OncallShiftRow,
@@ -278,6 +281,24 @@ export class SqliteStore implements Store {
   purgeEventsBefore(cutoff: number): number {
     const result = this.db.prepare('DELETE FROM events WHERE ts < ?').run(cutoff);
     return Number(result.changes);
+  }
+
+  // --- transparency reads (BIP-F-45) --------------------------------------
+
+  eventCount(): EventCount {
+    return eventSql.eventCount(this.db);
+  }
+
+  eventById(id: number): EventRecord | null {
+    return eventSql.eventById(this.db, id);
+  }
+
+  eventRange(afterId: number, limit: number): EventRecord[] {
+    return eventSql.eventRange(this.db, afterId, limit);
+  }
+
+  eventIndex(id: number): number | null {
+    return eventSql.eventIndex(this.db, id);
   }
 
   // --- notices (journal de bord) -----------------------------------------

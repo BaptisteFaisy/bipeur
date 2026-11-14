@@ -20,6 +20,7 @@ import type { Simulator } from './simulator.js';
 import type { WsHub } from './stream.js';
 import { openStore } from './store/index.js';
 import type { Store } from './store/types.js';
+import { checkpoint, checkpointDue } from './transparency.js';
 import { ensureBootstrapSource, wire } from './wiring.js';
 
 export interface CentralServer {
@@ -157,6 +158,10 @@ function sweepOnce(
   expireDue(ctx, now);
   escalation.sweep(now);
   reminders.sweep(now);
+  // A root is published every CHECKPOINT_EVERY events (BIP-F-45): the cost is
+  // one hash pass per hundred events, and an outsider can then check any
+  // stretch of the journal without touching this machine.
+  if (checkpointDue(ctx)) checkpoint(ctx, ctx.config.anchorPath);
   if (!retention) return;
   ctx.store.purgeEventsBefore(now - ctx.config.retentionDays * DAY);
   ctx.store.purgeVisitorsBefore(now - DAY);
