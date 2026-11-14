@@ -52,6 +52,14 @@ are composed by the Central **from the payload alone** (the command, the path,
 the branch, the diff stats). The agent's own prose appears only on screen 4,
 labelled `AGENT SAYS:`. You decide on the fact, never on the narrative.
 
+**You approve a change, not a command.** A `tool` page may carry the unified
+diff it applies (BIP-F-40). It is composed on the detail screens under the
+`DIFF:` label — after the facts, before the agent's prose — packed in whole
+lines, and whatever does not fit is *said* (`~ +397 more lines`), never dropped.
+The diff enters the fingerprint, so a decision signed on one diff cannot be
+replayed on another, and it never reaches the audit log. See
+[`docs/DIFF.md`](docs/DIFF.md).
+
 **Nothing is lost, and the pager says so.** When the subject does not fit the
 80 characters, the line is cut with a visible `~` — and the **whole text** (the
 command, the question, the seeded replies) follows on the detail screens, which

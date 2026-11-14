@@ -12,10 +12,21 @@ import {
   toLineText,
 } from './ascii.js';
 import { defaultVerbForCode, isValidCode, verbMatchesCode } from './codes.js';
+import {
+  DIFF_LABEL,
+  diffCharsPerScreen,
+  diffScreens,
+} from './diff.js';
 import type { Verb } from './types.js';
 
 /** `#` + the first four hex characters of the fingerprint. */
 export const TAG_LENGTH = 5;
+
+/** The only label allowed to carry the agent's own words (A.6, honesty rule). */
+export const AGENT_SAYS_LABEL = 'AGENT SAYS:';
+
+/** How many screens the diff may occupy at most, prose aside (BIP-F-40). */
+const DIFF_SCREENS_MAX = 6;
 
 export interface ComposeLineInput {
   code: number;
@@ -124,27 +135,61 @@ export function lineRows(line: string): string[] {
  * A text longer than one screen CONTINUES on the next screens instead of being
  * cut: the pager shows one screen at a time and the human walks through them.
  * Nothing the human was asked to decide may disappear (BIP-F-16).
+ *
+ * The diff a proposal carries (BIP-F-40) sits between the facts and the prose:
+ * `fait → diff → AGENT SAYS:`. It is capped to its own screens so the agent's
+ * words are never starved, and a diff that cannot fit is cut *with* a marker.
  */
 export function buildDetailScreens(detail: {
   full?: string;
   context?: string;
+  diff?: string;
   agentSays?: string;
 }): string[] {
-  const parts: { label: string | null; text: string }[] = [];
-  if (detail.full) parts.push({ label: null, text: detail.full });
-  if (detail.context) parts.push({ label: null, text: detail.context });
-  if (detail.agentSays) parts.push({ label: 'AGENT SAYS:', text: detail.agentSays });
-
   const screens: string[] = [];
-  for (const part of parts) {
+  for (const part of [
+    { label: null as string | null, text: detail.full },
+    { label: null as string | null, text: detail.context },
+  ]) {
+    if (!part.text) continue;
     for (const chunk of chunkText(part.text, part.label)) {
       if (screens.length >= DETAIL_SCREENS_MAX) break;
-      screens.push(part.label === null ? chunk : `${part.label} ${chunk}`);
+      screens.push(chunk);
+    }
+  }
+  const room = Math.min(
+    DIFF_SCREENS_MAX,
+    DETAIL_SCREENS_MAX - screens.length - (detail.agentSays ? 1 : 0),
+  );
+  if (detail.diff) pushDiffScreens(screens, detail.diff, room);
+  if (detail.agentSays) {
+    for (const chunk of chunkText(detail.agentSays, AGENT_SAYS_LABEL)) {
+      if (screens.length >= DETAIL_SCREENS_MAX) break;
+      screens.push(`${AGENT_SAYS_LABEL} ${chunk}`);
     }
   }
   return screens;
 }
 
+/**
+ * The diff screens, labelled `DIFF:`, with the cut said out loud when lines did
+ * not fit: the human sees how many lines are missing, never a silent end.
+ */
+function pushDiffScreens(screens: string[], diff: string, room: number): void {
+  if (room <= 0) return;
+  const packed = diffScreens(diff, room, diffCharsPerScreen(LINE_MAX));
+  for (const screen of packed.screens) {
+    screens.push(`${DIFF_LABEL} ${screen}`);
+  }
+  if (packed.omitted <= 0) return;
+  const note = ` +${packed.omitted} more line${packed.omitted === 1 ? '' : 's'}`;
+  const cap = LINE_MAX - DIFF_LABEL.length - 1 - note.length;
+  const last = screens[screens.length - 1]!;
+  const kept = last.length > cap ? truncateSubject(last.slice(DIFF_LABEL.length + 1), cap) : last.slice(DIFF_LABEL.length + 1);
+  screens[screens.length - 1] = `${DIFF_LABEL} ${kept}~${note}`;
+}
+
+/** The diff as one text: the stat line first, then the changed lines. */
 /** Split a text into screens of at most 80 characters, at a word boundary. */
 function chunkText(text: string, label: string | null): string[] {
   const clean = toLineText(text);
