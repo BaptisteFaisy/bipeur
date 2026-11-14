@@ -1,0 +1,63 @@
+# BIP-F-48 — a pull request that ships only on a signature for its own commit.
+#
+# The gate reads the head SHA from the event payload. Force-push a new commit and
+# the fingerprint changes, the idempotency key changes, and a new page rings: the
+# approval of the previous commit cannot ride onto the new one.
+
+name: gate-pr-example
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: gate-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  may-ship:
+    name: A human says so, on the pager
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    # Only a labelled pull request rings the pager: the label is the agent's
+    # claim that it is done, the page is the human checking the facts.
+    if: contains(github.event.pull_request.labels.*.name, 'ship')
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Page the human for this commit
+        id: gate
+        uses: Tradoooo/bipeur/.github/actions/gate-pr@main
+        with:
+          url: ${{ vars.BIPEUR_CENTRAL_URL }}
+          token: ${{ secrets.BIPEUR_STATION_TOKEN }}
+          timeout-minutes: 30
+          reason: >-
+            Two files changed, no migration, tests green. Want the merge before
+            the freeze.
+
+      # The merge itself still uses the repository token and GitHub's own
+      # protection rules: the gate is a human decision, not a permission.
+      - name: Merge
+        if: steps.gate.outputs.outcome == 'pass'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The number comes from an environment variable, so nothing that
+          # identifies the pull request is interpolated into the command line.
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR_NUMBER" --squash --delete-branch
+
+      - name: Say what happened
+        if: always()
+        run: |
+          echo "outcome=${{ steps.gate.outputs.outcome }} status=${{ steps.gate.outputs.status }}"
+          echo "signed facts: ${{ steps.gate.outputs.fingerprint }}"
+          echo "human latency: ${{ steps.gate.outputs.latency_ms }} ms"

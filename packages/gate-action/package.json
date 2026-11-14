@@ -1,0 +1,17 @@
+{
+  "name": "@bipeur/gate-action",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "The official Bipeur GitHub Action: page a human before a deploy, and fail the job on a refusal or an expiry (BIP-F-48).",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./lib/*": "./src/lib/*.js"
+  },
+  "files": ["src"],
+  "scripts": {
+    "clean": "rm -rf dist"
+  }
+}

@@ -1,0 +1,87 @@
+name: 'Bipeur gate (pull request)'
+description: >-
+  Check that a pull request is allowed to ship: one page, carrying the head SHA
+  of the PR, and the job fails unless a human signed an approval for that exact
+  commit. A new push is a new page — a decision cannot be replayed on another
+  commit. (BIP-F-48)
+author: 'Bipeur'
+
+branding:
+  icon: 'git-pull-request'
+  color: 'orange'
+
+inputs:
+  url:
+    description: 'Base URL of the Central, e.g. https://pager.example.com. A variable, not a secret.'
+    required: true
+  token:
+    description: >-
+      Station token of the Central. Always pass it from a secret
+      (secrets.BIPEUR_STATION_TOKEN) — never a literal, never a workflow env block.
+    required: true
+  sha:
+    description: >-
+      Commit the decision binds to. Left empty, the action reads the head SHA of
+      the pull request from the event payload — not GITHUB_SHA, which is a
+      throwaway merge commit on a pull_request event.
+    required: false
+  pr-number:
+    description: 'Pull request number. Left empty, it is read from the event payload.'
+    required: false
+  ref:
+    description: 'Head branch of the pull request. Left empty, it is read from the event payload.'
+    required: false
+  command:
+    description: >-
+      What shipping this PR means, in one line. Defaults to
+      "merge pull request #<n> into <base>", which is what the human approves.
+    required: false
+  timeout-minutes:
+    description: >-
+      How long this step waits for a decision. When it runs out the page is
+      unanswered and the job fails — a timeout is never an approval.
+    required: false
+    default: '10'
+  ttl-minutes:
+    description: 'Lifetime of the page on the pager. Defaults to timeout-minutes.'
+    required: false
+  station:
+    description: 'Station the page belongs to; the attention budget is counted per station. Defaults to the repository name.'
+    required: false
+  tool:
+    description: 'Name of the tool doing the work, shown on the page. Default github-action.'
+    required: false
+    default: 'github-action'
+  reason:
+    description: >-
+      Why the agent wants this merge. Shown last, prefixed AGENT SAYS — the
+      human decides on the facts, never on this text (A.6).
+    required: false
+  allow-choice:
+    description: 'Letter that means "ship it" when the human answers with a choice page. Default A.'
+    required: false
+    default: 'A'
+
+outputs:
+  page_id:
+    description: 'Id of the page, so a later step can close it (POST /v1/closures).'
+  line:
+    description: 'The 80-character line the human read, composed by the Central.'
+  fingerprint:
+    description: 'SHA-256 of the facts — the head SHA is one of them, that is the point.'
+  status:
+    description: 'approved, denied, choice, expired, cancelled, pending or unreachable.'
+  choice:
+    description: 'Letter the human picked, when the verdict was a choice.'
+  simulated:
+    description: 'true when shadow mode answered and no human decided — which fails the gate.'
+  latency_ms:
+    description: 'Time the human took, from page to signature.'
+  outcome:
+    description: 'pass or fail. fail sets the exit code of the step.'
+  why:
+    description: 'One line explaining the outcome, safe to print.'
+
+runs:
+  using: 'node20'
+  main: 'index.js'
