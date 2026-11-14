@@ -25,14 +25,17 @@ export function PagerScreen(): React.JSX.Element {
   const options: readonly PageOption[] = page?.options ?? [];
   const risk: Risk | null = page?.risk ?? null;
   const locked = useVisibilityLock();
-  const hold = useHold((action) => void decide(action), HOLD_MS);
+  const hold = useHold((action, heldMs) => void decide(action, null, heldMs), HOLD_MS);
   const queued = page !== null && isQueued(state, page.id);
 
   const detailHidden = locked && state.settings.hideDetailWhenLocked && state.detailIndex > 0;
   const source = displayText(page, state.detailIndex, detailHidden, t);
   const rows = splitScreen(source);
 
-  useDecisionKeys({ risk: risk ?? 'green', options, hold, decide, nextDetail });
+  // BIP-F-43: a canary page demands the deliberate gesture whatever its risk,
+  // so the keyboard path must behave exactly like the on-screen keys.
+  const canary = page?.canary === true;
+  useDecisionKeys({ risk: risk ?? 'green', canary, options, hold, decide, nextDetail });
 
   return (
     <section className="pager-screen" aria-label={t('pager.screenLabel')}>
@@ -50,6 +53,7 @@ export function PagerScreen(): React.JSX.Element {
         <PageFooter page={page} index={state.detailIndex} total={total} risk={risk} text={source} />
         <Keypad
           risk={risk ?? 'green'}
+          canary={canary}
           options={options}
           hold={hold}
           onApprove={() => void decide('approve')}
@@ -168,13 +172,15 @@ function displayText(
 
 interface DecisionKeys {
   risk: Risk;
+  /** BIP-F-43: a canary page demands the hold, whatever the risk. */
+  canary: boolean;
   options: readonly PageOption[];
   hold: ReturnType<typeof useHold>;
   decide: ReturnType<typeof usePager>['decide'];
   nextDetail: () => void;
 }
 
-function useDecisionKeys({ risk, options, hold, decide, nextDetail }: DecisionKeys): void {
+function useDecisionKeys({ risk, canary, options, hold, decide, nextDetail }: DecisionKeys): void {
   const { begin, end } = hold;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -187,7 +193,7 @@ function useDecisionKeys({ risk, options, hold, decide, nextDetail }: DecisionKe
       }
       if (event.key === 'Escape') {
         event.preventDefault();
-        if (risk === 'red') begin('deny');
+        if (risk === 'red' || canary) begin('deny');
         else void decide('deny');
         return;
       }

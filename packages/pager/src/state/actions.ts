@@ -25,7 +25,7 @@ export interface ActionContext {
 }
 
 export interface PagerActions {
-  decide(verdict: Verdict, choice?: string | null): Promise<void>;
+  decide(verdict: Verdict, choice?: string | null, heldMs?: number): Promise<void>;
   retry(): Promise<void>;
   pair(code: string): Promise<void>;
   startDemo(): Promise<void>;
@@ -35,7 +35,7 @@ export interface PagerActions {
 
 export function createActions(ctx: ActionContext): PagerActions {
   return {
-    decide: (verdict, choice = null) => decide(ctx, verdict, choice),
+    decide: (verdict, choice = null, heldMs) => decide(ctx, verdict, choice, heldMs),
     retry: () => retry(ctx),
     pair: (code) => pair(ctx, code),
     startDemo: () => startDemo(ctx),
@@ -58,7 +58,7 @@ function persistMemory(ctx: ActionContext, entry: MemoryEntry): void {
  * sent once the Central acknowledged it. Any transport failure queues it and
  * says so — the pager never pretends a decision left the device.
  */
-async function decide(ctx: ActionContext, verdict: Verdict, choice: string | null): Promise<void> {
+async function decide(ctx: ActionContext, verdict: Verdict, choice: string | null, heldMs?: number): Promise<void> {
   const snapshot = ctx.stateRef.current;
   const page = currentPage(snapshot);
   if (!page) return;
@@ -74,6 +74,7 @@ async function decide(ctx: ActionContext, verdict: Verdict, choice: string | nul
       page,
       verdict,
       choice,
+      heldMs,
     );
   } catch (error) {
     const reason = error instanceof DecisionRefused ? error.reason : errorMessage(error);

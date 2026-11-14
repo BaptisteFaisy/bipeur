@@ -21,6 +21,7 @@ export const fr: Dict = {
   'pager.detail': 'Détail {n} sur {total}',
   'pager.detailLine': 'Ligne du bip',
   'pager.holdHint': 'Maintenez appuyé une seconde',
+  'pager.canaryHint': 'CANARI — approbations trop rapides. Maintenez appuyé une seconde.',
   'pager.lockedDetail': "Détail masqué tant que l'écran est verrouillé",
   'pager.screenLabel': 'Écran du bipeur',
   'pager.readAloud': 'Lire la ligne à voix haute',

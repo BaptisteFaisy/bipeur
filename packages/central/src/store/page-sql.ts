@@ -50,8 +50,8 @@ export function pageWhere(filter: PageFilter): { clause: string; params: (string
 
 export function insertPage(db: DatabaseSync, page: PageRow): void {
   db.prepare(
-    `INSERT INTO pages (id, source_id, source_alias, kind, code, risk, line, detail, payload, payload_sha256, options, state, created_at, delivered_at, read_at, expires_at, dedupe_key, callback_url, reminders_sent, visitor_id, rota_id, escalation_level, escalated_at, group_key, group_leader_id, shadow_resolved_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO pages (id, source_id, source_alias, kind, code, risk, line, detail, payload, payload_sha256, options, state, created_at, delivered_at, read_at, expires_at, dedupe_key, callback_url, reminders_sent, visitor_id, rota_id, escalation_level, escalated_at, group_key, group_leader_id, shadow_resolved_at, canary)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     page.id,
     page.source_id,
@@ -79,9 +79,9 @@ export function insertPage(db: DatabaseSync, page: PageRow): void {
     page.group_key,
     page.group_leader_id,
     page.shadow_resolved_at,
+    page.canary ? 1 : 0,
   );
 }
-
 
 export function pageById(db: DatabaseSync, id: string): PageRow | null {
   const row = db.prepare('SELECT * FROM pages WHERE id = ?').get(id) as SqlRow | undefined;
@@ -117,6 +117,9 @@ export function listPages(db: DatabaseSync, filter: PageFilter): PageRow[] {
  * The columns a page patch may move, in one table: the column name and how to
  * read it off the patch. Eleven `if (patch.x !== undefined)` blocks were the
  * same function eleven times — the rule is no duplication, so the honest answer
+
+ * read it off the patch. Twelve `if (patch.x !== undefined)` blocks were the
+ * same function twelve times — the rule is no duplication, so the honest answer
  * is a table.
  */
 interface PatchColumn {
@@ -137,6 +140,8 @@ const PATCH_COLUMNS: readonly PatchColumn[] = [
   { column: 'group_key', read: (p) => p.group_key },
   { column: 'group_leader_id', read: (p) => p.group_leader_id },
   { column: 'shadow_resolved_at', read: (p) => p.shadow_resolved_at },
+
+  { column: 'canary', read: (p) => (p.canary === undefined ? undefined : (p.canary ? 1 : 0)) },
 ];
 
 export function updatePage(db: DatabaseSync, id: string, patch: PagePatch): void {

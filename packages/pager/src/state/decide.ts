@@ -40,6 +40,7 @@ export async function buildSignedDecision(
   page: PageRecord,
   verdict: Verdict,
   choice: string | null = null,
+  heldMs?: number,
 ): Promise<SignedDecision> {
   const claims: DecisionClaims = {
     page_id: page.id,
@@ -49,6 +50,8 @@ export async function buildSignedDecision(
     nonce: newNonce(deps.crypto),
     expires_at: defaultDecisionDeadline(deps.now()),
     device_id: deps.keys.deviceId,
+    // BIP-F-43: the hold is signed, so a canary cannot be approved by a tap.
+    ...(heldMs === undefined ? {} : { held_ms: heldMs }),
   };
   const problem = checkClaims(claims, {
     fingerprint: page.payload_sha256,

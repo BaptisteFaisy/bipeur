@@ -446,3 +446,16 @@ body {
     gap: 0.4rem;
   }
 }
+
+/* BIP-F-43: the canary says WHY the tap stopped working. A guard that
+   surprises without explaining is a guard people route around. */
+.canary-hint {
+  margin: 0.4rem 0 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--amber-line, #b45309);
+  border-radius: 4px;
+  color: var(--amber-ink, #713f12);
+  background: var(--amber-bg, #fef3c7);
+  font-size: 0.8rem;
+  line-height: 1.25;
+}

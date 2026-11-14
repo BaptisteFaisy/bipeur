@@ -8,6 +8,7 @@ import { openDatabase } from './schema.js';
 import { SqliteExtras } from './sqlite-extras.js';
 import { computeMetrics } from './metrics.js';
 import * as attentionSql from './attention-sql.js';
+import * as canarySql from './canary-sql.js';
 import * as delegationSql from './delegations.js';
 import * as pageSql from './page-sql.js';
 import * as rotaSql from './rotas.js';
@@ -445,6 +446,10 @@ export class SqliteStore extends SqliteExtras implements Store {
   }
 
   // --- dashboard ----------------------------------------------------------
+
+  decisionLatencies(deviceId: string): number[] {
+    return canarySql.decisionLatencies(this.db, deviceId);
+  }
 
   recentDeliveries(since: number): DeliveryMark[] {
     const rows = this.db

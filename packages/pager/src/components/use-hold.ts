@@ -16,7 +16,7 @@ export interface HoldController {
   end(): void;
 }
 
-export function useHold(onComplete: (action: HoldAction) => void, durationMs = HOLD_MS): HoldController {
+export function useHold(onComplete: (action: HoldAction, heldMs: number) => void, durationMs = HOLD_MS): HoldController {
   const [state, setState] = useState<{ action: HoldAction | null; progress: number }>({
     action: null,
     progress: 0,
@@ -40,8 +40,8 @@ export function useHold(onComplete: (action: HoldAction) => void, durationMs = H
   }, []);
 
   const done = useCallback(
-    (next: HoldAction) => {
-      complete.current(next);
+    (next: HoldAction, heldMs: number) => {
+      complete.current(next, heldMs);
       stop();
     },
     [stop],
@@ -59,7 +59,7 @@ export function useHold(onComplete: (action: HoldAction) => void, durationMs = H
 function useHoldTimer(
   action: HoldAction | null,
   durationMs: number,
-  onDone: (action: HoldAction) => void,
+  onDone: (action: HoldAction, heldMs: number) => void,
 ): void {
   const startedAt = useRef(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -72,7 +72,7 @@ function useHoldTimer(
       if (ratio < 1) return;
       if (timer.current !== null) clearInterval(timer.current);
       timer.current = null;
-      onDone(action);
+      onDone(action, Math.max(durationMs, Date.now() - startedAt.current));
     }, 50);
     return () => {
       if (timer.current !== null) clearInterval(timer.current);

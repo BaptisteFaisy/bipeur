@@ -4,6 +4,7 @@
  * Any failure writes `decision.rejected` and changes nothing.
  */
 import {
+  CANARY_HOLD_MS,
   checkClaims,
   isExpired,
   signedDecisionSchema,
@@ -123,6 +124,9 @@ function claimsOf(signed: SignedDecision): DecisionClaims {
     nonce: signed.nonce,
     expires_at: signed.expires_at,
     device_id: signed.device_id,
+    // BIP-F-43: the hold is part of the signed claims. Dropping it here would
+    // leave it unsigned, and a client could then add it after signing.
+    ...(signed.held_ms === undefined ? {} : { held_ms: signed.held_ms }),
   };
 }
 
@@ -160,6 +164,15 @@ function checkAdmissible(
   }
   if (claims.verdict === 'choice' && !page.options.some((option) => option.code === claims.choice)) {
     return reject(ctx, device, page.id, fingerprint, 422, 'unknown_choice');
+  }
+  // BIP-F-43: a canary demands the deliberate gesture, and the gesture is
+  // signed. A client that taps — or a script that claims to have held — is
+  // refused here, not merely slow on the screen.
+  if (page.canary && (claims.held_ms ?? 0) < CANARY_HOLD_MS) {
+    return reject(ctx, device, page.id, fingerprint, 422, 'canary_needs_hold', {
+      required_ms: CANARY_HOLD_MS,
+      held_ms: claims.held_ms ?? 0,
+    });
   }
   return null;
 }

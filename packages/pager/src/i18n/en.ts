@@ -23,6 +23,7 @@ export const en = {
   'pager.detail': 'Detail {n} of {total}',
   'pager.detailLine': 'Page line',
   'pager.holdHint': 'Press and hold for one second',
+  'pager.canaryHint': 'CANARY — approvals were too fast lately. Hold for one second.',
   'pager.lockedDetail': 'Detail hidden while the screen is locked',
   'pager.screenLabel': 'Pager screen',
   'pager.readAloud': 'Read the line aloud',

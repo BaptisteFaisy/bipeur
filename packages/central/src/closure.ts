@@ -154,11 +154,7 @@ function buildClosingPage(input: ClosingInput): PageRow {
     code: CLOSURE_CODE,
     risk: 'green',
     line: line.line,
-    detail: buildDetailScreens({
-      full: `closes ${origin.id} ${origin.line}`,
-      context: closure.evidence ? `evidence ${closure.evidence}` : undefined,
-      agentSays: closure.summary,
-    }),
+    detail: closingScreens(origin, closure),
     payload: { tool_name: 'closure', command: closure.evidence ?? '', agent_says: closure.summary },
     payload_sha256: payloadFingerprint,
     options: [],
@@ -181,7 +177,24 @@ function buildClosingPage(input: ClosingInput): PageRow {
     // BIP-F-42: a receipt is never simulated — it is the proof of a real
     // decision, and shadow mode must never be able to stamp one.
     shadow_resolved_at: null,
+
+    // BIP-F-43: a receipt is never a canary — it asks nothing, and the
+    // reflex guard is about the pages a human is asked to DECIDE.
+    canary: false,
   };
+}
+
+/**
+ * The screens of a receipt: the fact first (`closes <page> <line>`), the
+ * evidence as context, and the agent's own words last, behind `AGENT SAYS:`.
+ * The honesty rule does not pause for receipts (A.6, BIP-F-41).
+ */
+function closingScreens(origin: PageRow, closure: ClosureRequest): string[] {
+  return buildDetailScreens({
+    full: `closes ${origin.id} ${origin.line}`,
+    context: closure.evidence ? `evidence ${closure.evidence}` : undefined,
+    agentSays: closure.summary,
+  });
 }
 
 /** The receipt as it goes back on the wire — the summary is the caller's own. */

@@ -43,6 +43,8 @@ export const pageRecordSchema = z
     expires_at: z.number().default(0),
     dedupe_key: z.string().default(''),
     callback_url: z.string().nullable().default(null),
+    /** BIP-F-43: a canary page demands the deliberate gesture. */
+    canary: z.boolean().default(false),
   })
   .refine((page) => Boolean(page.page_id ?? page.id), {
     message: 'the page carries neither page_id nor id',
@@ -133,5 +135,6 @@ export function toPageRecord(wire: PageRecordWire): PageRecord {
     expires_at: wire.expires_at,
     dedupe_key: wire.dedupe_key,
     callback_url: wire.callback_url,
+    canary: wire.canary,
   };
 }

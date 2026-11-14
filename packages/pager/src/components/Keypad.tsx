@@ -14,6 +14,8 @@ type ButtonHandlers = Pick<
 
 export interface KeypadProps {
   risk: Risk;
+  /** BIP-F-43: a canary page demands the hold, whatever the risk. */
+  canary?: boolean;
   options: readonly PageOption[];
   hold: HoldController;
   onApprove(): void;
@@ -24,7 +26,9 @@ export interface KeypadProps {
 
 export function Keypad(props: KeypadProps): React.JSX.Element {
   const { t } = usePager();
-  const holdable = props.risk === 'red';
+  // BIP-F-43: the reflex guard makes EVERY page holdable, because the point is
+  // the reader's habit, not the risk of the page.
+  const holdable = props.risk === 'red' || props.canary === true;
   return (
     <div className="keypad">
       <DecisionKey
@@ -54,15 +58,47 @@ export function Keypad(props: KeypadProps): React.JSX.Element {
         hold={props.hold}
         onTap={props.onApprove}
       />
+      <ChoiceKeys options={props.options} canary={props.canary === true} onChoose={props.onChoose} />
+      <HoldHint holdable={holdable} canary={props.canary === true} />
+    </div>
+  );
+}
+
+/**
+ * The seeded replies. A canary has no one-tap escape hatch: choice keys would
+ * bypass the very hold the page exists to demand. The replies remain on the
+ * detail screen as facts; the operator approves or refuses deliberately.
+ */
+function ChoiceKeys(props: {
+  options: readonly PageOption[];
+  canary: boolean;
+  onChoose(code: string): void;
+}): React.JSX.Element | null {
+  if (props.canary) return null;
+  return (
+    <>
       {props.options.map((option) => (
         <ChoiceKey key={option.code} option={option} onChoose={props.onChoose} />
       ))}
-      {holdable && (
-        <span id="hold-hint" className="visually-hidden">
-          {t('pager.holdHint')}
-        </span>
+    </>
+  );
+}
+
+/** What the deliberate gesture costs, said in the device language. */
+function HoldHint(props: { holdable: boolean; canary: boolean }): React.JSX.Element | null {
+  const { t } = usePager();
+  if (!props.holdable) return null;
+  return (
+    <>
+      <span id="hold-hint" className="visually-hidden">
+        {props.canary ? t('pager.canaryHint') : t('pager.holdHint')}
+      </span>
+      {props.canary && (
+        <p className="canary-hint" data-testid="canary-hint" role="status">
+          {t('pager.canaryHint')}
+        </p>
       )}
-    </div>
+    </>
   );
 }
 

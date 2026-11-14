@@ -26,6 +26,8 @@ import {
 } from '@bipeur/core';
 import { newId } from '@bipeur/core/node';
 import { isMember } from './groups.js';
+
+import { canaryForPage, markCanary } from './canary.js';
 import type { CentralContext } from './context.js';
 import { applyPageState } from './states.js';
 import type { PageRow } from './store/types.js';
@@ -231,7 +233,10 @@ export class DeliveryGate {
     this.scopes.forScope(scopeOf(page.visitor_id)).record(page.risk, page.code, now);
     const outcome = applyPageState(this.ctx, page, 'delivered', now, { delivered_at: now, detail });
     if (!outcome.ok) return page;
-    const delivered = outcome.page;
+    // BIP-F-43: the reflex guard is judged here, on the audience the page
+    // actually rings, and BEFORE the broadcast — a pager is told to demand the
+    // gesture by the page it receives, never by its own guess.
+    const delivered = this.markCanary(outcome.page, now);
     this.ctx.audit.append({
       type: 'page.delivered',
       page_id: delivered.id,
@@ -253,6 +258,14 @@ export class DeliveryGate {
     );
     this.ctx.push.notify(delivered, { reminder: false, deviceIds: pushTargets(this.ctx, delivered) });
     return delivered;
+  }
+
+  /** Applies the canary mark when the audience's habit demands it. */
+  private markCanary(page: PageRow, now: number): PageRow {
+    if (page.canary) return page;
+    const verdict = canaryForPage(this.ctx, page);
+    if (!verdict.canary) return page;
+    return markCanary(this.ctx, page, now, verdict.state);
   }
 
   /** Quiet hours: a non urgent page becomes a digest line and a refusal. */

@@ -137,6 +137,8 @@ export interface PageRecord {
   expires_at: number;
   dedupe_key: string;
   callback_url: string | null;
+  /** BIP-F-43: the page demands the deliberate gesture (press-and-hold). */
+  canary?: boolean;
 }
 
 export interface DecisionRecord {
