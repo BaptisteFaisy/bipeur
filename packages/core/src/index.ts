@@ -10,6 +10,7 @@ export * from './types.js';
 export * from './ascii.js';
 export * from './canonical.js';
 export * from './codes.js';
+export * from './diff.js';
 export * from './line.js';
 export * from './states.js';
 export * from './time.js';

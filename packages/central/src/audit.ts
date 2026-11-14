@@ -7,7 +7,17 @@ import type { AuditEvent, AuditEventType } from '@bipeur/core';
 import type { Store } from './store/types.js';
 
 /** Keys that would leak a payload or agent prose into the log. */
-const FORBIDDEN_KEYS = new Set(['payload', 'command', 'question', 'path', 'text', 'agent_says', 'line']);
+const FORBIDDEN_KEYS = new Set([
+  'payload',
+  'command',
+  'question',
+  'path',
+  'text',
+  'agent_says',
+  'line',
+  // The diff is the payload (BIP-F-40): only its fingerprint travels.
+  'diff',
+]);
 
 export function sanitizeData(data: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
   if (!data) return undefined;

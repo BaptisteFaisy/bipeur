@@ -150,6 +150,9 @@ function detailOf(request: CreatePageRequest, subject: string, truncated: boolea
     return buildDetailScreens({
       full: request.command ?? request.path ?? request.tool_name,
       context: contextLine(request),
+      // The diff comes after the facts and before the prose: the human reads
+      // what moves, not what the agent says moves (BIP-F-40).
+      diff: request.diff,
       agentSays: request.agent_says,
     });
   }
