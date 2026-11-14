@@ -12,6 +12,7 @@ export * from './canonical.js';
 export * from './merkle.js';
 export * from './codes.js';
 export * from './diff.js';
+export * from './group.js';
 export * from './line.js';
 export * from './states.js';
 export * from './time.js';

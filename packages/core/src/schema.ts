@@ -27,6 +27,12 @@ const commonPageFields = {
   dedupe_key: z.string().min(1).max(200).optional(),
   /** The rota that must answer this page (BIP-F-37): the on-call, then the next. */
   rota: z.string().min(1).max(64).optional(),
+  /**
+   * Pages of one group are one decision split in pieces (BIP-F-47). A fact,
+   * like the diff: it enters the fingerprint, so a signature covers the whole
+   * block and never one page of it alone.
+   */
+  group: z.string().min(1).max(64).optional(),
 };
 
 export const toolPageRequestSchema = z.object({
@@ -39,8 +45,6 @@ export const toolPageRequestSchema = z.object({
   stats: z.string().max(160).optional(),
   /** The unified diff the proposal carries (BIP-F-40): facts, capped at 20 kB. */
   diff: z.string().max(20000).optional(),
-  /** Pages of one group are one decision split in pieces (BIP-F-47). */
-  group: z.string().min(1).max(64).optional(),
   ...commonPageFields,
 });
 

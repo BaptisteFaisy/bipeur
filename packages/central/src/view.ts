@@ -21,6 +21,8 @@ export type PageView = {
   delivered_at: number | null;
   read_at: number | null;
   callback_url: string | null;
+  /** BIP-F-47: the leader this page hangs on; null when it leads its block. */
+  group_leader_id: string | null;
 };
 
 export function pageView(page: PageRow): PageView {
@@ -40,6 +42,7 @@ export function pageView(page: PageRow): PageView {
     delivered_at: page.delivered_at,
     read_at: page.read_at,
     callback_url: page.callback_url,
+    group_leader_id: page.group_leader_id,
   };
 }
 

@@ -12,14 +12,16 @@ import {
 } from '@bipeur/core';
 import { newId } from '@bipeur/core/node';
 import { composeRequest, fingerprintOf, type Composed } from './compose.js';
+import { attachGroup } from './groups.js';
 import type { CentralContext } from './context.js';
 import { onCall } from './rota.js';
 import { applyPageState, ensureDelivered, isPending } from './states.js';
 import { streamFilterFor } from './targeting.js';
+import { pageView } from './view.js';
 import type { DeviceRow, PageRow, SourceRow } from './store/types.js';
 
 export type CreateOutcome =
-  | { ok: true; created: boolean; page: PageRow }
+  | { ok: true; created: boolean; page: PageRow; leader?: PageRow }
   | { ok: false; status: number; body: Record<string, unknown> };
 
 /** Printable ASCII only on the wire (A.6, BIP-N-08): a control character is refused. */
@@ -62,7 +64,29 @@ export function createPage(ctx: CentralContext, source: SourceRow, body: unknown
   const ttl = request.ttl_seconds ? request.ttl_seconds * 1000 : parseDurationOr(rules.defaults.ttl, DEFAULT_TTL_MS);
   const page = buildPageRow({ request, source, composed, ttl, dedupeKey, payloadFingerprint, now, rotaId: rota.rotaId, rotaTarget: rota.target });
   persistPage(ctx, page, composed.matched_by, rota.target, composed.truncated);
+  // BIP-F-47: a page of a group that is already waiting does not ring. It is
+  // attached to the leader, which carries the list and signs the whole block.
+  const attached = attachGroup(ctx, page, now);
+  if (attached.leader) {
+    // The leader was re-signed with the block: the pager must see the new
+    // screens, or the human would sign the old list.
+    rebroadcastLeader(ctx, attached.updatedLeader ?? attached.leader, now);
+    return { ok: true, created: true, page: attached.page, leader: attached.leader };
+  }
   return { ok: true, created: true, page: ctx.gate.attempt(page, now) };
+}
+
+/**
+ * Re-publishes a leader whose block grew. The page is already delivered, so
+ * this is a refresh of what is on the screen — never a second beep: a group
+ * must not interrupt twice (BIP-F-47).
+ */
+function rebroadcastLeader(ctx: CentralContext, leader: PageRow, now: number): void {
+  ctx.hub.broadcast(
+    { type: 'page.delivered', page: pageView(leader) },
+    streamFilterFor(ctx, leader),
+  );
+  void now;
 }
 
 interface BuildInput {
@@ -104,6 +128,10 @@ function buildPageRow(input: BuildInput): PageRow {
     rota_id: rotaId,
     escalation_level: 0,
     escalated_at: null,
+    // BIP-F-47: the group is decided by the caller, not by the page. A page
+    // born alone has no leader; a member is attached before it is written.
+    group_key: request.group ?? null,
+    group_leader_id: null,
   };
 }
 

@@ -14,6 +14,12 @@ export interface AdminRouteDeps {
 }
 
 export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
+  registerHealthAndAudit(app, deps);
+  registerMetricsAndNotices(app, deps);
+}
+
+/** Health and the audit window: the read side of the operator surface. */
+function registerHealthAndAudit(app: Hono, deps: AdminRouteDeps): void {
   const { ctx, stationLimiter } = deps;
 
   app.get('/healthz', (c) => c.json({ ok: true, version: CENTRAL_VERSION }));
@@ -34,13 +40,32 @@ export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
     });
   });
 
+  app.get('/v1/notices', (c) => {
+    const auth = authenticateStation(ctx, stationLimiter, c);
+    if (!auth.ok) return auth.response;
+    const limit = Number.parseInt(c.req.query('limit') ?? '50', 10);
+    return json({ notices: ctx.store.listNotices(Number.isFinite(limit) ? limit : 50) });
+  });
+}
+
+/** Metrics, the attention bill and the digest: the numbers side. */
+function registerMetricsAndNotices(app: Hono, deps: AdminRouteDeps): void {
+  const { ctx, stationLimiter } = deps;
+
   app.get('/v1/metrics', (c) => {
     const auth = authenticateStation(ctx, stationLimiter, c);
     if (!auth.ok) return auth.response;
     // `in_use` is the real operator's own scope: demo visitors each have an
     // isolated budget (BIP-F-31), so summing them would exceed
     // `budget_per_hour` and misdescribe the human's budget (BIP-F-09).
-    return json({ ...ctx.store.metrics(), budget_per_hour: ctx.gate.perHour, in_use: ctx.gate.inUse(ctx.clock()) });
+    return json({
+      ...ctx.store.metrics(),
+      budget_per_hour: ctx.gate.perHour,
+      in_use: ctx.gate.inUse(ctx.clock()),
+      // BIP-F-47: what the NEXT page would cost, out of what is left. The
+      // dashboard draws the hour that comes, not only the hour that passed.
+      projection: ctx.gate.projectionForNext(ctx.clock()),
+    });
   });
 
   // BIP-F-44: what the attention actually costs, per station and per hour.
@@ -54,10 +79,4 @@ export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
     return json(attentionReport(ctx.store, ctx.clock(), window));
   });
 
-  app.get('/v1/notices', (c) => {
-    const auth = authenticateStation(ctx, stationLimiter, c);
-    if (!auth.ok) return auth.response;
-    const limit = Number.parseInt(c.req.query('limit') ?? '50', 10);
-    return json({ notices: ctx.store.listNotices(Number.isFinite(limit) ? limit : 50) });
-  });
 }

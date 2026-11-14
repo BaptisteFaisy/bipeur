@@ -75,6 +75,10 @@ export interface PageRow {
   escalation_level: number;
   /** When the page last moved to the next on-call. */
   escalated_at: number | null;
+  /** BIP-F-47: the group this page belongs to, declared by the station. */
+  group_key: string | null;
+  /** BIP-F-47: the leader this page hangs on; null when it IS the leader. */
+  group_leader_id: string | null;
 }
 
 export interface DecisionRow {
@@ -168,9 +172,19 @@ export interface PagePatch {
   state?: PageState;
   delivered_at?: number;
   read_at?: number;
+  /**
+   * BIP-F-47: re-signing a leader. The fingerprint covers the whole block, so
+   * it changes when a member joins — and the line and screens change with it,
+   * because the human must sign what they see.
+   */
+  payload_sha256?: string;
+  line?: string;
+  detail?: string[];
   reminders_sent?: number;
   escalation_level?: number;
   escalated_at?: number | null;
+  group_key?: string | null;
+  group_leader_id?: string | null;
 }
 
 /** `pending` is the union of the three non final states. */
@@ -178,6 +192,12 @@ export type PageStateFilter = 'pending' | PageState;
 
 export interface PageFilter {
   state?: PageStateFilter;
+  /**
+   * BIP-F-47: hide the members of a block. A member never rings — it is the
+   * same question, listed on its leader's screens — so showing it in the queue
+   * would count one interruption twice and defeat the grouping.
+   */
+  excludeGroupMembers?: boolean;
   sourceId?: string;
   visitorId?: string | null;
   /** Only the pages addressed to this device (BIP-F-37: a rota page). */
@@ -218,6 +238,13 @@ export interface Store {
   insertPage(page: PageRow): void;
   pageById(id: string): PageRow | null;
   pendingPageByDedupe(sourceId: string, dedupeKey: string, now: number): PageRow | null;
+  /**
+   * The live leader of a group (BIP-F-47): the first pending page of that group
+   * on that station, never a member itself. Null when the page opens a group.
+   */
+  pendingGroupLeader(sourceId: string, groupKey: string, now: number): PageRow | null;
+  /** The members hanging on a leader, oldest first. */
+  groupMembers(leaderId: string): PageRow[];
   listPages(filter: PageFilter): PageRow[];
   updatePage(id: string, patch: PagePatch): void;
 

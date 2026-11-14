@@ -112,6 +112,8 @@ export function toPageRow(row: SqlRow): PageRow {
     rota_id: textOrNull(row, 'rota_id'),
     escalation_level: num(row, 'escalation_level'),
     escalated_at: numOrNull(row, 'escalated_at'),
+    group_key: textOrNull(row, 'group_key'),
+    group_leader_id: textOrNull(row, 'group_leader_id'),
   };
 }
 

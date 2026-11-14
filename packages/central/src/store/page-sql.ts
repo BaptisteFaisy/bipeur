@@ -21,6 +21,7 @@ function visitorClause(filter: PageFilter): { sql: string; params: (string | num
 export function pageWhere(filter: PageFilter): { clause: string; params: (string | number)[] } {
   const clauses: string[] = [];
   const params: (string | number)[] = [];
+  if (filter.excludeGroupMembers) clauses.push('group_leader_id IS NULL');
   if (filter.state === 'pending') clauses.push(`state IN ${PENDING_STATES}`);
   else if (filter.state) {
     clauses.push('state = ?');
@@ -51,8 +52,9 @@ export function insertPage(db: DatabaseSync, page: PageRow): void {
   db.prepare(
     `INSERT INTO pages (id, source_id, source_alias, kind, code, risk, line, detail, payload,
        payload_sha256, options, state, created_at, delivered_at, read_at, expires_at, dedupe_key,
-       callback_url, reminders_sent, visitor_id, rota_id, escalation_level, escalated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       callback_url, reminders_sent, visitor_id, rota_id, escalation_level, escalated_at,
+       group_key, group_leader_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     page.id,
     page.source_id,
@@ -77,6 +79,8 @@ export function insertPage(db: DatabaseSync, page: PageRow): void {
     page.rota_id,
     page.escalation_level,
     page.escalated_at,
+    page.group_key,
+    page.group_leader_id,
   );
 }
 
@@ -125,6 +129,18 @@ export function updatePage(db: DatabaseSync, id: string, patch: PagePatch): void
     sets.push('read_at = ?');
     params.push(patch.read_at);
   }
+  if (patch.payload_sha256 !== undefined) {
+    sets.push('payload_sha256 = ?');
+    params.push(patch.payload_sha256);
+  }
+  if (patch.line !== undefined) {
+    sets.push('line = ?');
+    params.push(patch.line);
+  }
+  if (patch.detail !== undefined) {
+    sets.push('detail = ?');
+    params.push(JSON.stringify(patch.detail));
+  }
   if (patch.reminders_sent !== undefined) {
     sets.push('reminders_sent = ?');
     params.push(patch.reminders_sent);
@@ -137,6 +153,43 @@ export function updatePage(db: DatabaseSync, id: string, patch: PagePatch): void
     sets.push('escalated_at = ?');
     params.push(patch.escalated_at);
   }
+  if (patch.group_key !== undefined) {
+    sets.push('group_key = ?');
+    params.push(patch.group_key);
+  }
+  if (patch.group_leader_id !== undefined) {
+    sets.push('group_leader_id = ?');
+    params.push(patch.group_leader_id);
+  }
   if (sets.length === 0) return;
   db.prepare(`UPDATE pages SET ${sets.join(', ')} WHERE id = ?`).run(...params, id);
+}
+
+/**
+ * The live leader of a group (BIP-F-47): the OLDEST pending page of that group
+ * on that station, and never a member itself. A member is not a leader — it
+ * rings through the page that carries the list.
+ */
+export function pendingGroupLeader(
+  db: DatabaseSync,
+  sourceId: string,
+  groupKey: string,
+  now: number,
+): PageRow | null {
+  const row = db
+    .prepare(
+      `SELECT * FROM pages WHERE source_id = ? AND group_key = ?
+         AND group_leader_id IS NULL AND state IN ${PENDING_STATES} AND expires_at > ?
+       ORDER BY created_at ASC LIMIT 1`,
+    )
+    .get(sourceId, groupKey, now) as SqlRow | undefined;
+  return row ? toPageRow(row) : null;
+}
+
+/** The members hanging on a leader, oldest first: the order the list is read. */
+export function groupMembers(db: DatabaseSync, leaderId: string): PageRow[] {
+  const rows = db
+    .prepare(`SELECT * FROM pages WHERE group_leader_id = ? ORDER BY created_at ASC`)
+    .all(leaderId) as SqlRow[];
+  return rows.map(toPageRow);
 }

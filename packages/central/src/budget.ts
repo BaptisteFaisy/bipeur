@@ -13,14 +13,19 @@
  */
 import {
   AttentionBudget,
+  bypassesAttention,
   DEFAULT_BUDGET_POLICY,
   DEFAULT_QUIET_HOURS,
   quietAdmission,
   type Admission,
   type BudgetPolicy,
+  projectionNote,
+  projectBudget,
+  type BudgetProjection,
   type QuietHours,
 } from '@bipeur/core';
 import { newId } from '@bipeur/core/node';
+import { isMember } from './groups.js';
 import type { CentralContext } from './context.js';
 import { applyPageState } from './states.js';
 import type { PageRow } from './store/types.js';
@@ -29,6 +34,19 @@ import { pageView } from './view.js';
 
 /** Scope key of the real operator: pages whose `visitor_id` is null. */
 export const OPERATOR_SCOPE = '';
+
+/**
+ * Whether a projection earns a screen (BIP-F-47).
+ *
+ * A note that repeats the obvious is noise, and noise is what this feature
+ * exists to fight. It is said when it changes the decision: the page is free
+ * while the window is full (a receipt, a group member, a red page), or the
+ * window is tight enough that one more page matters.
+ */
+function worthSaying(projection: BudgetProjection): boolean {
+  if (projection.cost === 0) return true;
+  return projection.in_use > 0 || projection.would_be_held;
+}
 
 function scopeOf(visitorId: string | null): string {
   return visitorId ?? OPERATOR_SCOPE;
@@ -101,6 +119,15 @@ export class DeliveryGate {
     return this.scopes.forScope(OPERATOR_SCOPE).inUse(now);
   }
 
+  /**
+   * What the NEXT page would cost this scope, whatever its content: the
+   * projection a dashboard draws, not the projection of one page. A red page
+   * and a group member are free (0), an ordinary page is one slot.
+   */
+  projectionForNext(now: number, visitorId: string | null = null): BudgetProjection {
+    return projectBudget(this.inUseFor(visitorId, now), this.perHour, 1);
+  }
+
   inUseFor(visitorId: string | null, now: number): number {
     return this.scopes.forScope(scopeOf(visitorId)).inUse(now);
   }
@@ -155,9 +182,37 @@ export class DeliveryGate {
     return delivered;
   }
 
+  /**
+   * What this page will cost, out of what is left (BIP-F-47). The human must
+   * see it BEFORE tapping: a page that costs 4 of the 6 remaining is a
+   * different decision from a page that costs 1 of 6.
+   */
+  projection(page: PageRow, now: number): BudgetProjection {
+    const inUse = this.inUseFor(page.visitor_id, now);
+    // A green page is one slot; an amber one is one slot; a red page is free
+    // because it bypasses the budget, and so is a group member, which never
+    // rings at all.
+    const cost = bypassesAttention(page.risk, page.code) || isMember(page) ? 0 : 1;
+    return projectBudget(inUse, this.perHour, cost);
+  }
+
   private deliver(page: PageRow, now: number): PageRow {
+    // BIP-F-47: the human sees what this page costs BEFORE tapping, so the
+    // projection is computed on the window as it stood, without this page in
+    // it — counting it twice would say "1 of 6, 4 left" for the first page.
+    //
+    // The note goes into the STORED screens, so the replay of BIP-F-46 shows
+    // exactly what was on the LCD, projection included. It is added only when
+    // the window is already partly spent: "this page costs 1 of 6, 5 left" is
+    // noise on the first page of the hour, and noise is the enemy this feature
+    // exists to fight. The dashboard carries the next page's projection either
+    // way.
+    const projection = this.projection(page, now);
+    const detail = worthSaying(projection)
+      ? [...page.detail, projectionNote(projection)].slice(0, 12)
+      : page.detail;
     this.scopes.forScope(scopeOf(page.visitor_id)).record(page.risk, page.code, now);
-    const outcome = applyPageState(this.ctx, page, 'delivered', now, { delivered_at: now });
+    const outcome = applyPageState(this.ctx, page, 'delivered', now, { delivered_at: now, detail });
     if (!outcome.ok) return page;
     const delivered = outcome.page;
     this.ctx.audit.append({

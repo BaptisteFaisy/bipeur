@@ -188,6 +188,14 @@ export class SqliteStore implements Store {
     return pageSql.pendingPageByDedupe(this.db, sourceId, dedupeKey, now);
   }
 
+  pendingGroupLeader(sourceId: string, groupKey: string, now: number): PageRow | null {
+    return pageSql.pendingGroupLeader(this.db, sourceId, groupKey, now);
+  }
+
+  groupMembers(leaderId: string): PageRow[] {
+    return pageSql.groupMembers(this.db, leaderId);
+  }
+
   listPages(filter: PageFilter): PageRow[] {
     return pageSql.listPages(this.db, filter);
   }
