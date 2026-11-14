@@ -63,6 +63,25 @@ export const DASHBOARD_HTML = `<!doctype html>
     <p id="sources-empty" data-testid="sources-empty" class="empty" hidden>No station has paired yet.</p>
   </section>
 
+  <section aria-labelledby="shadow-h" data-testid="shadow-panel" class="card">
+    <h2 id="shadow-h">Shadow mode <span class="sub">(BIP-F-42)</span></h2>
+    <p class="counter" data-testid="shadow-state">off</p>
+    <dl class="metrics">
+      <div><dt>Pages simulated</dt><dd data-testid="shadow-simulated">—</dd>
+        <dd class="note">no human was interrupted; the agent got a simulated approval</dd></div>
+      <div><dt>Would have been held</dt><dd data-testid="shadow-held">—</dd></div>
+      <div><dt>Would have been denied</dt><dd data-testid="shadow-denied">—</dd></div>
+      <div><dt>Really decided anyway</dt><dd data-testid="shadow-decided">—</dd></div>
+    </dl>
+    <form data-testid="shadow-toggle" class="bench">
+      <button type="button" data-testid="shadow-on">Intercept in shadow</button>
+      <button type="button" data-testid="shadow-off">Enforce</button>
+    </form>
+    <p class="hint">Shadow mode composes, routes and shows every page, then hands the agent a
+      <strong>simulated</strong> approval and never blocks. The score is read back from the audit
+      log, so a restart does not lose it.</p>
+  </section>
+
   <section aria-labelledby="attention-h" data-testid="attention-panel" class="card">
     <h2 id="attention-h">Attention cost <span class="sub">(BIP-F-44, from the audit log)</span></h2>
     <p class="counter" data-testid="attention-total">— minutes, — pages</p>

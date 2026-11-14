@@ -24,6 +24,13 @@ export interface Config {
   /** null when Web Push is not configured: the sender then becomes a no-op. */
   vapid: VapidConfig | null;
   demo: boolean;
+  /**
+   * Shadow mode (BIP-F-42): pages are composed, routed and shown, but the
+   * agent is handed a simulated approval instead of being blocked. Off by
+   * default — measuring what an interruption would cost must never be the
+   * reason an interruption goes missing.
+   */
+  shadowMode: boolean;
   /** null means "generate one on boot and print it once". */
   bootstrapToken: string | null;
   stationAlias: string;
@@ -63,6 +70,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     retentionDays: intFrom(env.BIPEUR_RETENTION_DAYS, 30, 1, 3650),
     vapid: readVapid(env),
     demo: flagFrom(env.BIPEUR_DEMO),
+    shadowMode: flagFrom(env.BIPEUR_SHADOW),
     bootstrapToken: env.BIPEUR_BOOTSTRAP_TOKEN?.trim() || null,
     stationAlias: env.BIPEUR_STATION_ALIAS?.trim() || 'main',
     rateLimitPerMinute: intFrom(env.BIPEUR_RATE_LIMIT_PER_MINUTE, 240, 1, 1_000_000),

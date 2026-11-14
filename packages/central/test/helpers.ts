@@ -56,6 +56,7 @@ export function benchConfig(dir: string, clock: Clock, overrides: Partial<Config
     vapid: null,
     corsOrigins: ['https://tradoooo.github.io'],
     demo: false,
+    shadowMode: false,
     bootstrapToken: 'test-station-token',
     stationAlias: 'main',
     rateLimitPerMinute: 100_000,

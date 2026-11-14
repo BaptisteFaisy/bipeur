@@ -38,6 +38,7 @@ function pageRow(overrides: Partial<PageRow> = {}): PageRow {
     group_key: null,
     group_leader_id: null,
     reminders_sent: 0,
+    shadow_resolved_at: null,
     ...overrides,
   };
 }

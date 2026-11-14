@@ -17,7 +17,7 @@ import { cancelPage, createPage, expirePage, markRead, ownedPage } from '../page
 import type { RateLimiter } from '../rate-limit.js';
 import { isPending } from '../states.js';
 import type { DecisionRow, PageRow, SourceRow } from '../store/types.js';
-import { pageView, statusOf } from '../view.js';
+import { pageView, simulatedOf, statusOf } from '../view.js';
 
 export interface RouteDeps {
   ctx: CentralContext;
@@ -188,11 +188,17 @@ async function waitForSettlement(ctx: CentralContext, page: PageRow, waitSeconds
 function settle(ctx: CentralContext, page: PageRow, decision: DecisionRow | null): Record<string, unknown> {
   const now = ctx.clock();
   const status = statusOf(page, decision, now);
+  const simulated = simulatedOf(page, decision);
   return {
     status,
+    // BIP-F-42: a simulated verdict is never indistinguishable from a real
+    // one. An agent that treats this flag as noise and acts as if a human had
+    // approved is no longer protected by anything, and the log says which
+    // verdict it was handed.
+    simulated,
     page_id: page.id,
     choice: decision?.choice_code ?? null,
-    reason: status === 'expired' ? 'no human decision' : null,
+    reason: status === 'expired' ? 'no human decision' : simulated ? 'shadow mode' : null,
     fingerprint: page.payload_sha256,
     latency_ms: decision ? decision.latency_ms : Math.max(0, now - page.created_at),
   };

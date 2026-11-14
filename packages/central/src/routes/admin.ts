@@ -4,6 +4,7 @@ import type { Hono } from 'hono';
 import { authenticateStation } from '../api-auth.js';
 import { attentionReport } from '../attention.js';
 import { CENTRAL_VERSION } from '../config.js';
+import { shadowScore } from '../shadow.js';
 import type { CentralContext } from '../context.js';
 import { json } from '../http-json.js';
 import type { RateLimiter } from '../rate-limit.js';
@@ -16,6 +17,7 @@ export interface AdminRouteDeps {
 export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
   registerHealthAndAudit(app, deps);
   registerMetricsAndNotices(app, deps);
+  registerShadowRoutes(app, deps);
 }
 
 /** Health and the audit window: the read side of the operator surface. */
@@ -79,4 +81,35 @@ function registerMetricsAndNotices(app: Hono, deps: AdminRouteDeps): void {
     return json(attentionReport(ctx.store, ctx.clock(), window));
   });
 
+
+}
+
+/**
+ * Shadow mode (BIP-F-42): the score is read back from the journal, never from
+ * a counter that would die with the process, and the switch is journalled as
+ * its own event — a mode that changed silently mid-week would make the score
+ * worthless.
+ */
+function registerShadowRoutes(app: Hono, deps: AdminRouteDeps): void {
+  const { ctx, stationLimiter } = deps;
+
+  app.get('/v1/shadow', (c) => {
+    const auth = authenticateStation(ctx, stationLimiter, c);
+    if (!auth.ok) return auth.response;
+    return json(shadowScore(ctx));
+  });
+  app.put('/v1/shadow', async (c) => {
+    const auth = authenticateStation(ctx, stationLimiter, c);
+    if (!auth.ok) return auth.response;
+    const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+    const enabled = body?.enabled;
+    if (typeof enabled !== 'boolean') return json({ error: 'enabled_required' }, 422);
+    ctx.shadow.set(enabled);
+    ctx.audit.append({
+      type: 'shadow.toggled',
+      source_id: auth.source.id,
+      data: { enabled },
+    });
+    return json(shadowScore(ctx));
+  });
 }

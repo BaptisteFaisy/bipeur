@@ -113,6 +113,7 @@ function refresh() {
     api('/v1/audit' + auditQuery()),
     api('/v1/rotas'),
     api('/v1/metrics/attention'),
+    api('/v1/shadow'),
   ]).then(function (results) {
     clearError();
     renderMetrics(results[0]);
@@ -121,6 +122,7 @@ function refresh() {
     renderAudit(results[3].events);
     renderRotas(results[4].rotas);
     renderAttention(results[5]);
+    renderShadow(results[6]);
     setStatus('Updated ' + fmtClock(now) + ' — polling every ' + (POLL_MS / 1000) + ' s.');
   }).catch(function (error) {
     showError(error.message || String(error));
@@ -156,6 +158,18 @@ function onTokenClear() {
   setStatus('Token cleared. Paste a station token to load live data.');
 }
 
+/** BIP-F-42: flipping shadow mode is an operator act, and it is shown as one. */
+function onShadowToggle(enabled) {
+  return api('/v1/shadow', { method: 'PUT', body: JSON.stringify({ enabled: enabled }) })
+    .then(function (score) {
+      renderShadow(score);
+      setStatus(score.enabled
+        ? 'Shadow mode ON — pages are measured, nothing blocks.'
+        : 'Shadow mode OFF — pages are enforced again.');
+    })
+    .catch(function (error) { showError(error.message || String(error)); });
+}
+
 function onAuditNav(delta) {
   auditOffset = Math.max(0, auditOffset + delta);
   refresh();
@@ -170,6 +184,9 @@ function init() {
   $('audit-next').addEventListener('click', function () { onAuditNav(AUDIT_LIMIT); });
   $('dryrun-form').addEventListener('submit', onDryRunSubmit);
   $('replay-form').addEventListener('submit', onReplaySubmit);
+
+  $('shadow-on').addEventListener('click', function () { onShadowToggle(true); });
+  $('shadow-off').addEventListener('click', function () { onShadowToggle(false); });
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) { stopPolling(); return; }
     refresh();

@@ -13,6 +13,8 @@ import {
 import { newId } from '@bipeur/core/node';
 import { composeRequest, fingerprintOf, type Composed } from './compose.js';
 import { attachGroup } from './groups.js';
+
+import { shadowResolve, wouldHave } from './shadow.js';
 import type { CentralContext } from './context.js';
 import { onCall } from './rota.js';
 import { applyPageState, ensureDelivered, isPending } from './states.js';
@@ -48,10 +50,6 @@ export function createPage(ctx: CentralContext, source: SourceRow, body: unknown
   const request = parsed.data;
   const problem = checkQuestion(request);
   if (problem) return { ok: false, status: 422, body: problem };
-  // BIP-F-41: family 8 is the proof of execution, and it is exempt from the
-  // attention budget. A source must therefore never be able to claim it —
-  // otherwise a station buys itself unlimited interruptions by declaring a
-  // code. Only the closure path writes an 8xx page.
   const reserved = checkReservedFamily(request.code);
   if (reserved) return { ok: false, status: 422, body: reserved };
 
@@ -70,8 +68,27 @@ export function createPage(ctx: CentralContext, source: SourceRow, body: unknown
   const ttl = request.ttl_seconds ? request.ttl_seconds * 1000 : parseDurationOr(rules.defaults.ttl, DEFAULT_TTL_MS);
   const page = buildPageRow({ request, source, composed, ttl, dedupeKey, payloadFingerprint, now, rotaId: rota.rotaId, rotaTarget: rota.target });
   persistPage(ctx, page, composed.matched_by, rota.target, composed.truncated);
-  // BIP-F-47: a page of a group that is already waiting does not ring. It is
-  // attached to the leader, which carries the list and signs the whole block.
+  return deliverPage(ctx, page, composed, now);
+}
+
+/**
+ * What happens once a page is written: it rings, unless it belongs to a block
+ * already on screen (BIP-F-47) — and in shadow mode it is shown but never
+ * waited for (BIP-F-42).
+ *
+ * The order is deliberate: a member NEVER rings, so it never reaches the pager
+ * and never spends the budget; the leader carries it. A page born in shadow
+ * mode is composed, routed and shown exactly as it would have been, and the
+ * agent gets a SIMULATED approval instead of a wait — with what the budget and
+ * the rules would have done recorded BEFORE the simulation, so the score
+ * describes the enforcing world, not this one.
+ */
+function deliverPage(
+  ctx: CentralContext,
+  page: PageRow,
+  composed: Composed,
+  now: number,
+): CreateOutcome {
   const attached = attachGroup(ctx, page, now);
   if (attached.leader) {
     // The leader was re-signed with the block: the pager must see the new
@@ -79,7 +96,17 @@ export function createPage(ctx: CentralContext, source: SourceRow, body: unknown
     rebroadcastLeader(ctx, attached.updatedLeader ?? attached.leader, now);
     return { ok: true, created: true, page: attached.page, leader: attached.leader };
   }
-  return { ok: true, created: true, page: ctx.gate.attempt(page, now) };
+  const delivered = ctx.gate.attempt(page, now);
+  if (!ctx.shadow.enabled) return { ok: true, created: true, page: delivered };
+  const would = wouldHave(ctx, delivered, now);
+  const matched = composed.matched_by;
+  const shadowed = shadowResolve(
+    ctx,
+    delivered,
+    now,
+    would === 'admitted' && matched === 'deny' ? 'denied' : would,
+  );
+  return { ok: true, created: true, page: shadowed };
 }
 
 /**
@@ -138,6 +165,9 @@ function buildPageRow(input: BuildInput): PageRow {
     // born alone has no leader; a member is attached before it is written.
     group_key: request.group ?? null,
     group_leader_id: null,
+
+    // A page born normal: shadow mode may resolve it later, never before.
+    shadow_resolved_at: null,
   };
 }
 

@@ -23,6 +23,9 @@ export type PageView = {
   callback_url: string | null;
   /** BIP-F-47: the leader this page hangs on; null when it leads its block. */
   group_leader_id: string | null;
+
+  /** True when the page was resolved by shadow mode, not by a human (BIP-F-42). */
+  simulated: boolean;
 };
 
 export function pageView(page: PageRow): PageView {
@@ -43,15 +46,28 @@ export function pageView(page: PageRow): PageView {
     read_at: page.read_at,
     callback_url: page.callback_url,
     group_leader_id: page.group_leader_id,
+
+    simulated: simulatedOf(page, null),
   };
 }
 
 /** `pending` while the page is not final; an expired page is a refusal. */
+/**
+ * A page shadow mode resolved (BIP-F-42) answers `approved`, and says so:
+ * `simulatedOf` is what the wire carries next to the status. A real decision
+ * always wins over the simulation, whenever it arrives — shadow mode resolves
+ * the wait, it never mutes the pager.
+ */
+export function simulatedOf(page: PageRow, decision: DecisionRow | null): boolean {
+  return decision === null && page.shadow_resolved_at !== null;
+}
+
 export function statusOf(
   page: PageRow,
   decision: DecisionRow | null,
   now: number,
 ): DecisionStatus {
+  if (simulatedOf(page, decision)) return 'approved';
   if (page.state === 'decided') {
     if (!decision) return 'pending';
     if (decision.verdict === 'approve') return 'approved';

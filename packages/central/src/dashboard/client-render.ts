@@ -19,6 +19,15 @@ function renderMetrics(data) {
   $('metric-delivered').textContent = String(data.pages_delivered);
 }
 
+/** The shadow score (BIP-F-42): what an interruption would have cost. */
+function renderShadow(score) {
+  $('shadow-state').textContent = score.enabled ? 'ON — nothing blocks, everything is measured' : 'off — pages are enforced';
+  $('shadow-simulated').textContent = String(score.simulated);
+  $('shadow-held').textContent = String(score.would_have_held);
+  $('shadow-denied').textContent = String(score.would_have_been_denied);
+  $('shadow-decided').textContent = String(score.really_decided);
+}
+
 /** The attention bill (BIP-F-44): what the human actually spent, per station. */
 function renderAttention(report) {
   var total = report.total;

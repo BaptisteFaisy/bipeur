@@ -114,6 +114,8 @@ export function toPageRow(row: SqlRow): PageRow {
     escalated_at: numOrNull(row, 'escalated_at'),
     group_key: textOrNull(row, 'group_key'),
     group_leader_id: textOrNull(row, 'group_leader_id'),
+
+    shadow_resolved_at: numOrNull(row, 'shadow_resolved_at'),
   };
 }
 

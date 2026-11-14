@@ -50,11 +50,8 @@ export function pageWhere(filter: PageFilter): { clause: string; params: (string
 
 export function insertPage(db: DatabaseSync, page: PageRow): void {
   db.prepare(
-    `INSERT INTO pages (id, source_id, source_alias, kind, code, risk, line, detail, payload,
-       payload_sha256, options, state, created_at, delivered_at, read_at, expires_at, dedupe_key,
-       callback_url, reminders_sent, visitor_id, rota_id, escalation_level, escalated_at,
-       group_key, group_leader_id)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO pages (id, source_id, source_alias, kind, code, risk, line, detail, payload, payload_sha256, options, state, created_at, delivered_at, read_at, expires_at, dedupe_key, callback_url, reminders_sent, visitor_id, rota_id, escalation_level, escalated_at, group_key, group_leader_id, shadow_resolved_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     page.id,
     page.source_id,
@@ -81,8 +78,10 @@ export function insertPage(db: DatabaseSync, page: PageRow): void {
     page.escalated_at,
     page.group_key,
     page.group_leader_id,
+    page.shadow_resolved_at,
   );
 }
+
 
 export function pageById(db: DatabaseSync, id: string): PageRow | null {
   const row = db.prepare('SELECT * FROM pages WHERE id = ?').get(id) as SqlRow | undefined;
@@ -114,62 +113,46 @@ export function listPages(db: DatabaseSync, filter: PageFilter): PageRow[] {
   return rows.map(toPageRow);
 }
 
+/**
+ * The columns a page patch may move, in one table: the column name and how to
+ * read it off the patch. Eleven `if (patch.x !== undefined)` blocks were the
+ * same function eleven times — the rule is no duplication, so the honest answer
+ * is a table.
+ */
+interface PatchColumn {
+  column: string;
+  read: (patch: PagePatch) => string | number | null | undefined;
+}
+
+const PATCH_COLUMNS: readonly PatchColumn[] = [
+  { column: 'state', read: (p) => p.state },
+  { column: 'delivered_at', read: (p) => p.delivered_at },
+  { column: 'read_at', read: (p) => p.read_at },
+  { column: 'payload_sha256', read: (p) => p.payload_sha256 },
+  { column: 'line', read: (p) => p.line },
+  { column: 'detail', read: (p) => (p.detail === undefined ? undefined : JSON.stringify(p.detail)) },
+  { column: 'reminders_sent', read: (p) => p.reminders_sent },
+  { column: 'escalation_level', read: (p) => p.escalation_level },
+  { column: 'escalated_at', read: (p) => p.escalated_at },
+  { column: 'group_key', read: (p) => p.group_key },
+  { column: 'group_leader_id', read: (p) => p.group_leader_id },
+  { column: 'shadow_resolved_at', read: (p) => p.shadow_resolved_at },
+];
+
 export function updatePage(db: DatabaseSync, id: string, patch: PagePatch): void {
   const sets: string[] = [];
-  const params: (string | number | null)[] = [];
-  if (patch.state !== undefined) {
-    sets.push('state = ?');
-    params.push(patch.state);
-  }
-  if (patch.delivered_at !== undefined) {
-    sets.push('delivered_at = ?');
-    params.push(patch.delivered_at);
-  }
-  if (patch.read_at !== undefined) {
-    sets.push('read_at = ?');
-    params.push(patch.read_at);
-  }
-  if (patch.payload_sha256 !== undefined) {
-    sets.push('payload_sha256 = ?');
-    params.push(patch.payload_sha256);
-  }
-  if (patch.line !== undefined) {
-    sets.push('line = ?');
-    params.push(patch.line);
-  }
-  if (patch.detail !== undefined) {
-    sets.push('detail = ?');
-    params.push(JSON.stringify(patch.detail));
-  }
-  if (patch.reminders_sent !== undefined) {
-    sets.push('reminders_sent = ?');
-    params.push(patch.reminders_sent);
-  }
-  if (patch.escalation_level !== undefined) {
-    sets.push('escalation_level = ?');
-    params.push(patch.escalation_level);
-  }
-  if (patch.escalated_at !== undefined) {
-    sets.push('escalated_at = ?');
-    params.push(patch.escalated_at);
-  }
-  if (patch.group_key !== undefined) {
-    sets.push('group_key = ?');
-    params.push(patch.group_key);
-  }
-  if (patch.group_leader_id !== undefined) {
-    sets.push('group_leader_id = ?');
-    params.push(patch.group_leader_id);
+  const params: Array<string | number | null> = [];
+  for (const { column, read } of PATCH_COLUMNS) {
+    const value = read(patch);
+    if (value === undefined) continue;
+    sets.push(`${column} = ?`);
+    params.push(value);
   }
   if (sets.length === 0) return;
   db.prepare(`UPDATE pages SET ${sets.join(', ')} WHERE id = ?`).run(...params, id);
 }
 
-/**
- * The live leader of a group (BIP-F-47): the OLDEST pending page of that group
- * on that station, and never a member itself. A member is not a leader — it
- * rings through the page that carries the list.
- */
+
 export function pendingGroupLeader(
   db: DatabaseSync,
   sourceId: string,
