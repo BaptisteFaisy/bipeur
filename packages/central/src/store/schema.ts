@@ -66,7 +66,6 @@ CREATE TABLE IF NOT EXISTS pages (
   -- client cannot decide for itself to stop obeying.
   canary INTEGER NOT NULL DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS pages_group ON pages(group_key, state);
 CREATE INDEX IF NOT EXISTS pages_dedupe ON pages(source_id, dedupe_key, state);
 CREATE INDEX IF NOT EXISTS pages_state ON pages(state, expires_at);
 CREATE INDEX IF NOT EXISTS pages_visitor ON pages(visitor_id);
@@ -200,8 +199,25 @@ export function openDatabase(path: string): DatabaseSync {
   db.exec('PRAGMA synchronous = NORMAL');
   db.exec(SCHEMA_SQL);
   migrate(db);
+  db.exec(MIGRATED_INDEX_SQL);
   return db;
 }
+
+/**
+ * The indexes over columns a MIGRATION adds.
+ *
+ * They cannot live in `SCHEMA_SQL`. On a database written by an older build,
+ * `CREATE TABLE IF NOT EXISTS pages` is a no-op, so the columns do not exist
+ * yet when the DDL runs — and the index over them aborts the whole open. That
+ * is exactly how the production Central died on 2026-11-14 with
+ * `no such column: group_key`: the migration never got its turn.
+ *
+ * So the rule is: an index over a migrated column is created AFTER
+ * `migrate()`, never inside the initial DDL.
+ */
+export const MIGRATED_INDEX_SQL = `
+CREATE INDEX IF NOT EXISTS pages_group ON pages(group_key, state);
+`;
 
 /** Additive migrations for databases created before a column existed. */
 function migrate(db: DatabaseSync): void {
