@@ -14,6 +14,7 @@ import {
 import { verifyDecisionSignature } from '@bipeur/core/node';
 import type { CentralContext } from './context.js';
 import { expirePage } from './pages.js';
+import { settleMembers } from './groups.js';
 import { applyPageState, ensureDelivered, isPending } from './states.js';
 import { streamFilterFor } from './targeting.js';
 import type { DeviceRow, PageRow } from './store/types.js';
@@ -90,6 +91,19 @@ function accept(
     fingerprint: page.payload_sha256,
     data: { verdict: claims.verdict, choice: claims.choice, latency_ms: latency },
   });
+  // BIP-F-47: the block settles with its leader. The leader's fingerprint
+  // covers every member, so this one signature IS the answer to the group —
+  // and each member's audit record says which block it came from.
+  settleMembers(ctx, delivered, {
+    page_id: page.id,
+    device_id: device.id,
+    verdict: claims.verdict,
+    choice_code: claims.choice,
+    nonce: claims.nonce,
+    signature,
+    decided_at: now,
+    latency_ms: latency,
+  }, now);
   ctx.hub.broadcast(
     { type: 'page.decided', page_id: page.id, verdict: claims.verdict },
     streamFilterFor(ctx, page),

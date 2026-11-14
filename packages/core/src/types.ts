@@ -111,6 +111,8 @@ export interface QuestionPayload {
   detail?: string;
   agent_says?: string;
   callback_url?: string;
+  /** BIP-F-47: one decision split in pieces. A fact, so it is fingerprinted. */
+  group?: string;
 }
 
 export type PagePayload = ToolPayload | QuestionPayload;
@@ -171,7 +173,8 @@ export type AuditEventType =
   | 'closure.rejected'
   | 'page.shadowed'
   | 'page.canary'
-  | 'transparency.checkpoint';
+  | 'transparency.checkpoint'
+  | 'page.grouped';
 
 export interface AuditEvent {
   ts: number;

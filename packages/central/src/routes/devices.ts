@@ -53,7 +53,13 @@ export function registerDeviceRoutes(app: Hono, deps: DeviceRouteDeps): void {
     const requested = c.req.query('state') ?? 'pending';
     const filter = requested === 'pending' ? { state: 'pending' as const } : { state: requested as never };
     const pages = ctx.store
-      .listPages({ ...filter, deviceId: auth.device.id, visitorId: auth.device.visitor_id ?? undefined, limit: 50 })
+      .listPages({
+        ...filter,
+        deviceId: auth.device.id,
+        visitorId: auth.device.visitor_id ?? undefined,
+        excludeGroupMembers: true,
+        limit: 50,
+      })
       .map(pageView);
     return json({ pages });
   });

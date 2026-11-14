@@ -10,6 +10,7 @@ import { authenticateDevice, authenticateStation } from '../api-auth.js';
 import { composeRequest, fingerprintOf } from '../compose.js';
 import type { CentralContext } from '../context.js';
 import { decidePage } from '../decide.js';
+import { effectiveDecision } from '../groups.js';
 import { bearer } from '../http-auth.js';
 import { json } from '../http-json.js';
 import { cancelPage, createPage, expirePage, markRead, ownedPage } from '../pages.js';
@@ -49,7 +50,7 @@ function registerCreationRoutes(app: Hono, deps: RouteDeps): void {
     if (!auth.ok) return auth.response;
     const page = ownedPage(ctx, auth.source, c.req.param('id') ?? '');
     if (!page) return json({ error: 'unknown_page' }, 404);
-    return json({ ...pageView(page), status: statusOf(page, ctx.store.decisionByPage(page.id), ctx.clock()) });
+    return json({ ...pageView(page), status: statusOf(page, effectiveDecision(ctx, page), ctx.clock()) });
   });
 
   app.delete('/v1/pages/:id', (c) => {
@@ -176,7 +177,9 @@ async function waitForSettlement(ctx: CentralContext, page: PageRow, waitSeconds
     const now = ctx.clock();
     if (isPending(current.state) && current.expires_at <= now) expirePage(ctx, current, now);
     const fresh = ctx.store.pageById(page.id) ?? current;
-    const decision = ctx.store.decisionByPage(fresh.id);
+    // BIP-F-47: a member page is answered by its block's leader, not by a
+    // decision row it will never have.
+    const decision = effectiveDecision(ctx, fresh);
     if (!isPending(fresh.state) || Date.now() >= deadline) return settle(ctx, fresh, decision);
     await new Promise((resolve) => setTimeout(resolve, 25));
   }

@@ -52,8 +52,13 @@ CREATE TABLE IF NOT EXISTS pages (
   visitor_id TEXT,
   rota_id TEXT,
   escalation_level INTEGER NOT NULL DEFAULT 0,
-  escalated_at INTEGER
+  escalated_at INTEGER,
+  -- BIP-F-47: the group key, and the leader this page hangs on. A member page
+  -- never rings: the leader carries the list and the group digest.
+  group_key TEXT,
+  group_leader_id TEXT
 );
+CREATE INDEX IF NOT EXISTS pages_group ON pages(group_key, state);
 CREATE INDEX IF NOT EXISTS pages_dedupe ON pages(source_id, dedupe_key, state);
 CREATE INDEX IF NOT EXISTS pages_state ON pages(state, expires_at);
 CREATE INDEX IF NOT EXISTS pages_visitor ON pages(visitor_id);
@@ -182,6 +187,8 @@ function migrate(db: DatabaseSync): void {
   ensureColumn(db, 'pages', 'rota_id', 'TEXT');
   ensureColumn(db, 'pages', 'escalation_level', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(db, 'pages', 'escalated_at', 'INTEGER');
+  ensureColumn(db, 'pages', 'group_key', 'TEXT');
+  ensureColumn(db, 'pages', 'group_leader_id', 'TEXT');
 }
 
 function ensureColumn(db: DatabaseSync, table: string, column: string, type: string): void {

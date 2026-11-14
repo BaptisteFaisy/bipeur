@@ -40,7 +40,14 @@ export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
     // `in_use` is the real operator's own scope: demo visitors each have an
     // isolated budget (BIP-F-31), so summing them would exceed
     // `budget_per_hour` and misdescribe the human's budget (BIP-F-09).
-    return json({ ...ctx.store.metrics(), budget_per_hour: ctx.gate.perHour, in_use: ctx.gate.inUse(ctx.clock()) });
+    return json({
+      ...ctx.store.metrics(),
+      budget_per_hour: ctx.gate.perHour,
+      in_use: ctx.gate.inUse(ctx.clock()),
+      // BIP-F-47: what the NEXT page would cost, out of what is left. The
+      // dashboard draws the hour that comes, not only the hour that passed.
+      projection: ctx.gate.projectionForNext(ctx.clock()),
+    });
   });
 
   // BIP-F-44: what the attention actually costs, per station and per hour.

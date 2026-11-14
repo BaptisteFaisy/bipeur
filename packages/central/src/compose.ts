@@ -54,7 +54,14 @@ export function factsOf(request: CreatePageRequest): Record<string, unknown> {
       group: request.group,
     };
   }
-  return { kind: 'question', question: request.question, options: request.options };
+  return {
+    kind: 'question',
+    question: request.question,
+    options: request.options,
+    // BIP-F-47: the group is a fact on both kinds. A signature covers the
+    // whole block, never one page of it alone.
+    group: request.group,
+  };
 }
 
 /** SHA-256 of the canonical facts: the page fingerprint (BIP-F-01). */
