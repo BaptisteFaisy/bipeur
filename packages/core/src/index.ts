@@ -15,6 +15,7 @@ export * from './diff.js';
 export * from './line.js';
 export * from './states.js';
 export * from './time.js';
+export * from './attention.js';
 export * from './budget.js';
 export * from './rules.js';
 export * from './decision.js';

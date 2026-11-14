@@ -19,6 +19,46 @@ function renderMetrics(data) {
   $('metric-delivered').textContent = String(data.pages_delivered);
 }
 
+/** The attention bill (BIP-F-44): what the human actually spent, per station. */
+function renderAttention(report) {
+  var total = report.total;
+  $('attention-total').textContent = total.human_minutes + ' minutes, ' + total.pages + ' pages';
+  $('attention-human').textContent = fmtMs(total.human_ms);
+  $('attention-denial').textContent = (total.denial_rate * 100).toFixed(1) + ' %';
+  $('attention-rate').textContent = String(total.interruptions_per_hour);
+  $('attention-median').textContent = fmtMs(total.decision_median_ms);
+  $('attention-undecided').textContent = String(total.read - total.decided);
+  var body = $('attention-list');
+  clearNode(body);
+  $('attention-empty').hidden = report.stations.length > 0;
+  for (var i = 0; i < report.stations.length; i++) {
+    var row = report.stations[i];
+    body.appendChild(h('tr', null,
+      h('td', null, row.alias),
+      h('td', null, String(row.cost.pages)),
+      h('td', null, row.cost.human_minutes + ' min'),
+      h('td', null, row.cost.denied + ' / ' + row.cost.decided)));
+  }
+  renderSpark(report.series);
+}
+
+/** One bar per hour. A gap is a fact, so empty hours stay drawn. */
+function renderSpark(series) {
+  var box = $('attention-spark');
+  clearNode(box);
+  var peak = 0;
+  for (var i = 0; i < series.length; i++) peak = Math.max(peak, series[i].pages);
+  for (var j = 0; j < series.length; j++) {
+    var bucket = series[j];
+    var ratio = peak > 0 ? bucket.pages / peak : 0;
+    box.appendChild(h('span', {
+      class: 'spark-bar',
+      title: fmtClock(bucket.at) + ' — ' + bucket.pages + ' pages, ' + Math.round(bucket.human_ms / 60000) + ' min',
+      style: 'height:' + Math.max(2, Math.round(ratio * 100)) + '%',
+    }, null));
+  }
+}
+
 function renderSources(sources, now) {
   var body = $('sources-list');
   clearNode(body);

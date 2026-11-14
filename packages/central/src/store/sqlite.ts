@@ -4,9 +4,10 @@
  * (BIP-P-04 relies on it). No SQL here ever carries a page payload.
  */
 import type { DatabaseSync } from 'node:sqlite';
-import type { AuditEvent, AuditEventType, Metrics } from '@bipeur/core';
+import type { AttentionSample, AuditEvent, AuditEventType, Metrics } from '@bipeur/core';
 import { openDatabase } from './schema.js';
 import { computeMetrics } from './metrics.js';
+import * as attentionSql from './attention-sql.js';
 import * as delegationSql from './delegations.js';
 import * as eventSql from './event-sql.js';
 import * as pageSql from './page-sql.js';
@@ -467,6 +468,14 @@ export class SqliteStore implements Store {
       code: Number(row['code'] ?? 0),
       visitor_id: row['visitor_id'] === null || row['visitor_id'] === undefined ? null : String(row['visitor_id']),
     }));
+  }
+
+  attentionSamples(sourceId: string | null, since: number | null): AttentionSample[] {
+    return attentionSql.attentionSamples(this.db, sourceId, since);
+  }
+
+  stationsWithPages(): Array<{ id: string; alias: string }> {
+    return attentionSql.stationsWithPages(this.db);
   }
 
   metrics(): Metrics {
