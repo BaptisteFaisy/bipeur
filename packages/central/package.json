@@ -25,7 +25,8 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
     "start": "node --enable-source-maps dist/bin.js",
-    "dev": "tsx watch src/bin.ts"
+    "dev": "tsx watch src/bin.ts",
+    "sandbox:board": "tsx src/tools/sandbox-board.ts"
   },
   "dependencies": {
     "@bipeur/core": "workspace:*",
