@@ -54,6 +54,7 @@ function features(): Feature[] {
   return [
     { title: 'Open the pager', text: 'The installable PWA: 4 rows × 20 columns, three keys, a risk lamp.', cta: 'Launch →', href: 'app/' },
     { title: 'Live demo', text: 'The Central simulator plays three fictional agents: an isolated space per visitor, no account, wiped after 24 h.', cta: 'Try it →', href: 'app/?screen=demo' },
+    { title: 'Jailbreak the pager', text: 'Ten attempts at getting `rm -rf /`, a hidden `--force` or a reflex tap approved — every answer is the real output of the real simulator. Sandbox, not a demo: no page is created.', cta: 'Play →', href: 'sandbox/' },
     { title: 'Dashboard', text: 'Stations, queue with hold reasons, audit, metrics and the rules bench — the live Central, framed inside this site.', cta: 'Open →', href: 'dashboard/' },
     { title: 'Documentation', text: 'Architecture, deployment, SNPP, threat model, operations.', cta: 'Read →', href: 'docs/' },
   ];

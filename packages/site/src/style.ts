@@ -74,6 +74,27 @@ footer { margin-top: 4rem; padding-top: 1.2rem; border-top: 1px solid var(--line
 .dashboard-frame { flex: 1; width: 100%; border: 0; background: var(--bg); }
 .dashboard-note { margin: 0.7rem auto 1rem; color: var(--muted); font-size: 0.85rem; }
 
+/* ---------- sandbox (BIP-F-49) ---------- */
+
+.attempts { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.9rem; }
+.attempt h3 { margin: 0 0 0.5rem; }
+.attempt .typed { margin: 0 0 0.4rem; font-size: 1.02rem; }
+.attempt .typed code { background: #100e0c; border: 1px solid var(--line); border-radius: 4px; padding: 0.1rem 0.4rem; color: var(--ink); }
+.attempt .line { margin: 0.6rem 0; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+.verdict { margin: 0.5rem 0 0.3rem; font-weight: 700; }
+.verdict-blocked { color: var(--red); }
+.verdict-paged { color: var(--amber); }
+.verdict-silent { color: var(--green); text-decoration: underline wavy; }
+.guard { border-left: 3px solid var(--line); padding-left: 0.7rem; color: var(--muted); font-size: 0.9rem; }
+details { margin-top: 0.6rem; }
+summary { cursor: pointer; color: var(--accent); }
+pre.screens { background: #100e0c; border: 1px solid var(--line); border-radius: 6px; padding: 0.7rem 0.9rem; margin: 0.6rem 0 0; white-space: pre-wrap; font-size: 0.86rem; color: var(--muted); }
+#probe-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0 0 0.7rem; }
+#probe-form label { flex-basis: 100%; font-weight: 700; color: var(--accent); }
+#probe-input { flex: 1 1 18rem; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); font-family: var(--mono); padding: 0.5rem 0.7rem; }
+#probe-form button { background: var(--panel); border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); font-family: var(--mono); font-weight: 700; padding: 0.5rem 1rem; cursor: pointer; }
+
 /* ---------- docs ---------- */
 
 .docs-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 1.5rem; padding: 1.2rem 0; border-bottom: 1px solid var(--line); }

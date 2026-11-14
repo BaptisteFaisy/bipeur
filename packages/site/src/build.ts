@@ -13,6 +13,7 @@ import { readEnvConfig, type SiteConfig } from './config.js';
 import { renderDashboard } from './dashboard.js';
 import { collectDocs, renderDocPage, renderDocsIndex } from './docs.js';
 import { renderLanding } from './landing.js';
+import { renderSandbox } from './sandbox.js';
 import { siteCss } from './style.js';
 
 export async function buildSite(config: SiteConfig): Promise<string[]> {
@@ -29,6 +30,10 @@ export async function buildSite(config: SiteConfig): Promise<string[]> {
   );
   written.push(
     await write(join(config.outDir, 'dashboard', 'index.html'), renderDashboard(config)),
+  );
+  // BIP-F-49: the public sandbox, one level of its own so `…/bipeur/sandbox/` is stable.
+  written.push(
+    await write(join(config.outDir, 'sandbox', 'index.html'), renderSandbox(config)),
   );
   written.push(...(await writeDocs(docsDir, config.outDir)));
   return written;

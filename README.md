@@ -40,6 +40,7 @@ Built for [Kiroween 2026](https://kiroween.devpost.com/) — **Resurrection** tr
 | **Shadow mode** | Intercept, display, **simulate** the agreement, never block: every page is composed, routed and shown, the agent gets a verdict marked `simulated: true`, and no row enters `decisions` — so the metrics of A.3 stay what a human did. The score (`GET /v1/shadow`) is read back from the journal, so a restart does not lose it. Flipped live, journalled as `shadow.toggled`. See [`docs/SHADOW.md`](docs/SHADOW.md). |
 
 | **Anti-rubber-stamping canary** | A device whose median of the ten latest decision times falls under 1,500 ms gets a canary page. The LCD says why; a tap no longer works; a one-second hold is included in the ECDSA signature and verified by the Central, so a script cannot tap through. The median is device-local, not page-risk-local; a deliberate hold lifts it by itself. See [`docs/CANARY.md`](docs/CANARY.md). |
+| **Public sandbox** | [Try to break it](https://tradoooo.github.io/bipeur/sandbox/): ten attempts at getting `rm -rf /`, a hidden `--force` or a reflex tap approved, each answered by the real simulator with the real composed line. Blocked / paged / **silent** — and the artifact a test keeps in step with the rules, so nothing published can drift. No page, no audit event, no budget spent. See [`docs/SANDBOX.md`](docs/SANDBOX.md). |
 | **Crew app** | Relays Kiro Crew approval events to the pager and resolves them from a signed decision. |
 | **Dashboard** | \`/dashboard\` on the Central: active stations (with one-click revocation), the pending queue and *why* a page is held, the filterable audit history, the metrics of A.3, and a rules bench that shows the line a command would produce **without** paging anyone. |
 
@@ -150,6 +151,11 @@ Open the pager in a second tab or scan the QR code with your phone.
   (nothing leaves the site), and the demo is one click away
   ([/bipeur/app/?screen=demo](https://tradoooo.github.io/bipeur/app/?screen=demo)).
   It talks to the Central below.
+- **<https://tradoooo.github.io/bipeur/sandbox/>** — the *jailbreak the pager*
+  sandbox: one minute on what Beeper is, then ten attempts at making it approve
+  something it should not, with the simulator's real answer for each, and a box
+  to type your own command. Static, isolated, no page created — see
+  [`docs/SANDBOX.md`](docs/SANDBOX.md).
 - <https://r630-debian.tail3a8bdf.ts.net/> — the Central itself (demo mode on by
   default, no account, an isolated space per visitor wiped after 24 h), which
   also serves the pager on the same origin. The operator dashboard lives at

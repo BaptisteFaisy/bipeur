@@ -23,6 +23,7 @@ import { registerPageRoutes } from './routes/pages.js';
 import { registerPublicPageRoute } from './routes/public-page.js';
 import { registerReplayRoutes } from './routes/replay.js';
 import { registerRotaRoutes } from './routes/rotas.js';
+import { registerSandboxRoutes } from './routes/sandbox.js';
 import { registerTransparencyRoutes } from './routes/transparency.js';
 import type { Simulator } from './simulator.js';
 import { fallbackPage, servePager } from './static.js';
@@ -96,6 +97,8 @@ function registerRoutes(app: Hono, deps: RouteDeps): void {
   registerReplayRoutes(app, { ctx, stationLimiter: limiters.station });
   registerTransparencyRoutes(app, { ctx, stationLimiter: limiters.station });
   registerDemoRoutes(app, { ctx, simulator, limiter: limiters.pair });
+  // BIP-F-49: the public sandbox — read-only, side-effect-free, stranger-facing.
+  registerSandboxRoutes(app, { ctx, limiter: limiters.pair });
 
   // BIP-F-30: the dashboard lives on /dashboard only — / keeps serving the pager.
   registerDashboardUi(app);
