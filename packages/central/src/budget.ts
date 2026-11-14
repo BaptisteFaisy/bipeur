@@ -43,6 +43,23 @@ export const OPERATOR_SCOPE = '';
  * while the window is full (a receipt, a group member, a red page), or the
  * window is tight enough that one more page matters.
  */
+/**
+ * Inserts the projection note BEFORE the agent's own words.
+ *
+ * The honesty rule (A.6) puts the agent's prose on the LAST screen, behind
+ * the `AGENT SAYS:` label. Appending the note at the end pushed that prose
+ * out of last place — the last thing a human read would no longer be the
+ * agent's words, and the screen order the product documents no longer held.
+ * The note is a Central fact, so it belongs with the facts: before.
+ */
+function withProjection(detail: readonly string[], note: string): string[] {
+  const proseAt = detail.findIndex((screen) => screen.startsWith('AGENT SAYS:'));
+  if (proseAt < 0) return [...detail, note].slice(0, 12);
+  const screens = [...detail];
+  screens.splice(proseAt, 0, note);
+  return screens.slice(0, 12);
+}
+
 function worthSaying(projection: BudgetProjection): boolean {
   if (projection.cost === 0) return true;
   return projection.in_use > 0 || projection.would_be_held;
@@ -209,7 +226,7 @@ export class DeliveryGate {
     // way.
     const projection = this.projection(page, now);
     const detail = worthSaying(projection)
-      ? [...page.detail, projectionNote(projection)].slice(0, 12)
+      ? withProjection(page.detail, projectionNote(projection))
       : page.detail;
     this.scopes.forScope(scopeOf(page.visitor_id)).record(page.risk, page.code, now);
     const outcome = applyPageState(this.ctx, page, 'delivered', now, { delivered_at: now, detail });
