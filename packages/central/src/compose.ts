@@ -47,6 +47,11 @@ export function factsOf(request: CreatePageRequest): Record<string, unknown> {
       cwd: request.cwd,
       branch: request.branch,
       stats: request.stats,
+      // The diff and the group are facts, not prose: the fingerprint covers
+      // them, so a decision signed on one diff cannot be replayed on another
+      // (BIP-F-40, BIP-F-47).
+      diff: request.diff,
+      group: request.group,
     };
   }
   return { kind: 'question', question: request.question, options: request.options };
