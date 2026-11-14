@@ -93,6 +93,19 @@ export const DASHBOARD_HTML = `<!doctype html>
     <p id="rota-empty" data-testid="rota-empty" class="empty" hidden>No rota. Paging one person stays the default.</p>
   </section>
 
+  <section aria-labelledby="replay-h" data-testid="replay-panel" class="card wide">
+    <h2 id="replay-h">Post-mortem replay <span class="sub">(BIP-F-46)</span></h2>
+    <p class="hint">Paste a page id to see <strong>exactly the screens the pager showed</strong> —
+      the stored line and the stored detail screens, not a recomposition from today's rules.</p>
+    <form data-testid="replay-form" class="bench">
+      <label for="replay-page">Page id</label>
+      <input id="replay-page" data-testid="replay-page" name="page" placeholder="pg_…" autocomplete="off" spellcheck="false">
+      <button type="submit" data-testid="replay-go">Replay</button>
+    </form>
+    <pre id="replay-out" data-testid="replay-out" class="replay" hidden></pre>
+    <p id="replay-empty" data-testid="replay-empty" class="empty">No page pasted yet.</p>
+  </section>
+
   <section aria-labelledby="audit-h" data-testid="audit-panel" class="card wide">
     <h2 id="audit-h">Audit history</h2>
     <div class="filters">

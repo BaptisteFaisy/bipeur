@@ -168,6 +168,8 @@ export interface EventFilter {
   limit: number;
   type?: AuditEventType | null;
   sourceId?: string | null;
+  /** Only the events of one page — the replay reads its own creation event. */
+  pageId?: string | null;
   offset?: number;
 }
 

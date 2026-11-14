@@ -21,6 +21,7 @@ import { registerHeartbeatRoute } from './routes/heartbeat.js';
 import { registerPushConfigRoute } from './push.js';
 import { registerPageRoutes } from './routes/pages.js';
 import { registerPublicPageRoute } from './routes/public-page.js';
+import { registerReplayRoutes } from './routes/replay.js';
 import { registerRotaRoutes } from './routes/rotas.js';
 import { registerTransparencyRoutes } from './routes/transparency.js';
 import type { Simulator } from './simulator.js';
@@ -92,6 +93,7 @@ function registerRoutes(app: Hono, deps: RouteDeps): void {
   registerDashboardRoutes(app, { ctx, stationLimiter: limiters.station });
   registerDelegationRoutes(app, { ctx, stationLimiter: limiters.station });
   registerRotaRoutes(app, { ctx, stationLimiter: limiters.station });
+  registerReplayRoutes(app, { ctx, stationLimiter: limiters.station });
   registerTransparencyRoutes(app, { ctx, stationLimiter: limiters.station });
   registerDemoRoutes(app, { ctx, simulator, limiter: limiters.pair });
 

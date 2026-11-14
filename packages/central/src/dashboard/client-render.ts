@@ -185,6 +185,45 @@ function auditFacts(data) {
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
+/** BIP-F-46: the replay of a page, exactly as the pager showed it. */
+function onReplaySubmit(event) {
+  event.preventDefault();
+  var pageId = $('replay-page').value.trim();
+  var out = $('replay-out');
+  var empty = $('replay-empty');
+  if (!pageId) {
+    out.hidden = true;
+    empty.hidden = false;
+    empty.textContent = 'Paste a page id first.';
+    return;
+  }
+  api('/v1/pages/' + encodeURIComponent(pageId) + '/replay')
+    .then(function (replay) {
+      var lines = [
+        'line      ' + replay.line,
+        'state     ' + replay.state + '  status ' + replay.status + '  risk ' + replay.risk,
+        'code      ' + replay.code + (replay.truncated ? '  (the line was cut: ~)' : ''),
+        'created   ' + fmtClock(replay.created_at) + '  delivered ' + (replay.delivered_at === null ? '-' : fmtClock(replay.delivered_at)),
+        'read      ' + (replay.read_at === null ? '-' : fmtClock(replay.read_at)),
+        'decided   ' + (replay.decided_at === null ? '-' : fmtClock(replay.decided_at)) +
+          '  verdict ' + (replay.verdict === null ? '-' : replay.verdict) +
+          '  choice ' + (replay.choice === null ? '-' : replay.choice),
+        'fingerprint ' + replay.fingerprint,
+        '',
+        'detail screens, in the order the pager walked through them:',
+      ];
+      replay.screens.forEach(function (screen, index) { lines.push('  [' + (index + 1) + '] ' + screen); });
+      out.textContent = lines.join('\n');
+      out.hidden = false;
+      empty.hidden = true;
+    })
+    .catch(function (error) {
+      out.hidden = true;
+      empty.hidden = false;
+      empty.textContent = error.message || String(error);
+    });
+}
+
 function onDryRunSubmit(event) {
   event.preventDefault();
   var command = $('dryrun-input').value.trim();
