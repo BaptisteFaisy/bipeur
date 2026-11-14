@@ -63,7 +63,12 @@ function withProjection(detail: readonly string[], note: string): string[] {
 }
 
 function worthSaying(projection: BudgetProjection): boolean {
-  if (projection.cost === 0) return true;
+  // A free page (a receipt, a group member, a red page) is news only when the
+  // hour is SATURATED: getting through a full window is what deserves saying.
+  // Announcing "costs 0 of 6" on every red page is noise, and it takes a screen
+  // a page's own contract counts — the e2e scenario P3 walks to screen 4 for
+  // `AGENT SAYS:` and found the note instead.
+  if (projection.cost === 0) return projection.in_use >= projection.per_hour;
   return projection.in_use > 0 || projection.would_be_held;
 }
 
