@@ -143,6 +143,9 @@ table.list th { color: var(--ink-soft); font-size: 0.8rem; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+.replay { background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  padding: 0.6rem 0.7rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem;
+  color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; margin: 0.5rem 0 0; }
 .spark { display: flex; align-items: flex-end; gap: 2px; height: 44px; margin-top: 0.5rem; }
 .spark-bar { flex: 1 1 0; background: var(--accent); min-height: 2px; border-radius: 1px; }
 `;

@@ -26,6 +26,7 @@ describe('BIP-F-30 — the dashboard lives on /dashboard, the pager stays on /',
       'dashboard', 'metrics-panel', 'queue-panel', 'sources-panel',
       'rota-panel', 'rota-list', 'rota-empty',
       'attention-panel', 'attention-list', 'attention-empty', 'attention-spark',
+      'replay-panel', 'replay-form', 'replay-page', 'replay-out', 'replay-empty',
       'audit-panel', 'dryrun-panel', 'token-input', 'queue-empty',
     ]) {
       expect(page.text).toContain(`data-testid="${testid}"`);

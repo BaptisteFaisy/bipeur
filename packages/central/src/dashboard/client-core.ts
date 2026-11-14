@@ -169,6 +169,7 @@ function init() {
   $('audit-prev').addEventListener('click', function () { onAuditNav(-AUDIT_LIMIT); });
   $('audit-next').addEventListener('click', function () { onAuditNav(AUDIT_LIMIT); });
   $('dryrun-form').addEventListener('submit', onDryRunSubmit);
+  $('replay-form').addEventListener('submit', onReplaySubmit);
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) { stopPolling(); return; }
     refresh();

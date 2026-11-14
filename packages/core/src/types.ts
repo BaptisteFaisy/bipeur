@@ -174,8 +174,8 @@ export type AuditEventType =
   | 'page.shadowed'
   | 'page.canary'
   | 'transparency.checkpoint'
-  | 'page.grouped';
-
+  | 'page.grouped'
+  | 'page.replayed';
 export interface AuditEvent {
   ts: number;
   type: AuditEventType;

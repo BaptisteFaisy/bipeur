@@ -270,6 +270,10 @@ export class SqliteStore extends SqliteExtras implements Store {
       clauses.push('source_id = ?');
       params.push(options.sourceId);
     }
+    if (options.pageId) {
+      clauses.push('page_id = ?');
+      params.push(options.pageId);
+    }
     const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
     const offset = Math.max(0, options.offset ?? 0);
     const rows = this.db
