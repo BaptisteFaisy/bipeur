@@ -63,6 +63,26 @@ export const DASHBOARD_HTML = `<!doctype html>
     <p id="sources-empty" data-testid="sources-empty" class="empty" hidden>No station has paired yet.</p>
   </section>
 
+  <section aria-labelledby="attention-h" data-testid="attention-panel" class="card">
+    <h2 id="attention-h">Attention cost <span class="sub">(BIP-F-44, from the audit log)</span></h2>
+    <p class="counter" data-testid="attention-total">— minutes, — pages</p>
+    <dl class="metrics">
+      <div><dt>Human time</dt><dd data-testid="attention-human">—</dd>
+        <dd class="note">waited to read + time deciding, summed</dd></div>
+      <div><dt>Denial rate</dt><dd data-testid="attention-denial">—</dd></div>
+      <div><dt>Interruptions / hour</dt><dd data-testid="attention-rate">—</dd></div>
+      <div><dt>Median decision</dt><dd data-testid="attention-median">—</dd></div>
+      <div><dt>Read but never decided</dt><dd data-testid="attention-undecided">—</dd></div>
+    </dl>
+    <table class="list">
+      <thead><tr><th scope="col">Station</th><th scope="col">Pages</th>
+        <th scope="col">Human time</th><th scope="col">Denied</th></tr></thead>
+      <tbody id="attention-list" data-testid="attention-list"></tbody>
+    </table>
+    <p id="attention-empty" data-testid="attention-empty" class="empty" hidden>No page in this window.</p>
+    <div class="spark" data-testid="attention-spark" aria-label="Pages per hour, last 24 hours"></div>
+  </section>
+
   <section aria-labelledby="rota-h" data-testid="rota-panel" class="card">
     <h2 id="rota-h">On-call rotas <span class="sub">(BIP-F-37)</span></h2>
     <table class="list">

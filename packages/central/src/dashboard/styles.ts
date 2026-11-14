@@ -143,4 +143,6 @@ table.list th { color: var(--ink-soft); font-size: 0.8rem; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+.spark { display: flex; align-items: flex-end; gap: 2px; height: 44px; margin-top: 0.5rem; }
+.spark-bar { flex: 1 1 0; background: var(--accent); min-height: 2px; border-radius: 1px; }
 `;

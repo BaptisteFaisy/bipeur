@@ -2,6 +2,7 @@
 import type { AuditEventType } from '@bipeur/core';
 import type { Hono } from 'hono';
 import { authenticateStation } from '../api-auth.js';
+import { attentionReport } from '../attention.js';
 import { CENTRAL_VERSION } from '../config.js';
 import type { CentralContext } from '../context.js';
 import { json } from '../http-json.js';
@@ -40,6 +41,17 @@ export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
     // isolated budget (BIP-F-31), so summing them would exceed
     // `budget_per_hour` and misdescribe the human's budget (BIP-F-09).
     return json({ ...ctx.store.metrics(), budget_per_hour: ctx.gate.perHour, in_use: ctx.gate.inUse(ctx.clock()) });
+  });
+
+  // BIP-F-44: what the attention actually costs, per station and per hour.
+  // A dashboard is not something you scrape, so the numbers are on the wire.
+  app.get('/v1/metrics/attention', (c) => {
+    const auth = authenticateStation(ctx, stationLimiter, c);
+    if (!auth.ok) return auth.response;
+    const raw = c.req.query('hours');
+    const hours = raw === undefined ? 24 : Number.parseInt(raw, 10);
+    const window = Number.isFinite(hours) ? Math.min(168, Math.max(1, hours)) : 24;
+    return json(attentionReport(ctx.store, ctx.clock(), window));
   });
 
   app.get('/v1/notices', (c) => {

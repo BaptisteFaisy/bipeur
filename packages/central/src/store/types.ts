@@ -4,6 +4,7 @@
  * (BIP-N-02, BIP-P-12). Every state write goes through `transaction`.
  */
 import type {
+  AttentionSample,
   AuditEvent,
   AuditEventType,
   Metrics,
@@ -272,6 +273,14 @@ export interface Store {
   pageTargets(pageId: string): string[];
 
   recentDeliveries(since: number): DeliveryMark[];
+  /**
+   * The attention bill's raw material (BIP-F-44): one row per page, joined
+   * with its decision, oldest first. `sourceId` narrows to one station,
+   * `since` to a window; null means "everything".
+   */
+  attentionSamples(sourceId: string | null, since: number | null): AttentionSample[];
+  /** The stations that have pages, so the bill can be broken down per station. */
+  stationsWithPages(): Array<{ id: string; alias: string }>;
   metrics(): Metrics;
   close(): void;
 }

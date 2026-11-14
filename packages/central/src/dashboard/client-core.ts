@@ -112,6 +112,7 @@ function refresh() {
     api('/v1/pages?state=pending'),
     api('/v1/audit' + auditQuery()),
     api('/v1/rotas'),
+    api('/v1/metrics/attention'),
   ]).then(function (results) {
     clearError();
     renderMetrics(results[0]);
@@ -119,6 +120,7 @@ function refresh() {
     renderQueue(results[2].pages, now);
     renderAudit(results[3].events);
     renderRotas(results[4].rotas);
+    renderAttention(results[5]);
     setStatus('Updated ' + fmtClock(now) + ' — polling every ' + (POLL_MS / 1000) + ' s.');
   }).catch(function (error) {
     showError(error.message || String(error));
