@@ -41,6 +41,7 @@ Built for [Kiroween 2026](https://kiroween.devpost.com/) — **Resurrection** tr
 
 | **Anti-rubber-stamping canary** | A device whose median of the ten latest decision times falls under 1,500 ms gets a canary page. The LCD says why; a tap no longer works; a one-second hold is included in the ECDSA signature and verified by the Central, so a script cannot tap through. The median is device-local, not page-risk-local; a deliberate hold lifts it by itself. See [`docs/CANARY.md`](docs/CANARY.md). |
 | **Public sandbox** | [Try to break it](https://tradoooo.github.io/bipeur/sandbox/): ten attempts at getting `rm -rf /`, a hidden `--force` or a reflex tap approved, each answered by the real simulator with the real composed line. Blocked / paged / **silent** — and the artifact a test keeps in step with the rules, so nothing published can drift. No page, no audit event, no budget spent. See [`docs/SANDBOX.md`](docs/SANDBOX.md). |
+| **GitHub Action** | The door the agents actually deploy through: `uses: Tradoooo/bipeur/.github/actions/gate` pages the human with the command, the branch and the commit, waits for the signature, and **fails the job** on a refusal, an expiry, a shadow-mode simulation or an unreachable Central — one approval path, everything else is a no. `gate-pr` binds the decision to the **head SHA** of the pull request, so an approval cannot ride onto another commit. Plain JavaScript, no build, no dependency, no secret in the log. See [`docs/GITHUB-ACTION.md`](docs/GITHUB-ACTION.md). |
 | **Crew app** | Relays Kiro Crew approval events to the pager and resolves them from a signed decision. |
 | **Dashboard** | \`/dashboard\` on the Central: active stations (with one-click revocation), the pending queue and *why* a page is held, the filterable audit history, the metrics of A.3, and a rules bench that shows the line a command would produce **without** paging anyone. |
 
@@ -325,7 +326,7 @@ Beeper itself; the audit log supplies the numbers quoted in the video.
 Architecture, threat model, art direction, the SNPP shooting script and the video
 script live in `docs/ARCHITECTURE.md`, `docs/THREAT-MODEL.md`,
 `docs/ART-DIRECTION.md`, `docs/SNPP.md` and `docs/DEMO-SCRIPT.md`; the on-call
-rota is in `docs/ROTA.md`.
+rota is in `docs/ROTA.md` and the deploy gate in `docs/GITHUB-ACTION.md`.
 
 ## CI
 

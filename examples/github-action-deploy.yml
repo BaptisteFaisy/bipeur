@@ -1,0 +1,90 @@
+# BIP-F-48 — a release that cannot happen without a human on the pager.
+#
+# Copy this into your own repository and change three things: the ref of the
+# `uses:` lines, the Central URL variable, the station token secret. The step
+# after the gate runs only when the gate exited 0, and the gate exits 0 on one
+# answer only: a human approving this commit, on this pager.
+
+name: deploy-example
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Which service to roll'
+        required: true
+        type: choice
+        options: [web, api]
+      note:
+        description: 'What the agent wants to say about it (shown last, labelled AGENT SAYS)'
+        required: false
+        type: string
+
+# Least privilege: the gate needs no repository token at all. It talks to the
+# Central, and the Central is the only thing that can approve anything here.
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-example-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SERVICE: bipeur-${{ inputs.service }}
+
+jobs:
+  ship:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      # 1. Page the human. The command below is the fact on the pager; the
+      #    commit is in the page, so the signature only covers this commit.
+      - name: Page the human
+        id: gate
+        uses: Tradoooo/bipeur/.github/actions/gate@main
+        with:
+          url: ${{ vars.BIPEUR_CENTRAL_URL }}
+          token: ${{ secrets.BIPEUR_STATION_TOKEN }}
+          command: flyctl deploy --ha=false -a ${{ env.SERVICE }}
+          reason: ${{ inputs.note }}
+          timeout-minutes: 15
+          ttl-minutes: 15
+
+      # 2. The deploy. Identical to the command that was paged — a gate that
+      #    approves one command and runs another is a gate worth nothing.
+      - name: Deploy
+        run: flyctl deploy --ha=false -a "$SERVICE"
+
+      # 3. Close the loop (BIP-F-41): the pager that decided rings again with
+      #    what actually shipped. The token stays in an environment variable,
+      #    never in the command line.
+      - name: Report the closure
+        if: success()
+        env:
+          BIPEUR_URL: ${{ vars.BIPEUR_CENTRAL_URL }}
+          BIPEUR_PAGE_ID: ${{ steps.gate.outputs.page_id }}
+          # The token stays in an environment variable: never on the command
+          # line, where a failed curl would print it in the job log.
+          BIPEUR_TOKEN: ${{ secrets.BIPEUR_STATION_TOKEN }}
+        run: |
+          curl -sS -o /dev/null -w 'closure http %{http_code}\n' \
+            -X POST "$BIPEUR_URL/v1/closures" \
+            -H "authorization: Bearer $BIPEUR_TOKEN" \
+            -H 'content-type: application/json' \
+            -d "{\"page_id\":\"$BIPEUR_PAGE_ID\",\"summary\":\"deployed $SERVICE at $(git rev-parse --short HEAD)\"}"
+
+      - name: What the human decided
+        if: always()
+        run: |
+          echo "outcome=${{ steps.gate.outputs.outcome }}"
+          echo "status=${{ steps.gate.outputs.status }}"
+          echo "page=${{ steps.gate.outputs.page_id }}"
+          echo "line=${{ steps.gate.outputs.line }}"
+          echo "latency_ms=${{ steps.gate.outputs.latency_ms }}"
+          echo "why=${{ steps.gate.outputs.why }}"
