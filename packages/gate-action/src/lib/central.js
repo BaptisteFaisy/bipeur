@@ -77,37 +77,10 @@ export function requestOf(baseUrl, path, init) {
  *   secrets?: (string|null|undefined)[]}} options
  */
 export function createCentral(options) {
-  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   const base = options.url.replace(/\/+$/, '');
   const secrets = secretList([options.token, ...(options.secrets ?? [])]);
-
-  /** @param {string} path @param {RequestInit} init @param {number} timeoutMs */
-  async function send(method, path, init, timeoutMs) {
-    const controller = new AbortController();
-    const timer = (options.setTimeoutImpl ?? setTimeout)(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetchImpl(`${base}${path}`, {
-        method,
-        ...init,
-        headers: {
-          authorization: `Bearer ${options.token}`,
-          accept: 'application/json',
-          ...(init?.body ? { 'content-type': 'application/json' } : {}),
-        },
-        signal: controller.signal,
-      });
-      const text = await response.text().catch(() => '');
-      if (!response.ok) {
-        throw new GateError(`the Central answered ${response.status}${suffixOf(text)}`);
-      }
-      return parseJson(text, path);
-    } catch (error) {
-      // The token is stripped from anything the network may have echoed back.
-      throw new GateError(redact(oneLine(messageOf(error)), secrets));
-    } finally {
-      (options.clearTimeoutImpl ?? clearTimeout)(timer);
-    }
-  }
+  const send = (method, path, init, timeoutMs) =>
+    sendOnce({ options, base, secrets, token: options.token }, method, path, init, timeoutMs);
 
   return {
     /** @param {Record<string, unknown>} body */
@@ -126,6 +99,46 @@ export function createCentral(options) {
       return send('DELETE', `/v1/pages/${encodeURIComponent(pageId)}`, undefined, SHORT_CALL_MS);
     },
   };
+}
+
+/**
+ * One call to the Central, with its own abort timer.
+ *
+ * Extracted from `createCentral` on 2026-11-14: nesting it made the factory a
+ * 51-line function, and the rule is a function under 50 lines. The behaviour is
+ * identical — same headers, same timer, same redaction of the token on every
+ * path, including the one where the network echoes it back.
+ *
+ * @param {{options: {fetchImpl?: typeof fetch, setTimeoutImpl?: typeof setTimeout,
+ *   clearTimeoutImpl?: typeof clearTimeout, token: string},
+ *   base: string, secrets: (string|null|undefined)[], token: string}} ctx
+ */
+async function sendOnce(ctx, method, path, init, timeoutMs) {
+  const fetchImpl = ctx.options.fetchImpl ?? globalThis.fetch;
+  const controller = new AbortController();
+  const timer = (ctx.options.setTimeoutImpl ?? setTimeout)(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(`${ctx.base}${path}`, {
+      method,
+      ...init,
+      headers: {
+        authorization: `Bearer ${ctx.token}`,
+        accept: 'application/json',
+        ...(init?.body ? { 'content-type': 'application/json' } : {}),
+      },
+      signal: controller.signal,
+    });
+    const text = await response.text().catch(() => '');
+    if (!response.ok) {
+      throw new GateError(`the Central answered ${response.status}${suffixOf(text)}`);
+    }
+    return parseJson(text, path);
+  } catch (error) {
+    // The token is stripped from anything the network may have echoed back.
+    throw new GateError(redact(oneLine(messageOf(error)), ctx.secrets));
+  } finally {
+    (ctx.options.clearTimeoutImpl ?? clearTimeout)(timer);
+  }
 }
 
 function unwrap(raw) {
