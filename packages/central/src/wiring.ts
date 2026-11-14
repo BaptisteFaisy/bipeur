@@ -12,6 +12,7 @@ import { EscalationSweeper } from './escalate.js';
 import { createPushSender } from './push.js';
 import { ReminderSweeper } from './remind.js';
 import { FileRules, type RulesProvider } from './rules.js';
+import { ShadowMode } from './shadow.js';
 import { Simulator } from './simulator.js';
 import { WsHub } from './stream.js';
 import type { Store } from './store/types.js';
@@ -42,6 +43,7 @@ export function wire(config: Config, store: Store): Wiring {
     hub,
     clock: config.now,
     gate: undefined as unknown as DeliveryGate,
+    shadow: new ShadowMode(config.shadowMode),
   };
   const policy: BudgetPolicy = { perHour: config.budgetPerHour, windowMs: HOUR };
   const gate = new DeliveryGate(ctx, policy, rules.current().quiet_hours ?? DEFAULT_QUIET_HOURS);

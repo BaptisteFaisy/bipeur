@@ -128,6 +128,12 @@ export const decisionStatusSchema = z.enum([
 
 export const waitResponseSchema = z.object({
   status: decisionStatusSchema,
+  /**
+   * BIP-F-42: true when the verdict came from shadow mode and no human decided.
+   * An adapter that ignores it and acts as if a person had approved is no
+   * longer protected by anything, and the log says which verdict it was handed.
+   */
+  simulated: z.boolean().optional(),
   page_id: z.string(),
   choice: z.string().nullable().optional(),
   reason: z.string().nullable().optional(),

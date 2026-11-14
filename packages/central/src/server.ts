@@ -20,6 +20,7 @@ import type { Simulator } from './simulator.js';
 import type { WsHub } from './stream.js';
 import { openStore } from './store/index.js';
 import type { Store } from './store/types.js';
+import type { ShadowMode } from './shadow.js';
 import { checkpoint, checkpointDue } from './transparency.js';
 import { ensureBootstrapSource, wire } from './wiring.js';
 
@@ -28,6 +29,8 @@ export interface CentralServer {
   store: Store;
   hub: WsHub;
   gate: DeliveryGate;
+  /** The shadow-mode switch (BIP-F-42): live, and readable by the dashboard. */
+  shadow: ShadowMode;
   audit: AuditLog;
   rules: RulesProvider;
   simulator: Simulator;
@@ -59,6 +62,7 @@ export async function createServer(config: Config): Promise<CentralServer> {
     store,
     hub,
     gate,
+    shadow: ctx.shadow,
     audit,
     rules,
     simulator,

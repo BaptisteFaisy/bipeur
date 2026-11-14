@@ -24,6 +24,7 @@ describe('BIP-F-05 — the state machine is enforced, not suggested', () => {
       hub: bench.central.hub,
       push: { kind: 'noop' as const, notify: () => undefined },
       gate: bench.central.gate,
+      shadow: bench.central.shadow,
       clock: bench.clock.now,
     };
     expect(page.state).toBe('delivered');

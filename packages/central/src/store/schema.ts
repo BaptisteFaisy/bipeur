@@ -57,6 +57,11 @@ CREATE TABLE IF NOT EXISTS pages (
   -- never rings: the leader carries the list and the group digest.
   group_key TEXT,
   group_leader_id TEXT
+
+  -- BIP-F-42: when shadow mode resolved this page without a human. It is NOT
+  -- a decision: no row goes into the decisions table, so the metrics of A.3
+  -- never count a simulated approval as a real one.
+  shadow_resolved_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS pages_group ON pages(group_key, state);
 CREATE INDEX IF NOT EXISTS pages_dedupe ON pages(source_id, dedupe_key, state);
@@ -203,6 +208,8 @@ function migrate(db: DatabaseSync): void {
   ensureColumn(db, 'pages', 'escalated_at', 'INTEGER');
   ensureColumn(db, 'pages', 'group_key', 'TEXT');
   ensureColumn(db, 'pages', 'group_leader_id', 'TEXT');
+
+  ensureColumn(db, 'pages', 'shadow_resolved_at', 'INTEGER');
 }
 
 function ensureColumn(db: DatabaseSync, table: string, column: string, type: string): void {

@@ -178,6 +178,9 @@ function buildClosingPage(input: ClosingInput): PageRow {
     // be grouped with a question — and it never belongs to one.
     group_key: null,
     group_leader_id: null,
+    // BIP-F-42: a receipt is never simulated — it is the proof of a real
+    // decision, and shadow mode must never be able to stamp one.
+    shadow_resolved_at: null,
   };
 }
 

@@ -79,6 +79,13 @@ export interface PageRow {
   group_key: string | null;
   /** BIP-F-47: the leader this page hangs on; null when it IS the leader. */
   group_leader_id: string | null;
+
+  /**
+   * When shadow mode resolved this page (BIP-F-42), or null. A page carrying
+   * it was never decided by a human: the agent got a simulated verdict, and
+   * the audit says so on the wire instead of pretending otherwise.
+   */
+  shadow_resolved_at: number | null;
 }
 
 export interface DecisionRow {
@@ -202,6 +209,8 @@ export interface PagePatch {
   escalated_at?: number | null;
   group_key?: string | null;
   group_leader_id?: string | null;
+
+  shadow_resolved_at?: number | null;
 }
 
 /** `pending` is the union of the three non final states. */
