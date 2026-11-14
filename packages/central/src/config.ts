@@ -43,6 +43,12 @@ export interface Config {
    */
   corsOrigins: string[];
   sweepIntervalMs: number;
+  /**
+   * Where the published Merkle roots are appended (BIP-F-45). Null keeps the
+   * transparency internal to the database: the root is computed and served, but
+   * nothing leaves the machine, so nobody outside could catch a rewrite.
+   */
+  anchorPath: string | null;
   /** Injected clock: the domain logic never reads the wall clock itself. */
   now: () => number;
 }
@@ -63,6 +69,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     trustProxy: flagFrom(env.BIPEUR_TRUST_PROXY),
     corsOrigins: listFrom(env.BIPEUR_CORS_ORIGINS, ['https://tradoooo.github.io', 'https://baptistefaisy.github.io']),
     sweepIntervalMs: intFrom(env.BIPEUR_SWEEP_INTERVAL_MS, 1000, 0, 60_000),
+    anchorPath: env.BIPEUR_ANCHOR_PATH?.trim() ? resolve(env.BIPEUR_ANCHOR_PATH.trim()) : null,
     now: () => Date.now(),
   };
 }

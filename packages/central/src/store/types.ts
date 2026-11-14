@@ -151,6 +151,18 @@ export interface EventFilter {
   offset?: number;
 }
 
+/** One audit event with its append position (BIP-F-45: the position is a fact). */
+export interface EventRecord {
+  id: number;
+  event: AuditEvent;
+}
+
+/** How big the log is, and the id of its last event — 0/0 when it is empty. */
+export interface EventCount {
+  count: number;
+  lastId: number;
+}
+
 export interface PagePatch {
   state?: PageState;
   delivered_at?: number;
@@ -217,6 +229,11 @@ export interface Store {
   listEvents(options: EventFilter): AuditEvent[];
   countEvents(type: AuditEventType): number;
   purgeEventsBefore(cutoff: number): number;
+  /** Transparency reads (BIP-F-45): the log as an ordered, id-carrying sequence. */
+  eventCount(): EventCount;
+  eventById(id: number): EventRecord | null;
+  eventRange(afterId: number, limit: number): EventRecord[];
+  eventIndex(id: number): number | null;
 
   insertNotice(notice: NoticeRow): void;
   listNotices(limit: number): NoticeRow[];

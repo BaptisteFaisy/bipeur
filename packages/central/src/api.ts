@@ -21,6 +21,7 @@ import { registerPushConfigRoute } from './push.js';
 import { registerPageRoutes } from './routes/pages.js';
 import { registerPublicPageRoute } from './routes/public-page.js';
 import { registerRotaRoutes } from './routes/rotas.js';
+import { registerTransparencyRoutes } from './routes/transparency.js';
 import type { Simulator } from './simulator.js';
 import { fallbackPage, servePager } from './static.js';
 
@@ -80,6 +81,7 @@ export function createApi(deps: ApiDeps): Hono {
   registerDashboardRoutes(app, { ctx, stationLimiter });
   registerDelegationRoutes(app, { ctx, stationLimiter });
   registerRotaRoutes(app, { ctx, stationLimiter });
+  registerTransparencyRoutes(app, { ctx, stationLimiter });
   registerDemoRoutes(app, { ctx, simulator, limiter: pairLimiter });
 
   // BIP-F-30: the dashboard lives on /dashboard only — / keeps serving the pager.

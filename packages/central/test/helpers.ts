@@ -60,6 +60,7 @@ export function benchConfig(dir: string, clock: Clock, overrides: Partial<Config
     stationAlias: 'main',
     rateLimitPerMinute: 100_000,
     sweepIntervalMs: 0,
+    anchorPath: null,
     now: clock.now,
     ...overrides,
   };
