@@ -3,14 +3,12 @@
  * process, one file, so a write is a transaction and nothing is interleaved
  * (BIP-P-04 relies on it). No SQL here ever carries a page payload.
  */
-import type { DatabaseSync } from 'node:sqlite';
 import type { AttentionSample, AuditEvent, AuditEventType, Metrics } from '@bipeur/core';
 import { openDatabase } from './schema.js';
+import { SqliteExtras } from './sqlite-extras.js';
 import { computeMetrics } from './metrics.js';
 import * as attentionSql from './attention-sql.js';
-import * as closureSql from './closure-sql.js';
 import * as delegationSql from './delegations.js';
-import * as eventSql from './event-sql.js';
 import * as pageSql from './page-sql.js';
 import * as rotaSql from './rotas.js';
 import {
@@ -28,11 +26,8 @@ import {
 import type {
   DelegationRow,
   DeviceRow,
-  ClosureRow,
   DecisionRow,
   DeliveryMark,
-  EventCount,
-  EventRecord,
   EventFilter,
   NoticeRow,
   OncallShiftRow,
@@ -53,13 +48,12 @@ function isUniqueViolation(error: unknown): boolean {
 
 type SqlParam = string | number | null;
 
-export class SqliteStore implements Store {
+export class SqliteStore extends SqliteExtras implements Store {
   readonly path: string;
-  private readonly db: DatabaseSync;
 
   constructor(path: string) {
+    super(openDatabase(path));
     this.path = path;
-    this.db = openDatabase(path);
   }
 
   transaction<T>(fn: () => T): T {
@@ -294,24 +288,6 @@ export class SqliteStore implements Store {
     return Number(result.changes);
   }
 
-  // --- transparency reads (BIP-F-45) --------------------------------------
-
-  eventCount(): EventCount {
-    return eventSql.eventCount(this.db);
-  }
-
-  eventById(id: number): EventRecord | null {
-    return eventSql.eventById(this.db, id);
-  }
-
-  eventRange(afterId: number, limit: number): EventRecord[] {
-    return eventSql.eventRange(this.db, afterId, limit);
-  }
-
-  eventIndex(id: number): number | null {
-    return eventSql.eventIndex(this.db, id);
-  }
-
   // --- notices (journal de bord) -----------------------------------------
 
   insertNotice(notice: NoticeRow): void {
@@ -412,18 +388,6 @@ export class SqliteStore implements Store {
   }
 
   // --- rotas (BIP-F-37) ----------------------------------------------------
-
-  insertClosure(closure: ClosureRow): boolean {
-    return closureSql.insertClosure(this.db, closure);
-  }
-
-  closureByPage(pageId: string): ClosureRow | null {
-    return closureSql.closureByPage(this.db, pageId);
-  }
-
-  listClosures(sourceId: string | null, limit: number): ClosureRow[] {
-    return closureSql.listClosures(this.db, sourceId, limit);
-  }
 
   insertRota(rota: RotaRow): void {
     rotaSql.insertRota(this.db, rota);

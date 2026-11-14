@@ -174,6 +174,10 @@ function buildClosingPage(input: ClosingInput): PageRow {
     rota_id: null,
     escalation_level: 0,
     escalated_at: null,
+    // BIP-F-47: a receipt is its own block. It asks nothing, so it must never
+    // be grouped with a question — and it never belongs to one.
+    group_key: null,
+    group_leader_id: null,
   };
 }
 
