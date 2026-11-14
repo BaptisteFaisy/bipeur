@@ -39,7 +39,7 @@ export interface PagerApi {
   /** Read the passed line aloud, gated by the `speech` setting (BIP-N-07). */
   speak(text: string): void;
   updateSettings(patch: Partial<Settings>): void;
-  decide(verdict: Verdict, choice?: string | null): Promise<void>;
+  decide(verdict: Verdict, choice?: string | null, heldMs?: number): Promise<void>;
   retry(): Promise<void>;
   pair(code: string): Promise<void>;
   startDemo(): Promise<void>;

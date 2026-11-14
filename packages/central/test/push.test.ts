@@ -37,6 +37,8 @@ function pageRow(overrides: Partial<PageRow> = {}): PageRow {
     escalated_at: null,
     group_key: null,
     group_leader_id: null,
+
+    canary: false,
     reminders_sent: 0,
     shadow_resolved_at: null,
     ...overrides,

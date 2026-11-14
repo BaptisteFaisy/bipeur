@@ -116,6 +116,8 @@ export function toPageRow(row: SqlRow): PageRow {
     group_leader_id: textOrNull(row, 'group_leader_id'),
 
     shadow_resolved_at: numOrNull(row, 'shadow_resolved_at'),
+
+    canary: num(row, 'canary') === 1,
   };
 }
 

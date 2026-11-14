@@ -76,6 +76,12 @@ export const signedDecisionSchema = z.object({
   nonce: z.string().min(8).max(128),
   expires_at: z.number().int().positive(),
   device_id: z.string().min(1).max(64),
+  /**
+   * BIP-F-43: how long the human held the decision key. Signed, so a canary
+   * cannot be approved by a script that merely claims to have held. Absent on
+   * every other path: the Central requires it only on a canary.
+   */
+  held_ms: z.number().int().nonnegative().max(600_000).optional(),
   signature: z.string().min(8).max(512),
 });
 

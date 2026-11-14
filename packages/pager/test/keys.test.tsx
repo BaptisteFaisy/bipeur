@@ -138,3 +138,44 @@ describe('BIP-F-17 — approve, refuse, next, and A to D', () => {
     await ui.unmount();
   });
 });
+
+describe('BIP-F-43 — the canary guard', () => {
+  it('says why the tap stopped working, in the device language', async () => {
+    const ui = await mountPager({
+      pages: [makePage({ canary: true, risk: 'green', detail: ['CANARY: decided too fast lately (180 ms median, under 1500)'] })],
+    });
+    expect(ui.find('canary-hint').textContent).toContain('CANARY');
+    expect(ui.find('canary-hint').textContent).toContain('approvals were too fast');
+    await ui.unmount();
+  });
+
+  it('does not send a canary decision on a tap', async () => {
+    const ui = await mountPager({ pages: [makePage({ canary: true, risk: 'green' })] });
+    await press(ui.find('key-approve'));
+    await advance(HOLD_MS / 2);
+    expect(ui.client.sent).toHaveLength(0);
+    await ui.unmount();
+  });
+
+  it('signs the real hold duration on a canary, whatever its risk', async () => {
+    const ui = await mountPager({ pages: [makePage({ canary: true, risk: 'green' })] });
+    await pointer(ui.find('key-approve'), 'pointerdown');
+    await advance(HOLD_MS + 100);
+    await waitFor(() => ui.client.sent.length === 1);
+    expect(ui.client.sent[0]?.held_ms).toBeGreaterThanOrEqual(HOLD_MS);
+    expect(ui.client.sent[0]?.verdict).toBe('approve');
+    await ui.unmount();
+  });
+
+  it('does not offer one-tap choice buttons on a canary', async () => {
+    const ui = await mountPager({ pages: [makePage({ canary: true, risk: 'green', options: CHOICES })] });
+    expect(ui.query('key-choice-A')).toBeNull();
+    await ui.unmount();
+  });
+
+  it('keeps the one-tap choice buttons on an ordinary page', async () => {
+    const ui = await mountPager({ pages: [makePage({ risk: 'green', options: CHOICES })] });
+    expect(ui.find('key-choice-A')).toBeTruthy();
+    await ui.unmount();
+  });
+});

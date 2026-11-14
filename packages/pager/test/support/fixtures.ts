@@ -18,6 +18,7 @@ export interface PageFixture {
   detail?: string[];
   options?: PageOption[];
   callbackUrl?: string | null;
+  canary?: boolean;
   deliveredAt?: number;
 }
 
@@ -46,6 +47,7 @@ export function makePage(input: PageFixture = {}): PageRecord {
     expires_at: 9_999_999,
     dedupe_key: `dedupe-${input.id ?? 'pg_1'}`,
     callback_url: input.callbackUrl ?? null,
+    canary: input.canary ?? false,
   };
 }
 

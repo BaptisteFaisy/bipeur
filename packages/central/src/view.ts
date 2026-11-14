@@ -26,6 +26,14 @@ export type PageView = {
 
   /** True when the page was resolved by shadow mode, not by a human (BIP-F-42). */
   simulated: boolean;
+
+  /**
+   * BIP-F-43: the page demands the deliberate gesture (one second of
+   * press-and-hold) whatever its risk, because its reader has been approving
+   * too fast lately. A fact on the page, so the client cannot decide for
+   * itself to stop obeying.
+   */
+  canary: boolean;
 };
 
 export function pageView(page: PageRow): PageView {
@@ -48,6 +56,8 @@ export function pageView(page: PageRow): PageView {
     group_leader_id: page.group_leader_id,
 
     simulated: simulatedOf(page, null),
+
+    canary: page.canary,
   };
 }
 

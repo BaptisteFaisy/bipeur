@@ -56,12 +56,15 @@ CREATE TABLE IF NOT EXISTS pages (
   -- BIP-F-47: the group key, and the leader this page hangs on. A member page
   -- never rings: the leader carries the list and the group digest.
   group_key TEXT,
-  group_leader_id TEXT
-
+  group_leader_id TEXT,
   -- BIP-F-42: when shadow mode resolved this page without a human. It is NOT
   -- a decision: no row goes into the decisions table, so the metrics of A.3
   -- never count a simulated approval as a real one.
-  shadow_resolved_at INTEGER
+  shadow_resolved_at INTEGER,
+  -- BIP-F-43: a canary page. A fact on the page, carried on the wire: the
+  -- pager demands the deliberate gesture because the page says so, and a
+  -- client cannot decide for itself to stop obeying.
+  canary INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS pages_group ON pages(group_key, state);
 CREATE INDEX IF NOT EXISTS pages_dedupe ON pages(source_id, dedupe_key, state);
@@ -208,8 +211,8 @@ function migrate(db: DatabaseSync): void {
   ensureColumn(db, 'pages', 'escalated_at', 'INTEGER');
   ensureColumn(db, 'pages', 'group_key', 'TEXT');
   ensureColumn(db, 'pages', 'group_leader_id', 'TEXT');
-
   ensureColumn(db, 'pages', 'shadow_resolved_at', 'INTEGER');
+  ensureColumn(db, 'pages', 'canary', 'INTEGER NOT NULL DEFAULT 0');
 }
 
 function ensureColumn(db: DatabaseSync, table: string, column: string, type: string): void {

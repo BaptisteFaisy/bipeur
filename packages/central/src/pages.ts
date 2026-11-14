@@ -168,6 +168,10 @@ function buildPageRow(input: BuildInput): PageRow {
 
     // A page born normal: shadow mode may resolve it later, never before.
     shadow_resolved_at: null,
+
+    // A page born ordinary: the canary mark is applied at delivery, when the
+    // audience — and therefore the habit that matters — is known (BIP-F-43).
+    canary: false,
   };
 }
 

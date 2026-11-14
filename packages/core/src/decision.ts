@@ -17,7 +17,15 @@ export interface DecisionClaims {
   nonce: string;
   /** Epoch milliseconds after which the decision is refused (BIP-P-06). */
   expires_at: number;
+  /** The device id. */
   device_id: string;
+  /**
+   * The time the human deliberately held the decision key (BIP-F-43). It is
+   * part of the signature: a canary cannot be approved by a script that simply
+   * claims to have held. Optional for all the existing paths — the Central
+   * requires it only on a canary page, where `held_ms >= 1000`.
+   */
+  held_ms?: number;
 }
 
 /** The exact bytes that are signed. Never change the field order. */
@@ -31,6 +39,7 @@ export function decisionSigningString(claims: DecisionClaims): string {
     nonce: claims.nonce,
     expires_at: claims.expires_at,
     device_id: claims.device_id,
+    ...(claims.held_ms === undefined ? {} : { held_ms: claims.held_ms }),
   });
 }
 

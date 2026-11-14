@@ -86,6 +86,9 @@ export interface PageRow {
    * the audit says so on the wire instead of pretending otherwise.
    */
   shadow_resolved_at: number | null;
+
+  /** BIP-F-43: the page demands the deliberate gesture, whatever its risk. */
+  canary: boolean;
 }
 
 export interface DecisionRow {
@@ -211,6 +214,8 @@ export interface PagePatch {
   group_leader_id?: string | null;
 
   shadow_resolved_at?: number | null;
+
+  canary?: boolean;
 }
 
 /** `pending` is the union of the three non final states. */
@@ -330,6 +335,8 @@ export interface Store {
   pageTargets(pageId: string): string[];
 
   recentDeliveries(since: number): DeliveryMark[];
+  /** The device's own recent decision latencies, oldest first (BIP-F-43). */
+  decisionLatencies(deviceId: string): number[];
   /**
    * The attention bill's raw material (BIP-F-44): one row per page, joined
    * with its decision, oldest first. `sourceId` narrows to one station,
