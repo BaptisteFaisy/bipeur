@@ -14,6 +14,12 @@ export interface AdminRouteDeps {
 }
 
 export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
+  registerHealthAndAudit(app, deps);
+  registerMetricsAndNotices(app, deps);
+}
+
+/** Health and the audit window: the read side of the operator surface. */
+function registerHealthAndAudit(app: Hono, deps: AdminRouteDeps): void {
   const { ctx, stationLimiter } = deps;
 
   app.get('/healthz', (c) => c.json({ ok: true, version: CENTRAL_VERSION }));
@@ -33,6 +39,18 @@ export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
       }),
     });
   });
+
+  app.get('/v1/notices', (c) => {
+    const auth = authenticateStation(ctx, stationLimiter, c);
+    if (!auth.ok) return auth.response;
+    const limit = Number.parseInt(c.req.query('limit') ?? '50', 10);
+    return json({ notices: ctx.store.listNotices(Number.isFinite(limit) ? limit : 50) });
+  });
+}
+
+/** Metrics, the attention bill and the digest: the numbers side. */
+function registerMetricsAndNotices(app: Hono, deps: AdminRouteDeps): void {
+  const { ctx, stationLimiter } = deps;
 
   app.get('/v1/metrics', (c) => {
     const auth = authenticateStation(ctx, stationLimiter, c);
@@ -61,10 +79,4 @@ export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
     return json(attentionReport(ctx.store, ctx.clock(), window));
   });
 
-  app.get('/v1/notices', (c) => {
-    const auth = authenticateStation(ctx, stationLimiter, c);
-    if (!auth.ok) return auth.response;
-    const limit = Number.parseInt(c.req.query('limit') ?? '50', 10);
-    return json({ notices: ctx.store.listNotices(Number.isFinite(limit) ? limit : 50) });
-  });
 }
